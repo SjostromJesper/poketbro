@@ -145,6 +145,10 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
           capturing.value = { ball: event.ball, name: event.name, shakes: event.shakes, caught: event.caught }
           break
         case 'battle-end':
+          audio.music(null)
+          if (event.result === 'win') void audio.jingle('victory')
+          else if (event.result === 'caught') void audio.jingle('catch')
+          else if (event.result === 'lose') void audio.jingle('gameOver')
           result.value = event.result
           outcome.value = eng.outcome
           break

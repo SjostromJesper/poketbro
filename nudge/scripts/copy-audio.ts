@@ -14,6 +14,7 @@ const JUNKALA = 'sfx/The Essential Retro Video Game Sound Effects Collection [51
 const NINJA = 'ninja-adventure/Ninja Adventure - Asset Pack/Audio'
 const j = (path: string) => `${JUNKALA}/${path}`
 const n = (path: string) => `${NINJA}/${path}`
+const m = (path: string) => `music/${path}`
 
 /** public name (under public/assets/nudge/audio) -> source path under assets-raw. */
 export const AUDIO_SOURCES: Record<string, string> = {
@@ -51,6 +52,18 @@ export const AUDIO_SOURCES: Record<string, string> = {
   'sfx/ball-shake.wav': j('General Sounds/Buttons/sfx_sounds_button5.wav'),
   'sfx/ball-click.wav': j('General Sounds/Interactions/sfx_sounds_interaction20.wav'),
   'sfx/ball-break.wav': j('General Sounds/Weird Sounds/sfx_sound_shutdown2.wav'),
+  // --- Music loops (ogg, streamed). Chosen by mood: see DECISIONS.md.
+  'music/title.ogg': n('Musics/1 - Adventure Begin.ogg'),
+  'music/hemstad.ogg': m('jrpg2/Town1 - Home Town.ogg'),
+  'music/home.ogg': m('jrpg4/Calm1 - A Place I Call Home.ogg'),
+  'music/grusstad.ogg': m('jrpg2/Town2 - Where Time Stands Still.ogg'),
+  'music/route1.ogg': m('jrpg1/Exploration1 - Grasslands.ogg'),
+  'music/skogen.ogg': m('jrpg1/Exploration5 - Sneaking Around.ogg'),
+  'music/center.ogg': m('jrpg4/Calm3 - Peaceful Days.ogg'),
+  'music/gym.ogg': m('jrpg1/Exploration2 - Military Base.ogg'),
+  'music/battle-wild.ogg': m('jrpg5/Action3 - Preparing For Battle.ogg'),
+  'music/battle-trainer.ogg': n('Musics/17 - Fight.ogg'),
+  'music/battle-gym.ogg': m('jrpg5/Action1 - Encounter With The Witches.ogg'),
   // --- Jingles (short, ducking the music while they play)
   'jingles/level-up.wav': n('Jingles/LevelUp1.wav'),
   'jingles/victory.wav': n('Jingles/Success1.wav'),

@@ -3,6 +3,8 @@
 // `AudioBackend`, so the logic can be tested without a browser. Nothing in here ever throws because a file is missing.
 import { JINGLES, MUSIC, SFX, type JingleId, type MusicId, type SfxId, type SoundDef } from './audio-manifest'
 
+type MusicName = MusicId | (string & {})
+
 export interface AudioSettings {
   /** 0-1 */
   musicVolume: number
@@ -35,10 +37,12 @@ export interface AudioOptions {
   duckLevel?: number
   /** Fallback: a jingle never ducks the music for longer than this. */
   maxJingleMs?: number
+  /** Replaces the sound tables (tests). */
+  catalog?: { music?: Record<string, SoundDef> }
 }
 
 interface Track {
-  id: MusicId
+  id: MusicName
   def: SoundDef
   channel: MusicChannel
   /** 0-1 fade level on top of the volume settings. */
@@ -59,18 +63,20 @@ export class AudioManager {
   private current: Track | null = null
   private leaving: Track[] = []
   /** What should be playing once sound is unlocked (and what the game last asked for). */
-  private wanted: MusicId | null = null
+  private wanted: MusicName | null = null
   private duck = 1
   private duckCount = 0
   private ticker: ReturnType<typeof setInterval> | null = null
   private readonly fadeMs: number
   private readonly duckLevel: number
   private readonly maxJingleMs: number
+  private readonly music: Record<string, SoundDef>
 
   constructor(private readonly backend: AudioBackend, options: AudioOptions = {}) {
     this.fadeMs = options.fadeMs ?? 600
     this.duckLevel = options.duckLevel ?? 0.2
     this.maxJingleMs = options.maxJingleMs ?? 8000
+    this.music = options.catalog?.music ?? MUSIC
   }
 
   // ---------------------------------------------------------------------------
@@ -110,13 +116,13 @@ export class AudioManager {
   // ---------------------------------------------------------------------------
 
   /** Switches to another loop with a crossfade. `null` fades the music out. Asking for the track that already plays does nothing. */
-  playMusic(id: MusicId | null): void {
+  playMusic(id: MusicName | null): void {
     if (this.wanted === id) return
     this.wanted = id
     this.syncMusic()
   }
 
-  get musicId(): MusicId | null {
+  get musicId(): MusicName | null {
     return this.wanted
   }
 
@@ -128,7 +134,7 @@ export class AudioManager {
       this.leaving.push(this.current)
       this.current = null
     }
-    const def = id ? MUSIC[id] : undefined
+    const def = id ? this.music[id] : undefined
     if (id && def) {
       try {
         const channel = this.backend.createMusic(def.src)

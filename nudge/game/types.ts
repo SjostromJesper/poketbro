@@ -1,4 +1,5 @@
 // Types for the overworld: maps, entities and the world state. Pure TypeScript.
+import type { MusicId } from './audio-manifest'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
@@ -71,6 +72,8 @@ export interface MapDef {
   /** Key into the encounter tables (encounters.ts). */
   encounterTable?: string
   indoor?: boolean
+  /** Music loop id (see audio-manifest.ts) that plays on this map. */
+  music?: MusicId
 }
 
 export interface TrainerMon {

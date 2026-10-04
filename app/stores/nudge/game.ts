@@ -7,6 +7,7 @@ import { createPokemon, displayNameOf } from '~~/nudge/engine/pokemon'
 import { applyBattleOutcome, evolvePokemon, learnMove, type LevelUpInfo } from '~~/nudge/engine/progression'
 import { createRandomRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
+import { battleMusic, mapMusic } from '~~/nudge/game/music'
 import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
@@ -62,13 +63,22 @@ export const useGameStore = defineStore('nudgeGame', () => {
   // Starting a game
   // ---------------------------------------------------------------------------
 
+  /** The music of the map the player is on (null = silence). */
+  function playMapMusic() {
+    const w = world.world
+    audio.music(w ? mapMusic(w.state.mapId) : null)
+  }
+
   function install() {
     world.setHooks({
       onEncounter: startWildBattle,
       onTrainer: onTrainer,
       onAction: onAction,
       onStepsChanged: () => player.addSteps(1),
-      onMapChanged: () => save(true),
+      onMapChanged: () => {
+        playMapMusic()
+        save(true)
+      },
     })
   }
 
@@ -110,6 +120,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   function newGame(state: WorldState = newWorldState()) {
     player.reset()
     world.start(state)
+    playMapMusic()
     screen.value = 'overworld'
     overlay.value = null
     queue = []
@@ -120,6 +131,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   /** Resumes with already-loaded player/world state (used by loading a save). */
   function resume(state: WorldState) {
     world.start(state)
+    playMapMusic()
     screen.value = 'overworld'
     overlay.value = null
     queue = []
@@ -168,6 +180,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     })
     player.addPokemon(pokemon)
     player.addItem('poke-ball', STARTER_BALLS)
+    void audio.jingle('item')
     w.setFlag('starter')
     overlay.value = null
     world.setBusy(false)
@@ -232,6 +245,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     context = ctx
     screen.value = 'transition'
     audio.sfx('encounter')
+    audio.music(battleMusic(ctx.kind, ctx.trainer))
     setTimeout(() => {
       battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length })
       screen.value = 'battle'
@@ -245,6 +259,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     const ctx = context
     context = null
     queue = []
+    playMapMusic()
     if (outcome) buildPostBattle(outcome, ctx)
     autosaveAfterQueue = true
     runQueue()
@@ -268,6 +283,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
           player.money -= lost
           w?.blackout()
           world.teleport(w!.state.mapId, w!.state.x, w!.state.y, 'down')
+          playMapMusic()
           player.healAll(false)
           world.clearTrainer()
           queue.unshift({ type: 'dialog', lines: [`Du tappade ${lost} kr på vägen.`, 'Du vaknar upp igen, och dina Pokémon har blivit läkta.'] })

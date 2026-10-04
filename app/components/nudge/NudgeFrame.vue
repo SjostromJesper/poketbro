@@ -41,7 +41,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', onPointerDown, true)
   window.removeEventListener('keydown', onKeyDown, true)
   window.removeEventListener('click', onClick, true)
-  audio.stopAll()
+  // Another Nudge page sets its own music right away; only silence the game when we really leave it.
+  setTimeout(() => {
+    if (!document.querySelector('.nudge-frame')) audio.stopAll()
+  }, 50)
 })
 
 // Full-screen pixel-style frame for every Nudge page. Pulls the pixel fonts from Google Fonts (falls back to monospace offline).

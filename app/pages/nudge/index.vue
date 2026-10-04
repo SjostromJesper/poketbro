@@ -5,12 +5,14 @@ import { gameData } from '~~/nudge/data'
 import type { SaveSummary } from '~~/nudge/game/save'
 import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
 import SettingsPanel from '~/components/nudge/menu/SettingsPanel.vue'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { useGameStore } from '~/stores/nudge/game'
 import { useSettingsStore } from '~/stores/nudge/settings'
 
 const router = useRouter()
 const game = useGameStore()
 const settings = useSettingsStore()
+const audio = useAudioStore()
 
 const audioReady = ref(false)
 const summary = ref<SaveSummary | null>(null)
@@ -25,6 +27,7 @@ function onFirstInput() {
 
 onMounted(() => {
   settings.load()
+  audio.music('title')
   refresh()
   window.addEventListener('pointerdown', onFirstInput, true)
   window.addEventListener('keydown', onFirstInput, true)

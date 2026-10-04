@@ -4,6 +4,7 @@ import type { MapDef } from '../types'
 export const route1: MapDef = {
   id: 'route1',
   name: 'Väg 1',
+  music: 'route1',
   encounterTable: 'route1',
   tiles: [
     '######==######',

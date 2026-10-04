@@ -302,3 +302,30 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Overworld / game.** Wall bump (throttled to every 350 ms), door/warp, encounter alert at battle start, coins for a trainer prize and selling, buy sound, level-up and evolution and heal and badge and favorite jingles.
 - **Cries.** `fetch-data.ts` stores `cry` (PokeAPI `cries.legacy`, `latest` as fallback) per species; the sounds are loaded from raw.githubusercontent.com at runtime exactly like the sprites (it sends CORS headers). Played on
   send-out, on faint at pitch 0.7, and when a summary screen opens.
+
+## P2-M3: music
+
+- **`MapDef.music`** (a key in `MUSIC` in `audio-manifest.ts`). The game store plays the map's loop on start/continue, on every map change and after a battle (`playMapMusic`, also after a blackout teleport); `nudge/game/music.ts`
+  holds the pure picks (`mapMusic`, `battleMusic`) and `music.test.ts` checks that every map has an existing track.
+- **Tracks** (chosen by mood from the descriptions and file names, I cannot listen; all loops are `.ogg`, copied by `npm run copy-audio` into `public/assets/nudge/audio/music/`, about 28 MB in all):
+
+  | Where | Track | Pack |
+  | --- | --- | --- |
+  | Title screen | Adventure Begin | Ninja Adventure |
+  | Hemstad | Town1 - Home Town | Junkala JRPG 2 (Towns) |
+  | Ditt hem, Professorns labb | Calm1 - A Place I Call Home | Junkala JRPG 4 (Calm) |
+  | Väg 1 | Exploration1 - Grasslands | Junkala JRPG 1 (Exploration) |
+  | Viridianskogen | Exploration5 - Sneaking Around | Junkala JRPG 1 |
+  | Grusstad | Town2 - Where Time Stands Still | Junkala JRPG 2 |
+  | Pokémon Center, Pokémart | Calm3 - Peaceful Days | Junkala JRPG 4 |
+  | Grusstads gym | Exploration2 - Military Base | Junkala JRPG 1 |
+  | Wild battle | Action3 - Preparing For Battle | Junkala JRPG 5 (Action) |
+  | Trainer battle | 17 - Fight | Ninja Adventure |
+  | Gym leader battle | Action1 - Encounter With The Witches | Junkala JRPG 5 |
+
+  The chiptune pack (`chiptunes/*.wav`) is not used: the files are 8-14 MB uncompressed and there is no tool here to convert them. Heavy tracks (Town3 4.5 MB, Town4 4 MB, Action2 4.4 MB) were skipped to keep the repo smaller.
+- **Battle flow.** Battle music starts when the battle transition starts (`wild` / `trainer` / `gym` if the trainer has `gym`). On `battle-end` the loop fades out and a jingle plays (victory = win, catch = caught, game over = lose;
+  fleeing is silent); the map music fades back in when the player presses "Fortsätt". Other jingles: heal (Pokémon Center), badge, level-up, evolution, favorite, item (taking the starter and balls).
+- **Pages.** The title screen asks for `title` (it starts at the first click), the dev battle page uses the battle loops. `NudgeFrame` silences everything only when the player leaves Nudge altogether (a short timeout lets the
+  next Nudge page ask for its own music first, so title -> game is a crossfade).
+- **`AudioManager`** got a `catalog` option so the tests can use their own tracks.

@@ -3,6 +3,7 @@ import type { MapDef } from '../types'
 export const proflab: MapDef = {
   id: 'proflab',
   name: 'Professorns labb',
+  music: 'home',
   indoor: true,
   tiles: [
     '##########',

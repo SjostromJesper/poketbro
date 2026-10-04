@@ -3,6 +3,7 @@ import type { MapDef } from '../types'
 export const grussMart: MapDef = {
   id: 'gruss_mart',
   name: 'Pokémart',
+  music: 'center',
   indoor: true,
   tiles: [
     '##########',

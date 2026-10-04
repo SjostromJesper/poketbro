@@ -4,6 +4,7 @@ import type { MapDef } from '../types'
 export const hemstad: MapDef = {
   id: 'hemstad',
   name: 'Hemstad',
+  music: 'hemstad',
   tiles: [
     '#########==#########',
     '#.RRRR...==..RRRRRR#',

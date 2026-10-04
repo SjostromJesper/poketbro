@@ -3,6 +3,7 @@ import type { MapDef } from '../types'
 export const hemhus: MapDef = {
   id: 'hemhus',
   name: 'Ditt hem',
+  music: 'home',
   indoor: true,
   tiles: [
     '########',

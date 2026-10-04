@@ -37,12 +37,10 @@ describe('AudioManager', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    Object.assign(MUSIC, TRACKS)
     backend = new FakeBackend()
-    audio = new AudioManager(backend, { fadeMs: 600, duckLevel: 0.2 })
+    audio = new AudioManager(backend, { fadeMs: 600, duckLevel: 0.2, catalog: { music: TRACKS } })
   })
   afterEach(() => {
-    for (const key of Object.keys(TRACKS)) delete MUSIC[key]
     audio.stopAll()
     vi.useRealTimers()
   })

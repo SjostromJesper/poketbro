@@ -63,7 +63,21 @@ export const JINGLES = {
 
 export type JingleId = keyof typeof JINGLES
 
-/** Looping music tracks (filled in by the music milestone). */
-export const MUSIC: Record<string, SoundDef> = {}
+const music = (name: string, volume = 1): SoundDef => ({ src: `/assets/nudge/audio/music/${name}.ogg`, volume })
 
-export type MusicId = string
+/** Looping music tracks (Juhani Junkala's JRPG packs and Ninja Adventure, all CC0). */
+export const MUSIC = {
+  title: music('title', 0.9),
+  hemstad: music('hemstad'),
+  home: music('home'),
+  grusstad: music('grusstad'),
+  route1: music('route1'),
+  skogen: music('skogen'),
+  center: music('center'),
+  gym: music('gym'),
+  battleWild: music('battle-wild'),
+  battleTrainer: music('battle-trainer'),
+  battleGym: music('battle-gym'),
+} as const satisfies Record<string, SoundDef>
+
+export type MusicId = keyof typeof MUSIC

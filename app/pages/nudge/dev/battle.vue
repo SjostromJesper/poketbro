@@ -9,6 +9,8 @@ import { createRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import BattleScene from '~/components/nudge/battle/BattleScene.vue'
 import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
+import { battleMusic } from '~~/nudge/game/music'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import { useSettingsStore } from '~/stores/nudge/settings'
 
@@ -25,6 +27,7 @@ interface Row {
 
 const route = useRoute()
 const store = useBattleStore()
+const audio = useAudioStore()
 const battle = store
 const settings = useSettingsStore()
 
@@ -119,6 +122,7 @@ function start() {
   // The engine mutates copies; keep our own party for applying the outcome afterwards.
   partySnapshot = JSON.parse(JSON.stringify(player)) as OwnedPokemon[]
   store.debug = debug.value
+  audio.music(battleMusic(kind.value))
   store.start({ player, enemy, kind: kind.value, badges: badges.value, seed })
   summary.value = []
   lastOutcome.value = null
