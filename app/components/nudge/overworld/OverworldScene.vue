@@ -6,14 +6,10 @@ import { useWorldStore } from '~/stores/nudge/world'
 import DialogBox from './DialogBox.vue'
 import { createPlaceholderRenderer, drawCharacter, drawExclamation, LOOKS, TILE, type TileRenderer } from './render'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   /** Optional tileset renderer; the built-in placeholder graphics are used when omitted. */
   renderer?: TileRenderer
-  /** Content for the pause menu (M6). */
-  menuTitle?: string
-}>(), { renderer: undefined, menuTitle: 'Meny' })
-
-const emit = defineEmits<{ (e: 'menu-action', action: string): void }>()
+}>()
 
 const store = useWorldStore()
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -154,18 +150,11 @@ defineExpose({ draw, directions: DIRECTIONS })
         <div v-if="bannerText" class="banner px-title">{{ bannerText }}</div>
       </Transition>
       <DialogBox v-if="store.dialog" :dialog="store.dialog" @advance="store.advanceDialog()" />
-      <div v-if="store.menuOpen" class="menu px-panel">
-        <h3 class="px-title">{{ menuTitle }}</h3>
-        <slot name="menu" :close="store.closeMenu">
-          <button type="button" class="px-btn" @click="store.closeMenu()">Fortsätt</button>
-        </slot>
-      </div>
       <slot name="overlay" />
     </div>
     <p class="help">
       Pilar/WASD: gå &middot; Shift: spring &middot; Mellanslag/Z/Enter: prata &middot; Esc/X: meny &middot; {{ mapName }}
     </p>
-    <span class="sr-only" @click="emit('menu-action', 'noop')" />
   </div>
 </template>
 
@@ -210,23 +199,6 @@ defineExpose({ draw, directions: DIRECTIONS })
 .banner-enter-active, .banner-leave-active { transition: opacity 0.4s, transform 0.4s; }
 .banner-enter-from, .banner-leave-to { opacity: 0; transform: translateY(-8px); }
 
-.menu {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 200px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 6;
-}
-
-.menu h3 {
-  margin: 0 0 4px;
-  font-size: 11px;
-}
-
 .help {
   margin: 0;
   font-size: 13px;
@@ -234,11 +206,4 @@ defineExpose({ draw, directions: DIRECTIONS })
   text-align: center;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
 </style>

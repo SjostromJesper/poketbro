@@ -7,7 +7,7 @@
 | M3 - Strids-UI | done |
 | M4 - Överkartan | done |
 | M5 - Kopplingen karta <-> strid | done |
-| M6 - Lag, items, relation | todo |
+| M6 - Lag, items, relation | done |
 | M7 - Gym, sparning, polish | todo |
 | M8 - Balans och avslut | todo |
 
@@ -58,3 +58,11 @@ Known issues: none.
 - Verified with headless Chrome screenshots (starter choice, wild battle launched from the map, shop).
 
 Known issues: none. The balance of XP/money/prices is untouched until M8.
+
+## M6 - Lag, items, relation
+- Menu with party screen (reorder, held items), summary screen (stats, nature as move preference, trait, trust hearts, moves with effects, habits) and bag
+  (healing items, feeding berries, giving held items, TMs with the forget-move dialog).
+- All trust sources from plan 4.2 are active; habits persist and influence the debug distribution.
+- 17 new tests (190 in total). Headless screenshots of the party and summary screens checked.
+
+Known issues: "Spara", "Inställningar" and "Titelskärm" in the menu do nothing until M7.

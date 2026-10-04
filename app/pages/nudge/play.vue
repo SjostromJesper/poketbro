@@ -58,6 +58,7 @@ onMounted(() => {
   if (q.balls) player.addItem('poke-ball', Number(q.balls))
   if (q.money) player.money = Number(q.money)
   if (q.badges) for (let i = 0; i < Number(q.badges); i++) player.badges.push(`dev-${i}`)
+  if (typeof q.menu === 'string') world.openMenu()
   if (q.open === 'starter') game.overlay = { kind: 'starter' }
   if (q.open === 'shop') game.overlay = { kind: 'shop', shopId: 'gruss_mart' }
   if (typeof q.encounter === 'string') {

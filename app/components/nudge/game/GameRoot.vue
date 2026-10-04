@@ -1,25 +1,36 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from '#imports'
 import BattleScene from '~/components/nudge/battle/BattleScene.vue'
 import OverworldScene from '~/components/nudge/overworld/OverworldScene.vue'
 import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import EvolutionScene from './EvolutionScene.vue'
 import Hud from './Hud.vue'
+import GameMenu from '~/components/nudge/menu/GameMenu.vue'
+import { useWorldStore } from '~/stores/nudge/world'
 import MoveReplaceDialog from './MoveReplaceDialog.vue'
 import ShopMenu from './ShopMenu.vue'
 import StarterSelect from './StarterSelect.vue'
 
 const game = useGameStore()
 const player = usePlayerStore()
+const world = useWorldStore()
 const overlay = computed(() => game.overlay)
+const route = useRoute()
+// Dev shortcut: /nudge/play?menu=party|bag|summary opens the menu on that screen (the play page opens the menu itself).
+const initialMenu = computed(() => {
+  const m = route.query.menu
+  return m === 'party' || m === 'bag' || m === 'summary' ? m : 'main'
+})
 </script>
 
 <template>
   <div class="game-root">
     <OverworldScene>
       <template #overlay>
-        <Hud v-if="player.party.length > 0" />
+        <Hud v-if="player.party.length > 0 && !world.menuOpen" />
+        <GameMenu v-if="world.menuOpen" :initial-screen="initialMenu" />
         <StarterSelect v-if="overlay?.kind === 'starter'" @choose="game.chooseStarter" />
         <ShopMenu v-else-if="overlay?.kind === 'shop'" :shop-id="overlay.shopId" @close="game.closeShop" />
         <MoveReplaceDialog v-else-if="overlay?.kind === 'learn'" :uid="overlay.uid" :move="overlay.move" @resolve="game.resolveLearn" />

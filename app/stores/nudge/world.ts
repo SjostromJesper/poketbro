@@ -69,6 +69,8 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
   let turnTimer = 0
   let fadePhase: null | { stage: 'out' | 'in', elapsed: number, warp?: Extract<Trigger, { type: 'warp' }>['warp'] } = null
   let hooks: WorldHooks = {}
+  /** Lets the open menu handle "back" itself (sub-screens) before the whole menu closes. Returns true when handled. */
+  let menuBack: (() => boolean) | null = null
   let approach: null | {
     id: string
     phase: 'alert' | 'walk'
@@ -82,6 +84,10 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
 
   function setHooks(next: WorldHooks) {
     hooks = next
+  }
+
+  function setMenuBack(handler: (() => boolean) | null) {
+    menuBack = handler
   }
 
   function start(state: WorldState = newWorldState(), seed = Math.floor(Math.random() * 0xFFFFFFFF)) {
@@ -154,7 +160,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
     if (mode.value === 'dialog') {
       advanceDialog()
     } else if (mode.value === 'menu') {
-      closeMenu()
+      if (!menuBack?.()) closeMenu()
     } else if (mode.value === 'walk' && !anim) {
       openMenu()
     }
@@ -414,7 +420,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
 
   return {
     world, mode, dialog, banner, menuOpen, visual,
-    setHooks, start, keyDown, keyUp, holdDirection, action, cancel, openMenu, closeMenu, openDialog, advanceDialog, update, teleport,
+    setHooks, setMenuBack, start, keyDown, keyUp, holdDirection, action, cancel, openMenu, closeMenu, openDialog, advanceDialog, update, teleport,
     clearTrainer, setBusy, beginApproach,
   }
 })

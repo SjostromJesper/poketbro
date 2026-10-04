@@ -168,3 +168,19 @@ where the auto-choice is already fine. Balance is revisited in M8.
 - **Tests.** `gameFlow.test.ts` drives the real stores in Node with fake timers and a seeded `Math.random`: starter from the professor, healing, shop opening,
   trust per steps, wild battle and XP, catching (party and box), level-up with the replace dialog, evolution (cancel and accept), a trainer that spots
   the player and walks up, the gym leader reward and a blackout.
+
+## Team, items, relation (M6)
+
+- **Menu** (Esc/X): Lag, Väska, Spara, Inställningar, Titelskärm, Stäng. Sub-screens fill the viewport; Esc/X steps back one level first (the world store lets the open
+  menu consume "back" via `setMenuBack`). Save/Settings/Title entries are wired in M7.
+- **Party screen:** reorder by drag and drop or with the arrow buttons; shows HP, status, trait, trust hearts and held item (with a "ta" link). The first Pokémon
+  that can fight leads in battle, and the next one in order takes over when it faints (engine behaviour from M2).
+- **Summary screen** is built from `nudge/game/summary.ts` (pure, tested): stats with nature markers, XP progress, 5 trust hearts (`ceil(trust / 255 * 5)`), trait with its
+  explanation, the nature expressed as a move preference ("Föredrar attacker (58 %), därefter stödmoves (21 %)"), held item, original trainer, moves with category,
+  power, accuracy, PP and Swedish effect lines, and habits ("Föredrar: Ember" once a move has >= 3 habit points).
+- **Bag screen:** tabs (Alla, Läkning, Bollar, Hålls, TM); Potion/Antidote/Paralyze Heal on a Pokémon (disabled when pointless), held items can be given (swapping
+  returns the old one to the bag), Oran Berry can also be *fed* (+5 trust, +10 HP), TMs are taught to compatible Pokémon (from the species' `machine` learnset) with a
+  forget-which dialog when all four slots are full. TMs are not consumed. Forgetting a move drops its habit.
+- **Trust sources** now all wired: +1 per 100 steps, +3 level up, +2 win (participated and standing), +1 Pokémon Center / Mum, +5 fed berry, +1 (x2 for Proud) for a followed
+  nudge in a won battle, -5 for fainting. "Bitter healing items" from the plan were not added.
+- **Habits** are saved in `OwnedPokemon.habits`, grow only in won battles and feed the choice algorithm (tested end to end: win -> habit -> summary "favourite" -> higher p_auto).
