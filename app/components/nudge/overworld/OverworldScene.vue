@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { DIRECTIONS } from '~~/nudge/game/types'
+import { DIRECTIONS, type Direction } from '~~/nudge/game/types'
+import { PLAYER_SPRITE, spriteFor } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { useWorldStore } from '~/stores/nudge/world'
 import DialogBox from './DialogBox.vue'
+import { drawSprite, preloadCharacters } from './characterRenderer'
 import { createNinjaRenderer } from './ninjaRenderer'
 import { createPlaceholderRenderer, drawCharacter, drawExclamation, LOOKS, TILE, type TileRenderer } from './render'
 
@@ -26,6 +28,13 @@ let last = 0
 
 const mapName = computed(() => store.world?.map.name ?? '')
 const bannerText = computed(() => store.banner?.text ?? '')
+
+/** Draws a character from its sprite sheet, or the placeholder figure while the sheet is loading (and for objects like the PC). */
+function actor(sprite: ReturnType<typeof spriteFor>, look: (typeof LOOKS)[keyof typeof LOOKS], facing: Direction, x: number, y: number, walk: number) {
+  const ctx = canvas.value!.getContext('2d')!
+  if (sprite && drawSprite(ctx, sprite, facing, x, y, walk)) return
+  drawCharacter(ctx, look, facing, x, y, walk)
+}
 
 function draw() {
   const el = canvas.value
@@ -62,7 +71,7 @@ function draw() {
   for (const npc of map.npcs) {
     drawables.push({
       y: npc.y,
-      draw: () => drawCharacter(ctx, LOOKS[npc.look], world.facingOf(npc.id, npc.facing), npc.x * TILE - camX, npc.y * TILE - camY, -1),
+      draw: () => actor(spriteFor(npc), LOOKS[npc.look], world.facingOf(npc.id, npc.facing), npc.x * TILE - camX, npc.y * TILE - camY, -1),
     })
   }
   for (const spot of map.trainers) {
@@ -73,9 +82,9 @@ function draw() {
     drawables.push({
       y: ty,
       draw: () => {
-        drawCharacter(
-          ctx, LOOKS[def?.look ?? 'boy'], world.facingOf(spot.id, spot.facing), Math.round(tx * TILE - camX), Math.round(ty * TILE - camY),
-          moved?.walking ? (v.time % 300) / 300 : -1,
+        actor(
+          def ? spriteFor(def) : spriteFor({ look: 'boy' }), LOOKS[def?.look ?? 'boy'], world.facingOf(spot.id, spot.facing),
+          Math.round(tx * TILE - camX), Math.round(ty * TILE - camY), moved?.walking ? (v.time % 300) / 300 : -1,
         )
         if (v.spotted?.id === spot.id) drawExclamation(ctx, Math.round(tx * TILE - camX), Math.round(ty * TILE - camY))
       },
@@ -83,7 +92,7 @@ function draw() {
   }
   drawables.push({
     y: v.y,
-    draw: () => drawCharacter(ctx, LOOKS.player, world.state.facing, Math.round(v.x * TILE - camX), Math.round(v.y * TILE - camY), v.walk),
+    draw: () => actor(PLAYER_SPRITE, LOOKS.player, world.state.facing, Math.round(v.x * TILE - camX), Math.round(v.y * TILE - camY), v.walk),
   })
   drawables.sort((a, b) => a.y - b.y).forEach(d => d.draw())
 
@@ -126,6 +135,7 @@ function onBlur() {
 
 onMounted(() => {
   renderer = props.renderer ?? createPlaceholderRenderer()
+  preloadCharacters()
   // The sprite tiles load in the background; until they are there (or if a sheet is missing) the placeholder tiles are shown.
   if (!props.renderer) {
     void createNinjaRenderer().then((loaded) => {
@@ -178,8 +188,8 @@ defineExpose({ draw, directions: DIRECTIONS })
 .viewport {
   position: relative;
   width: min(100%, calc((100vh - 70px) * 240 / 176));
-  border: 4px solid #0a0f16;
-  box-shadow: 0 0 0 2px #35496a, 6px 6px 0 rgba(0, 0, 0, 0.4);
+  border: 4px solid #2a1c12;
+  box-shadow: 0 0 0 2px #8a6a44, 6px 6px 0 rgba(0, 0, 0, 0.4);
   background: #05080c;
 }
 
@@ -198,7 +208,7 @@ defineExpose({ draw, directions: DIRECTIONS })
   font-size: 12px;
   padding: 8px 12px;
   background: rgba(10, 15, 22, 0.88);
-  border: 3px solid #35496a;
+  border: 3px solid #8a6a44;
   color: #fff;
 }
 
@@ -208,7 +218,7 @@ defineExpose({ draw, directions: DIRECTIONS })
 .help {
   margin: 0;
   font-size: 13px;
-  color: #6f86a8;
+  color: #b8a07c;
   text-align: center;
 }
 

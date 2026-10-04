@@ -332,7 +332,7 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 
 ## P2-M4: map graphics
 
-- **Sheets used** (Ninja Adventure, `Backgrounds/`, copied by `npm run copy-tiles` to `public/assets/nudge/tiles/`, 170 KB in all): `TilesetFloor` (grass, tufts, dirt path), `TilesetNature` (trees, bushes, tall grass tufts,
+- **Sheets used** (Ninja Adventure, `Backgrounds/`, copied by `npm run copy-graphics` to `public/assets/nudge/tiles/`, 170 KB in all): `TilesetFloor` (grass, tufts, dirt path), `TilesetNature` (trees, bushes, tall grass tufts,
   flowers), `TilesetHouse` (buildings, fences, signs, counters), `TilesetWater` (pond), `Interior/TilesetInteriorFloor` (indoor floors), and the animated `Water Ripples` and `Plant` (daisy) sheets. The pack's interior
   wall kit is made of ring-shaped room frames that do not fit tile-by-tile maps, so indoor walls (and the door mat) stay drawn with canvas rectangles, recoloured to match the brick floors. The Kenney pack is not used.
 - **`nudge/game/tileset-manifest.ts`** (pure) is the mapping from tile characters to sprites: `describeTile(map, tx, ty, {frame})` returns the stack of pieces for one tile, `SHEETS` lists the sheets with their size in tiles.
@@ -348,3 +348,21 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   with an "M" badge, the gym the dark green dojo with a red "GYM" plate (the badges are tiny canvas drawings on the roof row above the door, `drawBadge`).
 - **Tests** (`tileset.test.ts`): autotile pieces for every neighbour combination, lake corners, sprite coordinates inside the sheets for every tile of every map in every animation frame, sheet sizes equal the PNG files,
   every outdoor tile has sprites, every building footprint is solid except the door which is a warp, every `R`/`W`/`D` on an outdoor map belongs to a building, the three Pokémon buildings carry their badges.
+
+## P2-M5: characters and UI
+
+- **Script rename.** `copy-tiles` became `npm run copy-graphics` (`nudge/scripts/copy-graphics.ts`): it copies the tile sheets, 23 character sheets and their 38x38 face portraits from `assets-raw/` into `public/assets/nudge/`.
+- **Characters** (`nudge/game/sprites.ts`, pure): Ninja Adventure sheets are 4 columns (down, up, left, right) x 7 rows of 16x16 frames; the first rows are the walk cycle (4 frames, 2 for the small `Child` and `OldWoman` sheets), the first
+  frame is also the standing pose. `spriteFrame(id, facing, walk)` picks the piece; the walk progress of a step (0..1) steps through all frames, so the player, the walking trainers and the NPCs share one code path
+  (`characterRenderer.ts`, which falls back to the old drawn figures until the sheets are loaded, and always for the PC object). The player is `Boy`.
+- **`sprite` field** on `NpcDef` and `TrainerDef` (a character folder name); without it the `look` decides (`LOOK_SPRITE`: boy Villager, girl Woman, old OldMan, professor Master, nurse Princess, clerk Noble, mum Villager4,
+  hiker Hunter, bugcatcher Child, leader KnightGold). All trainers have an explicit sprite; the gym leader Granit is the golden horned knight, which nobody else uses (tested).
+- **Portraits.** Dialogs carry an optional `portrait` (the speaker's sprite id): NPC talk, trainer intros, the "you won" talk and the badge talk show the face in a framed 76 px box on the left of the dialog box.
+- **Battle backdrops** (`nudge/game/battleThemes.ts` + `BattleBackdrop.vue`): five painted themes built from the map's own tile sheets on a 320x128 canvas - meadow (tree line, grass), forest (dark, two tree rows), town (row of houses), indoor
+  (cream wall, brick floor) and gym (grey hall with banners, arena ring). `themeForMap(mapId)` chooses (indoor maps: gym or indoor, Viridianskogen: forest, maps with buildings: town, otherwise meadow); the battle store keeps the
+  theme and the platforms under the Pokémon change colour with it. The dev battle page has a "Bakgrund" selector (`?theme=`).
+- **UI palette.** The blue-grey chrome clashed with the warm sprites, so all UI colours (panels, buttons, rows, text greys, dialog box) were remapped to a wood/parchment palette (26 colours, mechanically across the `.vue` files; yellow
+  accents, HP bar greens, type colours and the red primary button are unchanged).
+- **Credits** (`/nudge/credits`, linked from the title screen): Ninja Adventure by pixel-boy and AAA, Juhani Junkala's JRPG music packs and SFX collection, PokéAPI (plus the Pokémon trademark note). Kenney Tiny Town was
+  downloaded in P2-M0 but is not used, so it is not credited (tested). Links only point to pages named in the packs' own READMEs/INFO files.
+- **Browser note.** Synthetic key presses from the test tool are too short for the walking code (it polls held keys per frame), so facing/talking was checked by calling the world store's `keyDown`/`keyUp` with a delay.

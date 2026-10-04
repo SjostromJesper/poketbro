@@ -87,7 +87,7 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
 
 .capture-line {
   grid-column: 1 / -1;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .capture-line b {
@@ -103,7 +103,7 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .kv b {
@@ -112,7 +112,7 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
 
 .cats {
   margin: 2px 0 4px;
-  color: #8fa4c4;
+  color: #c8b088;
 }
 
 table {
@@ -122,7 +122,7 @@ table {
 
 th {
   text-align: left;
-  color: #8fa4c4;
+  color: #c8b088;
   font-weight: normal;
 }
 
@@ -139,7 +139,7 @@ tr.nudged td:first-child {
   display: inline-block;
   width: 56px;
   height: 7px;
-  background: #1a2536;
+  background: #4a3626;
   margin-right: 6px;
   vertical-align: middle;
 }

@@ -188,8 +188,8 @@ section.col:last-child {
   font-style: normal;
   font-size: 12px;
   padding: 2px 6px;
-  color: #0a0f16;
-  border: 2px solid #0a0f16;
+  color: #2a1c12;
+  border: 2px solid #2a1c12;
 }
 
 .line {
@@ -213,14 +213,14 @@ section.col:last-child {
 .explain {
   margin: -2px 0 2px 86px;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .bar {
   display: inline-block;
   flex: 1;
   height: 8px;
-  background: #0a0f16;
+  background: #2a1c12;
   max-width: 150px;
 }
 
@@ -237,7 +237,7 @@ section.col:last-child {
 }
 
 .hearts .off {
-  color: #3a4a64;
+  color: #8a6a44;
 }
 
 .stats {
@@ -280,7 +280,7 @@ section.col:last-child {
 .mcat,
 .mpp {
   font-size: 12px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .mpp {
@@ -289,12 +289,12 @@ section.col:last-child {
 
 .mmeta {
   font-size: 13px;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .meffect {
   font-size: 12px;
-  color: #8fa4c4;
+  color: #c8b088;
 }
 
 .fav {

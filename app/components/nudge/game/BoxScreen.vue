@@ -61,7 +61,7 @@ const row = (p: (typeof player.party)[number]) => ({
 
 h2 { font-size: 12px; margin: 0; }
 h3 { font-size: 10px; margin: 0 0 6px; color: #ffb84a; }
-.hint { margin: 0; font-size: 13px; color: #9fb2cc; }
+.hint { margin: 0; font-size: 13px; color: #dcc8a0; }
 
 .cols {
   display: grid;
@@ -85,6 +85,6 @@ section {
 
 .item img { width: 32px; height: 32px; image-rendering: pixelated; }
 .item span { flex: 1; font-family: 'Pixelify Sans', monospace; font-size: 15px; }
-.item small { font-family: 'Pixelify Sans', monospace; color: #9fb2cc; }
+.item small { font-family: 'Pixelify Sans', monospace; color: #dcc8a0; }
 .message { margin: 0; min-height: 20px; color: #8ef08e; }
 </style>

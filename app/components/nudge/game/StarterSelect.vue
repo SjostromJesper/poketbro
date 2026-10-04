@@ -59,16 +59,16 @@ h2 {
   align-items: center;
   gap: 6px;
   padding: 12px 8px;
-  color: #eef2f7;
+  color: #fff4dc;
   font-family: inherit;
-  background: #1f2d44;
-  border: 3px solid #0a0f16;
-  box-shadow: inset 0 0 0 2px #35496a;
+  background: #5a4330;
+  border: 3px solid #2a1c12;
+  box-shadow: inset 0 0 0 2px #8a6a44;
   cursor: pointer;
 }
 
 .card:hover {
-  background: #2a3d5c;
+  background: #6e5238;
   box-shadow: inset 0 0 0 2px #ffd840;
 }
 
@@ -98,13 +98,13 @@ h2 {
   font-style: normal;
   font-size: 12px;
   padding: 2px 6px;
-  color: #0a0f16;
-  border: 2px solid #0a0f16;
+  color: #2a1c12;
+  border: 2px solid #2a1c12;
 }
 
 .blurb {
   font-size: 14px;
-  color: #9fb2cc;
+  color: #dcc8a0;
   text-align: center;
 }
 </style>

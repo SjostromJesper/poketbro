@@ -18,9 +18,9 @@ defineProps<{ total: number, remaining: number }>()
 .pip {
   width: 10px;
   height: 10px;
-  border: 2px solid #0a0f16;
-  background: #2a3a52;
-  box-shadow: 0 0 0 1px #4a6288;
+  border: 2px solid #2a1c12;
+  background: #6a4c32;
+  box-shadow: 0 0 0 1px #9a7a52;
 }
 
 .pip.on {

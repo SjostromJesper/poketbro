@@ -213,7 +213,7 @@ h3 { font-size: 10px; margin: 0 0 6px; line-height: 1.5; }
 
 .desc {
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .actions {
@@ -223,10 +223,10 @@ h3 { font-size: 10px; margin: 0 0 6px; line-height: 1.5; }
 
 .note {
   font-size: 12px;
-  color: #6f86a8;
+  color: #b8a07c;
 }
 
-.empty { color: #9fb2cc; }
+.empty { color: #dcc8a0; }
 
 .picker {
   display: flex;
@@ -268,7 +268,7 @@ h3 { font-size: 10px; margin: 0 0 6px; line-height: 1.5; }
   display: inline-block;
   width: 70px;
   height: 7px;
-  background: #0a0f16;
+  background: #2a1c12;
 }
 
 .bar b {
@@ -286,7 +286,7 @@ h3 { font-size: 10px; margin: 0 0 6px; line-height: 1.5; }
   font-family: 'Pixelify Sans', monospace;
   font-size: 11px;
   padding: 1px 5px;
-  color: #0a0f16;
+  color: #2a1c12;
 }
 
 .swatch {

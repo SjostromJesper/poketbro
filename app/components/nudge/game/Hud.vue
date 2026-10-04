@@ -61,14 +61,14 @@ const player = usePlayerStore()
 
 .lv {
   font-size: 11px;
-  color: #b8c6dc;
+  color: #eadcb8;
   width: 18px;
 }
 
 .bar {
   flex: 1;
   height: 5px;
-  background: #0a0f16;
+  background: #2a1c12;
 }
 
 .bar b {

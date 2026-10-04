@@ -78,19 +78,19 @@ h2 {
 .new {
   padding: 8px 10px;
   border-left: 8px solid var(--type);
-  background: #1f2d44;
+  background: #5a4330;
   display: flex;
   flex-direction: column;
 }
 
 .new span {
   font-size: 14px;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .ask {
   margin: 0;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .row {
@@ -116,7 +116,7 @@ h2 {
 .mmeta {
   font-family: 'Pixelify Sans', monospace;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 .warn {
   margin: 0;

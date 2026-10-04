@@ -7,6 +7,7 @@ import type { BattleOutcome, Side } from '~~/nudge/engine/types'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import AtbBar from './AtbBar.vue'
+import BattleBackdrop from './BattleBackdrop.vue'
 import BattleLog from './BattleLog.vue'
 import BattlerPanel from './BattlerPanel.vue'
 import CaptureAnimation from './CaptureAnimation.vue'
@@ -255,8 +256,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   <div v-if="view" class="scene" :style="{ '--fx': 1 / store.speed }">
     <!-- Battlefield -->
     <div ref="stageEl" class="stage px-panel">
-      <div class="sky" />
-      <div class="ground" />
+      <BattleBackdrop :theme="store.theme" />
 
       <div class="enemy-info">
         <BattlerPanel :battler="view.enemy" />
@@ -265,8 +265,8 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
         </div>
       </div>
 
-      <div class="platform enemy-platform" />
-      <div class="platform player-platform" />
+      <div class="platform enemy-platform" :class="`theme-${store.theme}`" />
+      <div class="platform player-platform" :class="`theme-${store.theme}`" />
 
       <div :ref="setSprite('enemy')" class="sprite enemy" :class="{ fainted: store.fx.enemy.fainted, charging: !!view.enemy.charging, hidden: enemyHidden }">
         <img :src="view.enemy.sprite.front" :alt="view.enemy.name" draggable="false">
@@ -405,24 +405,23 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   overflow: hidden;
 }
 
-.sky {
-  position: absolute;
-  inset: 0 0 45% 0;
-  background: linear-gradient(#7fc8f0, #cdeaf8);
-}
-
-.ground {
-  position: absolute;
-  inset: 55% 0 0 0;
-  background: linear-gradient(#78b848, #5a9638);
-  border-top: 4px solid #4a7c30;
-}
-
 .platform {
   position: absolute;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, #a0cf70 0%, #6aa040 70%, transparent 72%);
   opacity: 0.9;
+}
+
+.platform.theme-indoor {
+  background: radial-gradient(ellipse at center, #e8d0a8 0%, #b88c64 70%, transparent 72%);
+}
+
+.platform.theme-gym {
+  background: radial-gradient(ellipse at center, #9a9aaa 0%, #5a5a6a 70%, transparent 72%);
+}
+
+.platform.theme-forest {
+  background: radial-gradient(ellipse at center, #7aa850 0%, #3f7a38 70%, transparent 72%);
 }
 
 .enemy-platform {
@@ -459,7 +458,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   height: 12px;
   border-radius: 50%;
   background: linear-gradient(#e04040 50%, #f0f0f0 50%);
-  border: 2px solid #0a0f16;
+  border: 2px solid #2a1c12;
 }
 
 .ball.out {
@@ -566,7 +565,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
 .emote {
   position: absolute;
   font-size: 34px;
-  text-shadow: 2px 2px 0 #0a0f16;
+  text-shadow: 2px 2px 0 #2a1c12;
   animation: rise 1.2s ease-out forwards;
 }
 
@@ -591,7 +590,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   font-family: 'Press Start 2P', monospace;
   font-size: 18px;
   color: #fff;
-  text-shadow: 2px 2px 0 #0a0f16, -1px -1px 0 #0a0f16;
+  text-shadow: 2px 2px 0 #2a1c12, -1px -1px 0 #2a1c12;
   animation: float 1.05s ease-out forwards;
 }
 
@@ -608,7 +607,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
 .floater.heal { color: #7ee07e; }
 .floater.crit { color: #ffd840; font-size: 24px; }
 .floater.strong { color: #ff9a6a; }
-.floater.weak { color: #b8c6dc; font-size: 14px; }
+.floater.weak { color: #eadcb8; font-size: 14px; }
 
 @keyframes float {
   from { transform: translateY(0); opacity: 1; }
@@ -642,7 +641,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   align-items: center;
   gap: 10px;
   margin-top: 8px;
-  color: #9fb2cc;
+  color: #dcc8a0;
   font-size: 14px;
 }
 
@@ -674,7 +673,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   display: flex;
   gap: 8px;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
   min-height: 18px;
 }
 
@@ -740,7 +739,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
   display: inline-block;
   width: 60px;
   height: 8px;
-  background: #0a0f16;
+  background: #2a1c12;
 }
 
 .bar b {

@@ -66,6 +66,7 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
         <button v-if="summary" type="button" class="px-btn primary" @click="continueGame">Fortsätt</button>
         <button type="button" class="px-btn" :class="{ primary: !summary }" @click="newGame">Nytt spel</button>
         <button type="button" class="px-btn" @click="showSettings = !showSettings">Inställningar</button>
+        <NuxtLink to="/nudge/credits" class="px-btn link">Tack till</NuxtLink>
         <NuxtLink to="/nudge/dev/battle" class="px-btn link">Teststrid</NuxtLink>
       </div>
 
@@ -84,7 +85,7 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
         Pilar/WASD: gå &middot; Shift: spring &middot; Mellanslag/Z/Enter: prata &middot; Esc/X: meny<br>
         I strid: klicka en attack (eller 1-4) för att nudga &middot; P: paus &middot; D: debug
       </p>
-      <p class="credit">Privat prototyp. Pokémon-data och sprites från PokeAPI.</p>
+      <p class="credit">Privat prototyp. Pokémon-data och sprites från PokeAPI. <NuxtLink to="/nudge/credits">Tack till</NuxtLink></p>
     </main>
   </NudgeFrame>
 </template>
@@ -119,13 +120,13 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
   margin: 8px 0 0;
   font-size: clamp(36px, 9vw, 72px);
   color: #ffd840;
-  text-shadow: 4px 4px 0 #c8402c, 8px 8px 0 #0a0f16;
+  text-shadow: 4px 4px 0 #c8402c, 8px 8px 0 #2a1c12;
   letter-spacing: 0.08em;
 }
 
 .sub {
   margin: 0;
-  color: #9fb2cc;
+  color: #dcc8a0;
   font-size: 18px;
 }
 
@@ -140,7 +141,7 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
 .buttons .link {
   text-decoration: none;
   text-align: center;
-  color: #eef2f7;
+  color: #fff4dc;
 }
 
 .save {
@@ -159,20 +160,20 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
 
 .meta {
   font-size: 14px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .controls {
   margin: 8px 0 0;
   font-size: 14px;
-  color: #6f86a8;
+  color: #b8a07c;
   line-height: 1.6;
 }
 
 .credit {
   margin: 0;
   font-size: 12px;
-  color: #4a5c78;
+  color: #9a7a52;
 }
 
 @keyframes bob {

@@ -7,6 +7,7 @@ import { BattleEngine } from '~~/nudge/engine/battle'
 import { describeEvent } from '~~/nudge/engine/messages'
 import { createRng } from '~~/nudge/engine/rng'
 import type { ActionResult, BattleEvent, BattleKind, BattleOutcome, BattleResult, OwnedPokemon, PlayerAction, Side } from '~~/nudge/engine/types'
+import type { BattleTheme } from '~~/nudge/game/battleThemes'
 import { useAudioStore } from './audio'
 import { useSettingsStore } from './settings'
 
@@ -48,6 +49,8 @@ export interface StartOptions {
   kind: BattleKind
   badges?: number
   seed?: number
+  /** Backdrop of the battle (defaults to the meadow). */
+  theme?: BattleTheme
 }
 
 /** The running battle: owns the engine, drives it from the UI frame loop and turns events into log lines and animations. */
@@ -65,6 +68,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
   const floaters = ref<Floater[]>([])
   const emotes = ref<EmoteBubble[]>([])
   const speed = ref(1)
+  const theme = ref<BattleTheme>('meadow')
   const paused = ref(false)
   const debug = ref(false)
   const result = ref<BattleResult | null>(null)
@@ -168,6 +172,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     capturing.value = null
     outcome.value = null
     paused.value = false
+    theme.value = options.theme ?? 'meadow'
     speed.value = settings.battleSpeed
     const seed = options.seed ?? Math.floor(Math.random() * 0xFFFFFFFF)
     engine.value = new BattleEngine({
@@ -235,5 +240,5 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     view.value = null
   }
 
-  return { engine, view, log, fx, floaters, emotes, speed, paused, debug, result, capturing, outcome, active, start, frame, setSpeed, togglePause, nudge, act, resolveCapture, end, sync }
+  return { engine, view, log, fx, floaters, emotes, theme, speed, paused, debug, result, capturing, outcome, active, start, frame, setSpeed, togglePause, nudge, act, resolveCapture, end, sync }
 })

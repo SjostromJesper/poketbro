@@ -37,6 +37,6 @@ p {
 
 .good { color: #8ef08e; }
 .bad { color: #ff9a9a; }
-.info { color: #9fb2cc; }
+.info { color: #dcc8a0; }
 p:last-child { color: #ffffff; }
 </style>

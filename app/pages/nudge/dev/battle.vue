@@ -9,6 +9,7 @@ import { createRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import BattleScene from '~/components/nudge/battle/BattleScene.vue'
 import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
+import { BATTLE_THEMES, type BattleTheme } from '~~/nudge/game/battleThemes'
 import { battleMusic } from '~~/nudge/game/music'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
@@ -41,6 +42,7 @@ const row = (speciesId: number, level: number, trust = 120): Row => ({ speciesId
 const playerRows = reactive<Row[]>([row(4, 12)])
 const enemyRows = reactive<Row[]>([row(74, 10, 100)])
 const kind = ref<BattleKind>('wild')
+const theme = ref<BattleTheme>(BATTLE_THEMES.includes(route.query.theme as BattleTheme) ? (route.query.theme as BattleTheme) : 'meadow')
 const badges = ref(0)
 const seedText = ref('')
 const debug = ref(false)
@@ -123,7 +125,7 @@ function start() {
   partySnapshot = JSON.parse(JSON.stringify(player)) as OwnedPokemon[]
   store.debug = debug.value
   audio.music(battleMusic(kind.value))
-  store.start({ player, enemy, kind: kind.value, badges: badges.value, seed })
+  store.start({ player, enemy, kind: kind.value, badges: badges.value, seed, theme: theme.value })
   summary.value = []
   lastOutcome.value = null
   running.value = true
@@ -211,6 +213,12 @@ const hasSummary = computed(() => summary.value.length > 0)
               <option value="trainer">Tränare</option>
             </select>
           </label>
+          <label>
+            Bakgrund
+            <select v-model="theme">
+              <option v-for="t in BATTLE_THEMES" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </label>
           <label>Märken <input v-model.number="badges" type="number" min="0" max="8"></label>
           <label>Seed <input v-model="seedText" type="text" placeholder="slumpas"></label>
           <label class="check"><input v-model="debug" type="checkbox"> Debug-overlay</label>
@@ -246,12 +254,12 @@ h2 {
 }
 
 .intro {
-  color: #9fb2cc;
+  color: #dcc8a0;
   margin: 0 0 12px;
 }
 
 code {
-  background: #0a0f16;
+  background: #2a1c12;
   padding: 1px 5px;
 }
 
@@ -271,7 +279,7 @@ code {
   align-items: flex-end;
   gap: 8px 12px;
   padding: 8px 0;
-  border-bottom: 1px dashed #35496a;
+  border-bottom: 1px dashed #8a6a44;
 }
 
 label {
@@ -279,7 +287,7 @@ label {
   flex-direction: column;
   gap: 3px;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 input[type='number'] {
@@ -288,9 +296,9 @@ input[type='number'] {
 
 input,
 select {
-  background: #0a0f16;
-  color: #eef2f7;
-  border: 2px solid #35496a;
+  background: #2a1c12;
+  color: #fff4dc;
+  border: 2px solid #8a6a44;
   font-family: inherit;
   font-size: 15px;
   padding: 3px 6px;

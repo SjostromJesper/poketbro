@@ -88,13 +88,13 @@ defineProps<{
   font-size: 11px;
   line-height: 1;
   padding: 3px 5px;
-  color: #0a0f16;
-  border: 2px solid #0a0f16;
+  color: #2a1c12;
+  border: 2px solid #2a1c12;
   font-weight: 600;
 }
 
 .chip.alt {
-  background: #8a9ab8;
+  background: #c8b088;
 }
 
 .hp-row,
@@ -114,9 +114,9 @@ defineProps<{
 .hp-track {
   flex: 1;
   height: 10px;
-  background: #0a0f16;
-  border: 2px solid #0a0f16;
-  box-shadow: 0 0 0 1px #35496a;
+  background: #2a1c12;
+  border: 2px solid #2a1c12;
+  box-shadow: 0 0 0 1px #8a6a44;
 }
 
 .hp-fill {
@@ -131,7 +131,7 @@ defineProps<{
 .numbers {
   text-align: right;
   font-size: 14px;
-  color: #cfd9e8;
+  color: #f0e4c8;
 }
 
 .charging {
@@ -149,7 +149,7 @@ defineProps<{
 .stage {
   font-size: 11px;
   padding: 1px 4px;
-  border: 1px solid #35496a;
+  border: 1px solid #8a6a44;
 }
 
 .stage.up {

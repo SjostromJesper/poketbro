@@ -129,17 +129,17 @@ li {
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  background: #1f2d44;
-  border: 2px solid #0a0f16;
+  background: #5a4330;
+  border: 2px solid #2a1c12;
 }
 
 .name small {
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .desc {
   font-size: 14px;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .price {
@@ -149,7 +149,7 @@ li {
 
 .empty {
   display: block;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .message {

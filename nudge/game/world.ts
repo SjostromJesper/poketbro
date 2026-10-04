@@ -4,6 +4,7 @@ import type { Balance } from '../engine/balance'
 import { pickWeightedIndex, randInt, type Rng } from '../engine/rng'
 import { ENCOUNTER_TABLES } from './encounters'
 import { getMap, START_MAP } from './maps'
+import { spriteFor, type SpriteId } from './sprites'
 import { tileInfo, type TileInfo } from './tiles'
 import { TRAINERS } from './trainers'
 import {
@@ -39,7 +40,7 @@ export type StepResult =
   | { kind: 'moved', from: { x: number, y: number }, to: { x: number, y: number }, triggers: Trigger[] }
 
 export type InteractResult =
-  | { type: 'dialog', lines: string[], speaker?: string, npcId?: string, action?: NpcAction }
+  | { type: 'dialog', lines: string[], speaker?: string, /** Face shown next to the text. */ portrait?: SpriteId, npcId?: string, action?: NpcAction }
   | { type: 'trainer', trainerId: string }
   | null
 
@@ -195,11 +196,11 @@ export class World {
       const npc = entity.npc
       this.npcFacing[npc.id] = OPPOSITE[this.state.facing]
       const lines = npc.dialogAfter && this.hasFlag(npc.dialogAfter.flag) ? npc.dialogAfter.lines : npc.dialog
-      return { type: 'dialog', lines, speaker: npc.name, npcId: npc.id, action: npc.action }
+      return { type: 'dialog', lines, speaker: npc.name, portrait: spriteFor(npc) ?? undefined, npcId: npc.id, action: npc.action }
     }
     this.npcFacing[entity.spot.id] = OPPOSITE[this.state.facing]
     if (this.isDefeated(entity.spot.id)) {
-      return { type: 'dialog', lines: entity.def.defeated, speaker: entity.def.name }
+      return { type: 'dialog', lines: entity.def.defeated, speaker: entity.def.name, portrait: spriteFor(entity.def) ?? undefined }
     }
     return { type: 'trainer', trainerId: entity.spot.id }
   }

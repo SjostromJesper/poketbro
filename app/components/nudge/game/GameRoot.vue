@@ -80,7 +80,7 @@ const initialMenu = computed(() => {
   z-index: 50;
   overflow: auto;
   padding: 12px;
-  background: #0f1620;
-  background-image: radial-gradient(circle at 50% 0%, #1d2b3d 0%, #0f1620 60%);
+  background: #2a1f16;
+  background-image: radial-gradient(circle at 50% 0%, #4a3626 0%, #2a1f16 60%);
 }
 </style>

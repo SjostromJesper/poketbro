@@ -5,7 +5,7 @@ import type { MapDef } from './types'
 
 export type SheetId = 'floor' | 'nature' | 'house' | 'water' | 'interiorFloor' | 'ripples' | 'plant'
 
-/** Sheet files (copied by `npm run copy-tiles`) and their size in 16x16 tiles, so coordinates can be checked. */
+/** Sheet files (copied by `npm run copy-graphics`) and their size in 16x16 tiles, so coordinates can be checked. */
 export const SHEETS: Record<SheetId, { src: string, cols: number, rows: number }> = {
   floor: { src: '/assets/nudge/tiles/floor.png', cols: 22, rows: 26 },
   nature: { src: '/assets/nudge/tiles/nature.png', cols: 24, rows: 21 },

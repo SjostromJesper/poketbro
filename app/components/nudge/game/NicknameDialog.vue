@@ -60,9 +60,9 @@ h2 {
 
 input {
   width: 100%;
-  background: #0a0f16;
-  color: #eef2f7;
-  border: 2px solid #35496a;
+  background: #2a1c12;
+  color: #fff4dc;
+  border: 2px solid #8a6a44;
   font-family: inherit;
   font-size: 18px;
   padding: 6px 8px;

@@ -7,8 +7,10 @@ import { createPokemon, displayNameOf } from '~~/nudge/engine/pokemon'
 import { applyBattleOutcome, evolvePokemon, learnMove, type LevelUpInfo } from '~~/nudge/engine/progression'
 import { createRandomRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
+import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
 import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
+import { spriteFor, type SpriteId } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
 import { parseSave, SAVE_KEY, serializeSave, summarizeSave, type SaveSummary } from '~~/nudge/game/save'
@@ -32,7 +34,7 @@ export type Overlay =
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
-  | { type: 'dialog', lines: string[], speaker?: string }
+  | { type: 'dialog', lines: string[], speaker?: string, portrait?: SpriteId }
   | { type: 'learn', uid: string, move: string }
   | { type: 'evolve', uid: string, to: number }
   | { type: 'nickname', uid: string }
@@ -238,7 +240,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         moves: mon.moves, heldItem: mon.heldItem, trainerName: def.name,
       }))
       begin({ kind: 'trainer', trainer: def }, enemy)
-    })
+    }, spriteFor(def) ?? undefined)
   }
 
   function begin(ctx: BattleContext, enemy: OwnedPokemon[]) {
@@ -247,7 +249,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     audio.sfx('encounter')
     audio.music(battleMusic(ctx.kind, ctx.trainer))
     setTimeout(() => {
-      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length })
+      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length, theme: themeForMap(world.world?.state.mapId ?? '') })
       screen.value = 'battle'
     }, 900)
   }
@@ -314,7 +316,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
           audio.sfx('coin')
         },
       })
-      queue.push({ type: 'dialog', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker: `${def.title} ${def.name}` })
+      queue.push({ type: 'dialog', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker: `${def.title} ${def.name}`, portrait: spriteFor(def) ?? undefined })
       if (def.gym) {
         const gym = def.gym
         queue.push({
@@ -326,7 +328,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
             player.addItem(tmId(gym.tm))
           },
         })
-        queue.push({ type: 'dialog', lines: [...gym.rewardDialog, `Du fick ${gym.badgeName}!`], speaker: `${def.title} ${def.name}` })
+        queue.push({ type: 'dialog', lines: [...gym.rewardDialog, `Du fick ${gym.badgeName}!`], speaker: `${def.title} ${def.name}`, portrait: spriteFor(def) ?? undefined })
       }
     }
 
@@ -362,7 +364,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     world.setBusy(true)
     switch (step.type) {
       case 'dialog':
-        world.openDialog(step.lines, step.speaker, runQueue)
+        world.openDialog(step.lines, step.speaker, runQueue, step.portrait)
         break
       case 'run':
         step.run()

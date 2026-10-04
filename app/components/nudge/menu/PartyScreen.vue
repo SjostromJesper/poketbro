@@ -88,7 +88,7 @@ h2 {
 .hint {
   margin: 0;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .list {
@@ -153,14 +153,14 @@ h2 {
 .trait {
   margin-left: auto;
   font-size: 12px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .chip {
   font-size: 11px;
   padding: 1px 5px;
-  color: #0a0f16;
-  border: 2px solid #0a0f16;
+  color: #2a1c12;
+  border: 2px solid #2a1c12;
 }
 
 .hp {
@@ -168,14 +168,14 @@ h2 {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #b8c6dc;
+  color: #eadcb8;
 }
 
 .bar {
   flex: 1;
   max-width: 220px;
   height: 8px;
-  background: #0a0f16;
+  background: #2a1c12;
 }
 
 .bar b {
@@ -187,7 +187,7 @@ h2 {
   display: flex;
   gap: 14px;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .hearts {
@@ -198,7 +198,7 @@ h2 {
 .link {
   background: none;
   border: 0;
-  color: #8ec8ff;
+  color: #ffd070;
   font-family: inherit;
   cursor: pointer;
   text-decoration: underline;
@@ -214,7 +214,7 @@ h2 {
 }
 
 .empty {
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .message {

@@ -38,19 +38,19 @@ defineEmits<{ (e: 'nudge'): void }>()
   text-align: left;
   width: 100%;
   padding: 6px 8px 6px 0;
-  color: #eef2f7;
+  color: #fff4dc;
   font-family: inherit;
   font-size: 16px;
-  background: #1f2d44;
-  border: 3px solid #0a0f16;
+  background: #5a4330;
+  border: 3px solid #2a1c12;
   border-left: 0;
-  box-shadow: inset 0 0 0 2px #35496a;
+  box-shadow: inset 0 0 0 2px #8a6a44;
   cursor: pointer;
   position: relative;
 }
 
 .move:hover:not(:disabled) {
-  background: #2a3d5c;
+  background: #6e5238;
 }
 
 .move:active:not(:disabled) {
@@ -63,10 +63,10 @@ defineEmits<{ (e: 'nudge'): void }>()
   place-items: center;
   width: 28px;
   background: var(--type);
-  color: #0a0f16;
+  color: #2a1c12;
   font-family: 'Press Start 2P', monospace;
   font-size: 10px;
-  border-right: 3px solid #0a0f16;
+  border-right: 3px solid #2a1c12;
 }
 
 .body {
@@ -87,7 +87,7 @@ defineEmits<{ (e: 'nudge'): void }>()
   display: flex;
   gap: 8px;
   font-size: 13px;
-  color: #9fb2cc;
+  color: #dcc8a0;
 }
 
 .type {

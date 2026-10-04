@@ -18,9 +18,9 @@ defineProps<{
 <style scoped>
 .atb {
   height: 8px;
-  background: #0a0f16;
-  border: 2px solid #0a0f16;
-  box-shadow: 0 0 0 1px #35496a;
+  background: #2a1c12;
+  border: 2px solid #2a1c12;
+  box-shadow: 0 0 0 1px #8a6a44;
   position: relative;
 }
 
@@ -34,7 +34,7 @@ defineProps<{
 }
 
 .atb.stalled .atb-fill {
-  background: #6a7a90;
+  background: #a89070;
 }
 
 .atb.charging .atb-fill {

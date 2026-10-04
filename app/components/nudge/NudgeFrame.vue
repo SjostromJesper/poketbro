@@ -69,9 +69,9 @@ useHead({
   position: fixed;
   inset: 0;
   overflow: auto;
-  background: #0f1620;
-  background-image: radial-gradient(circle at 50% 0%, #1d2b3d 0%, #0f1620 60%);
-  color: #eef2f7;
+  background: #2a1f16;
+  background-image: radial-gradient(circle at 50% 0%, #4a3626 0%, #2a1f16 60%);
+  color: #fff4dc;
   font-family: 'Pixelify Sans', 'Courier New', monospace;
   font-size: 16px;
   line-height: 1.35;
@@ -92,17 +92,17 @@ useHead({
 .nudge-frame .px-btn {
   font-family: 'Press Start 2P', 'Courier New', monospace;
   font-size: 10px;
-  color: #eef2f7;
-  background: #2a3a52;
-  border: 3px solid #0a0f16;
-  box-shadow: inset 0 -4px 0 #1b2738, inset 0 3px 0 #4a6288;
+  color: #fff4dc;
+  background: #6a4c32;
+  border: 3px solid #2a1c12;
+  box-shadow: inset 0 -4px 0 #4a3220, inset 0 3px 0 #9a7a52;
   padding: 10px 12px;
   cursor: pointer;
   text-transform: uppercase;
 }
 
 .nudge-frame .px-btn:hover:not(:disabled) {
-  background: #35496a;
+  background: #8a6a44;
 }
 
 .nudge-frame .px-btn:active:not(:disabled) {
@@ -124,12 +124,12 @@ useHead({
 }
 
 .nudge-frame .px-panel {
-  background: #1a2536;
-  border: 3px solid #0a0f16;
-  box-shadow: inset 0 0 0 2px #35496a, 4px 4px 0 rgba(0, 0, 0, 0.35);
+  background: #4a3626;
+  border: 3px solid #2a1c12;
+  box-shadow: inset 0 0 0 2px #8a6a44, 4px 4px 0 rgba(0, 0, 0, 0.35);
 }
 
 .nudge-frame a {
-  color: #8ec8ff;
+  color: #ffd070;
 }
 </style>

@@ -100,7 +100,7 @@ h3 {
 .note {
   margin: 0;
   font-size: 13px;
-  color: #6f86a8;
+  color: #b8a07c;
 }
 
 .danger {

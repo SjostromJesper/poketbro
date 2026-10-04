@@ -112,7 +112,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
   position: absolute;
   inset: 6px;
   padding: 12px;
-  background: #121b29;
+  background: #33241a;
   overflow: hidden;
 }
 </style>
