@@ -95,3 +95,25 @@ Running log of decisions taken while building Nudge from `PLAN.md` (newest secti
 bot (nudges the best expected-damage move late in a bar when the Pokémon is unlikely to pick it on its own). With a loyal, trust-120
 starter the bot raises the win rate by roughly 5-7 points and cuts battle time by ~20 % in type-matchup fights. Smaller effects in fights
 where the auto-choice is already fine. Balance is revisited in M8.
+
+## Battle UI (M3)
+
+- **Structure.** `app/stores/nudge/battle.ts` (Pinia) owns the `BattleEngine` (in a `shallowRef`, never made reactive), drives it from the UI
+  frame loop, and turns events into log lines, emotes, floating numbers and sprite animations. `nudge/game/battleView.ts` (pure TS) builds
+  a plain-object snapshot of the running battle each frame; components only ever read that snapshot. `BattleScene.vue` is the reusable
+  battle screen (props: `bag` - `null` means unlimited items for dev battles; emits `finished`, `item-used`), used by the dev page now
+  and by the real game later.
+- **Frame loop.** `requestAnimationFrame`, real elapsed time capped at 100 ms per frame (a background tab must not fast-forward a fight),
+  multiplied by the 1x/2x/3x setting. Pause just stops calling `tick` (the engine's `setPaused` only matters for the nudge-while-paused flag).
+  Note for automated testing: a hidden browser tab gets no animation frames; tests drive `store.frame(dt)` directly.
+- **Animations** use the Web Animations API on the sprite wrappers (so the animated GIF is never re-created) and scale with the game speed.
+  HP bars animate with a CSS transition. Damage numbers and emotes are transient elements removed after ~1 s.
+- **Log** shows the 5 latest lines. Damage amounts are not written in the log (floating numbers and the HP bar show them); super-effective /
+  not very effective / critical hit lines are.
+- **HP numbers** are shown for the player's Pokémon only; the opponent just has a bar (like the original games).
+- **Dev page** `/nudge/dev/battle`: team editors for both sides (species, level, trait, nature, trust, held item), wild/trainer, badges, seed,
+  debug overlay. Shortcut query: `?p=bulbasaur:46,pidgey:12&e=chansey:30&kind=trainer&badges=2&seed=7&debug=1&go=1`.
+  After a battle it applies the outcome to the party (XP, level-ups, habits, trust) and prints a summary.
+- **Debug overlay** (`?debug=1` or the D key): per side trait/nature/trust/smartness, ATB value, fill/s, effective speed, HP, nudge budget and
+  pending nudge (move + strength), category weights and a table with p_auto, p_final and expected damage per move.
+- **Fonts:** Press Start 2P (headings/buttons) and Pixelify Sans (body) from Google Fonts, falling back to monospace offline.

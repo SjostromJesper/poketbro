@@ -4,7 +4,7 @@
 |---|---|
 | M1 - Projekt och data | done |
 | M2 - Stridsmotorn (headless) | done |
-| M3 - Strids-UI | todo |
+| M3 - Strids-UI | done |
 | M4 - Överkartan | todo |
 | M5 - Kopplingen karta <-> strid | todo |
 | M6 - Lag, items, relation | todo |
@@ -28,3 +28,14 @@ Known issues: none.
 
 Known issues / open balance questions (for M8): neutral natures make Pokémon use status moves fairly often (e.g. Growl ~35 %), paralysis is
 mild because of the speed offset, equal-level 1v1s favour whoever has the type advantage. 60 moves are inert (listed in DECISIONS.md).
+
+## M3 - Strids-UI
+- `/nudge/dev/battle`: configurable test battle (wild/trainer, up to 6 Pokémon per side, trait/nature/trust/held item per Pokémon).
+- Battle screen per plan 8.1: animated sprites, panels with HP bar + ATB bar (blinks while charging), status chips, stat stages, move buttons
+  with type colours/PP, nudge pips and a glowing pending nudge, Boll / Väska / Byt / Fly, 1x-2x-3x and pause, log of the last 5 lines,
+  emotes (!, ♪, ..., 💢, 💤), floating damage numbers, switch and bag menus, result overlay. Keys 1-4 nudge, P pauses, D toggles debug.
+- Debug overlay (`?debug=1`) shows live p_auto/p_final per move, trust, nudge budget, ATB and effective speed.
+- Verified in the browser: a full wild battle (Bulbasaur Solar Beam charge text, multi-hit, win overlay and XP), a trainer battle with team
+  switching menu, nudge emotes/floaters/log, debug numbers updating after a nudge.
+
+Known issues: none. (Visual verification of animations was limited because the automation pane is a hidden tab with no animation frames.)
