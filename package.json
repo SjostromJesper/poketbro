@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit -p nudge/tsconfig.vue.json && tsc -p nudge/engine/tsconfig.json --noEmit && tsc -p nudge/tsconfig.json --noEmit",
     "fetch-data": "tsx nudge/scripts/fetch-data.ts",
-    "sim": "tsx nudge/scripts/sim.ts"
+    "sim": "tsx nudge/scripts/sim.ts",
+    "fetch-assets": "tsx nudge/scripts/fetch-assets.ts"
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.10",

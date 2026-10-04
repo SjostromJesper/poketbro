@@ -231,3 +231,18 @@ Whole-run pacing (bot, XP x1.5, gym challenged once the lead is Lv14; 18 runs ea
 
 Open questions: the early-game bot overstates grinding (it only farms Route 1), a human probably reaches the gym at Lv12-13 via the forest; Charmander players will want a second Pokémon
 (catching and switching are supported but the bot does not use switching); 60 moves are still inert (see the M2 section).
+
+# PLAN-2 (music, sound, capture, favourite moves, real graphics)
+
+## P2-M0: packs
+
+- **`npm run fetch-assets`** (`nudge/scripts/fetch-assets.ts`) downloads and unpacks everything into `assets-raw/` (gitignored), skipping packs that already exist and checking that
+  each download really is a zip. Sources that worked:
+  - Ninja Adventure (pixel-boy, CC0): the itch.io "Download Now" flow done by hand (game page -> csrf token -> `POST .../download_url` -> download page -> `POST .../file/16981275`
+    returns a short-lived Cloudflare R2 URL). Upload "Ninja Adventure - Asset Pack.zip" (id 16981275).
+  - Juhani Junkala packs from OpenGameArt, direct links: JRPG Pack 1 Exploration, 2 Towns, 4 Calm, 5 Action, "5 Action Chiptunes", "The Essential Retro Video Game Sound Effects
+    Collection [512 sounds]" (all under `https://opengameart.org/sites/default/files/`).
+  - Kenney Tiny Town (CC0) from `https://kenney.nl/media/pages/assets/tiny-town/.../kenney_tiny-town.zip` (link found on the page); only a fallback.
+- **What is in them:** Ninja Adventure also ships its own music (40 `.ogg` tracks), jingles and sound effects (`.wav`), so those are candidates next to the Junkala packs. Junkala SFX are 512 `.wav`.
+  Music is `.ogg`; sound effects stay `.wav` (short, universally supported, and no ffmpeg/sox is available to convert; `afconvert` can only make AAC/CAF). Only the files actually used are copied
+  into `public/assets/`.

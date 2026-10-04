@@ -83,3 +83,17 @@ Known issues: pacing is grindy (the bot needs ~80-100 wild battles to reach leve
 - The game can be played through from a new game to the Granit badge (automatic bot, 3 seeds x 3 starters).
 
 Known issues / ideas: see the open questions at the end of the M8 balance section; 60 inert moves; no sound; mobile controls out of scope.
+
+# PLAN-2 progress
+
+| Milestone | Status |
+|---|---|
+| P2-M0 - Hämta paketen | done (all packs downloaded; `npm run fetch-assets`) |
+| P2-M1 - Fångst-systemet | todo |
+| P2-M1B - Favoritmove | todo |
+| P2-M2 - Ljudmotorn | todo |
+| P2-M3 - Musik på plats | todo |
+| P2-M4 - Kartgrafik | todo |
+| P2-M5 - Karaktärer och UI | todo |
+
+Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets`.
