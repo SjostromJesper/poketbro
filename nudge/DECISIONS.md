@@ -117,3 +117,28 @@ where the auto-choice is already fine. Balance is revisited in M8.
 - **Debug overlay** (`?debug=1` or the D key): per side trait/nature/trust/smartness, ATB value, fill/s, effective speed, HP, nudge budget and
   pending nudge (move + strength), category weights and a table with p_auto, p_final and expected damage per move.
 - **Fonts:** Press Start 2P (headings/buttons) and Pixelify Sans (body) from Google Fonts, falling back to monospace offline.
+
+## Overworld (M4)
+
+- **Split.** `nudge/game/world.ts` is the pure logic (discrete tile positions, collisions, warps, interaction, trainer sight, wild encounter
+  rolls, blackout); `app/stores/nudge/world.ts` is the real-time part (input, step animation, fades, dialog typewriter); the canvas component
+  only draws. The logical position changes the moment a step starts, the picture interpolates over `WALK_STEP_MS` (150) / `RUN_STEP_MS` (90).
+  Triggers (warp, trainer sight, grass) are processed when the step animation finishes, like in the original games.
+- **Controls.** Arrows/WASD walk, a direction tapped from standing still only turns (a brief `TURN_MS` delay before walking if held), Shift runs,
+  Space/Enter/Z talk or advance dialog, Esc/X open the menu (and also advance dialog). "Håll ner för att springa" is implemented as Shift.
+- **Map format** (`nudge/game/maps/*.ts`): ASCII rows plus warps/npcs/trainers/signs. Tiles: `.` ground, `,` tall grass, `#` tree (wall indoors),
+  `~` water, `=` path, `o` flowers, `f` fence, `R` roof, `W` wall, `D` door, `S` sign, `F` floor, `T` counter, `M` door mat. Water is a wall (no Surf in the MVP).
+  Warps always land the player one tile *inside* the destination so there is no ping-pong; doors/mats are the warp tiles. Map-edge exits
+  are two-wide road openings with warp tiles on the border row.
+- **Maps.** Hemstad (+ your home and the professor's lab), Väg 1, Viridianskogen, Grusstad (+ Pokémon Center, Pokémart, gym). Trainers: 2 on Väg 1,
+  3 in the forest, 2 gym trainers and the leader Granit (a trainer entry with `sight: 0`, so he only fights when spoken to).
+  Tests check that every map is rectangular, every door/mat has a warp, signs and tiles match, entities stand on walkable tiles, all warps land
+  on walkable non-warp tiles, everything is reachable from the start, and a BFS-planned walk through the real controller reaches Grusstad.
+- **Gate.** The north exit of Hemstad is blocked (with a dialog) until the `starter` flag is set; the professor sets it in M5.
+- **Counters.** You can talk to an NPC across one counter tile (nurse, clerk).
+- **Placeholder graphics.** Everything is drawn with canvas primitives and cached per tile variant/frame (`app/components/nudge/overworld/render.ts`).
+  `TileRenderer` is the plug point: `createTilesetRenderer(image, mapping)` is ready for a real tileset; characters are simple 16x16 figures
+  with a facing indicator and a walk bob. Interiors draw `#` as a wall instead of a tree.
+- **Viewport** is 15x11 tiles (240x176 internal pixels) scaled by CSS with `image-rendering: pixelated`; smaller maps are centred.
+- **Testing the UI.** The in-app browser pane has no animation frames while hidden, so visual checks use headless Chrome screenshots
+  (`--screenshot`) with dev shortcuts (`/nudge/play?map=gruss&x=11&y=13&starter=1&say=...`), and behaviour is tested through the Pinia store.

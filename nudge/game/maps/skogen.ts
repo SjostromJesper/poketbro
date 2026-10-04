@@ -1,0 +1,58 @@
+import type { MapDef } from '../types'
+
+// Viridian Forest-style maze of tall grass and trees with three bug catchers.
+export const skogen: MapDef = {
+  id: 'skogen',
+  name: 'Viridianskogen',
+  encounterTable: 'skogen',
+  tiles: [
+    '###########==###########',
+    '###########==###########',
+    '###########==###########',
+    '#,,,,,=======,,,,,,,,,,#',
+    '####,,=======,,,,,####,#',
+    '####,,==,,,,,,,,,,####,#',
+    '####,,==,#####,,,,####,#',
+    '####,,==,#####,,,,,,,,,#',
+    '#,,,,,==,,,,,,,,,,,,,,,#',
+    '#,,,,,===========,###,,#',
+    '####,,===========,###,,#',
+    '####,,,,,,,,,,,==,###,,#',
+    '####,,,,####,,,==,###,,#',
+    '####,,,,####,,,==,,,,,,#',
+    '#,,,,,,,,,,,,,,==,,###,#',
+    '#,,,,,,,###,,,,==,,###,#',
+    '#,,,=============,,,,,,#',
+    '#,,,=============,,,,,,#',
+    '###,==,,,,,,,,,,,,,###,#',
+    '###,==,,###,,,,,,,,###,#',
+    '###,==,,###,,,###,,###,#',
+    '#,,,==,,###,,,###,,###,#',
+    '###,==,,,,,,,,###,,,,,,#',
+    '###,==,,,,,,,,,,,,,,,,,#',
+    '#,,,=========,,,,,,,,,,#',
+    '#,,,=========,,,,,,,,,,#',
+    '#,,,,,,,##,==,,,,,,,,,,#',
+    '###########==###########',
+    '###########==S##########',
+    '###########==###########',
+  ],
+  warps: [
+    { x: 11, y: 29, to: 'route1', toX: 6, toY: 1, facing: 'down' },
+    { x: 12, y: 29, to: 'route1', toX: 7, toY: 1, facing: 'down' },
+    { x: 11, y: 0, to: 'gruss', toX: 11, toY: 18, facing: 'up' },
+    { x: 12, y: 0, to: 'gruss', toX: 12, toY: 18, facing: 'up' },
+  ],
+  npcs: [
+    {
+      id: 'skog-vandrare', x: 10, y: 23, facing: 'right', look: 'hiker',
+      dialog: ['Skogen är full av insekter. Se upp för Weedles gift!', 'Det är lätt att gå vilse här. Håll dig till stigen.'],
+    },
+  ],
+  trainers: [
+    { id: 'skog-olle', x: 8, y: 18, facing: 'up', sight: 2 },
+    { id: 'skog-maja', x: 13, y: 12, facing: 'right', sight: 2 },
+    { id: 'skog-elis', x: 9, y: 5, facing: 'left', sight: 3 },
+  ],
+  signs: [{ x: 13, y: 28, text: ['VIRIDIANSKOGEN', 'Se upp för insekter! Grusstad norrut.'] }],
+}

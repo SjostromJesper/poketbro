@@ -5,7 +5,7 @@
 | M1 - Projekt och data | done |
 | M2 - Stridsmotorn (headless) | done |
 | M3 - Strids-UI | done |
-| M4 - Överkartan | todo |
+| M4 - Överkartan | done |
 | M5 - Kopplingen karta <-> strid | todo |
 | M6 - Lag, items, relation | todo |
 | M7 - Gym, sparning, polish | todo |
@@ -39,3 +39,13 @@ mild because of the speed offset, equal-level 1v1s favour whoever has the type a
   switching menu, nudge emotes/floaters/log, debug numbers updating after a nudge.
 
 Known issues: none. (Visual verification of animations was limited because the automation pane is a hidden tab with no animation frames.)
+
+## M4 - Överkartan
+- `/nudge/play`: canvas overworld (15x11 viewport, smooth steps, camera, walk/run, dialog with typewriter, signs, NPCs, doors with fade + map name banner,
+  menu stub). Placeholder graphics drawn in canvas; tileset plug-in point in place.
+- Nine maps: Hemstad, home, lab, Väg 1, Viridianskogen, Grusstad, Pokémon Center, Pokémart, gym - with trainers, wild encounter tables, signs and NPCs defined
+  (encounters/trainers/shop/healing are wired up in M5).
+- 34 new tests (map validity and reachability, world logic, controller incl. a BFS-planned walk Hemstad -> Väg 1 -> forest -> Grusstad through the real controller).
+- Verified with headless Chrome screenshots of Hemstad, Grusstad, the forest and the lab dialog.
+
+Known issues: none.
