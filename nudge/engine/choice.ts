@@ -103,9 +103,9 @@ function statusMoveFactor(user: Battler, foe: Battler, move: MoveData, balance: 
       if (!helpful) {
         sum += 1
       } else if (onSelf) {
-        sum += stage >= 6 ? maxed : Math.max(maxed, 1 - stage / 7)
+        sum += stage >= 6 ? maxed : Math.max(maxed, 1 - stage / 3)
       } else {
-        sum += stage <= -6 ? maxed : Math.max(maxed, 1 + stage / 7)
+        sum += stage <= -6 ? maxed : Math.max(maxed, 1 + stage / 3)
       }
     }
     factor *= sum / move.statChanges.length

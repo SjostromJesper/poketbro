@@ -106,7 +106,7 @@ export function levelForXp(growthRates: GrowthRates, rate: string, xp: number, m
 /** Gen 3 style: floor(a * b * L / (7 * s)), a = 1.5 against trainers. */
 export function xpYield(baseExp: number, defeatedLevel: number, isTrainer: boolean, participants: number, balance: Balance): number {
   const a = isTrainer ? balance.TRAINER_XP_MULT : 1
-  return Math.max(1, Math.floor((a * baseExp * defeatedLevel) / (7 * Math.max(1, participants))))
+  return Math.max(1, Math.floor((a * baseExp * defeatedLevel * balance.XP_MULTIPLIER) / (7 * Math.max(1, participants))))
 }
 
 // ---------------------------------------------------------------------------

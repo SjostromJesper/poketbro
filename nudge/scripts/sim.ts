@@ -3,10 +3,12 @@
 //   npm run sim -- --battles 2000 --player charmander:12 --enemy geodude:10 --trust 120 --trait calm
 //   npm run sim -- --player bulbasaur:15,pidgey:10 --enemy brock --compare
 // Options: --battles N --seed N --player SPEC --enemy SPEC --trust N --trait ID --strategy none|best|always-best --compare --badges N
+//          --set KEY=JSON  (override a balance value for the experiment, e.g. --set NUDGE_BUDGET_BASE=4 --set 'NUDGE_CURVE=[0.7,0.5,0.3,0.2,0.1]')
 import { gameData } from '../data'
 import { createTrainerPokemon, createWildPokemon } from '../engine/ai'
 import { BALANCE, type TraitId } from '../engine/balance'
 import { runBattle, type NudgeStrategy } from '../engine/headless'
+import { classifyMove } from '../engine/moves'
 import { createPokemon } from '../engine/pokemon'
 import { createRng } from '../engine/rng'
 import type { OwnedPokemon } from '../engine/types'
@@ -39,6 +41,12 @@ function parseArgs(argv: string[]): Args {
       case '--trait': args.trait = value as TraitId; i++; break
       case '--strategy': args.strategy = value as NudgeStrategy; args.compare = false; i++; break
       case '--badges': args.badges = Number(value); i++; break
+      case '--set': {
+        const eq = value.indexOf('=')
+        ;(BALANCE as unknown as Record<string, unknown>)[value.slice(0, eq)] = JSON.parse(value.slice(eq + 1))
+        i++
+        break
+      }
       case '--compare': args.compare = true; break
       default: break
     }
@@ -66,6 +74,8 @@ interface Tally {
   totalSeconds: number
   playerMoves: Map<string, number>
   enemyMoves: Map<string, number>
+  /** Share of chosen moves by category: attack / defense / support (both sides). */
+  categories: { attack: number, defense: number, support: number }
   nudgesUsed: number
   nudgesFollowed: number
   nudgesTotal: number
@@ -74,7 +84,7 @@ interface Tally {
 
 function simulate(args: Args, strategy: NudgeStrategy): Tally {
   const tally: Tally = {
-    wins: 0, losses: 0, timeouts: 0, totalSeconds: 0, playerMoves: new Map(), enemyMoves: new Map(),
+    wins: 0, losses: 0, timeouts: 0, totalSeconds: 0, playerMoves: new Map(), enemyMoves: new Map(), categories: { attack: 0, defense: 0, support: 0 },
     nudgesUsed: 0, nudgesFollowed: 0, nudgesTotal: 0, leftHp: 0,
   }
   const playerSpec = parseTeam(args.player)
@@ -95,6 +105,8 @@ function simulate(args: Args, strategy: NudgeStrategy): Tally {
     tally.totalSeconds += result.durationMs / 1000
     for (const event of result.events) {
       if (event.type === 'move-chosen') {
+        const moveData = gameData.moves[event.move]
+        if (moveData) tally.categories[classifyMove(moveData, BALANCE)]++
         const map = event.side === 'player' ? tally.playerMoves : tally.enemyMoves
         map.set(event.moveName, (map.get(event.moveName) ?? 0) + 1)
         if (event.side === 'player' && event.followedNudge !== null) {
@@ -121,6 +133,8 @@ function report(label: string, args: Args, tally: Tally): void {
   console.log(`avg duration:    ${(tally.totalSeconds / n).toFixed(1)} s`)
   console.log(`avg HP left:     ${(100 * tally.leftHp / n).toFixed(0)}% of max (team average)`)
   console.log(`nudges:          ${(tally.nudgesUsed / n).toFixed(2)} used per battle, followed ${tally.nudgesTotal ? (100 * tally.nudgesFollowed / tally.nudgesTotal).toFixed(0) : 0}% of the time`)
+  const catTotal = tally.categories.attack + tally.categories.defense + tally.categories.support || 1
+  console.log(`move categories: attack ${(100 * tally.categories.attack / catTotal).toFixed(0)}%, defense ${(100 * tally.categories.defense / catTotal).toFixed(0)}%, support ${(100 * tally.categories.support / catTotal).toFixed(0)}%`)
   console.log(`player moves:    ${distribution(tally.playerMoves)}`)
   console.log(`enemy moves:     ${distribution(tally.enemyMoves)}`)
 }

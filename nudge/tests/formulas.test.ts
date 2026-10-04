@@ -100,10 +100,12 @@ describe('xp', () => {
     expect(levelForXp(data.growthRates, rate, 99999999, 100)).toBe(100)
     expect(levelForXp(data.growthRates, rate, 99999999, 50)).toBe(50)
   })
-  it('splits XP between participants and pays trainers 1.5x', () => {
-    expect(xpYield(64, 10, false, 1, BALANCE)).toBe(Math.floor((64 * 10) / 7))
-    expect(xpYield(64, 10, true, 1, BALANCE)).toBe(Math.floor((1.5 * 64 * 10) / 7))
-    expect(xpYield(64, 10, false, 2, BALANCE)).toBe(Math.floor((64 * 10) / 14))
+  it('splits XP between participants and pays trainers 1.5x (and scales with the global XP multiplier)', () => {
+    const m = BALANCE.XP_MULTIPLIER
+    expect(xpYield(64, 10, false, 1, BALANCE)).toBe(Math.floor((64 * 10 * m) / 7))
+    expect(xpYield(64, 10, true, 1, BALANCE)).toBe(Math.floor((1.5 * 64 * 10 * m) / 7))
+    expect(xpYield(64, 10, false, 2, BALANCE)).toBe(Math.floor((64 * 10 * m) / 14))
+    expect(xpYield(64, 10, false, 1, { ...BALANCE, XP_MULTIPLIER: 1 })).toBe(Math.floor((64 * 10) / 7))
   })
 })
 

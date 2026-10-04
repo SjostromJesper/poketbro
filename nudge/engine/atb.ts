@@ -4,9 +4,7 @@ import { stageMultiplier } from './formulas'
 import type { Battler } from './types'
 
 export function effectiveSpeed(battler: Battler, balance: Balance): number {
-  let speed = battler.stats.speed * stageMultiplier(battler.stages.speed)
-  if (battler.status === 'paralysis') speed *= balance.PARALYSIS_SPEED_MULT
-  return speed
+  return battler.stats.speed * stageMultiplier(battler.stages.speed)
 }
 
 /** ATB points gained per second at 1x game speed. */
@@ -15,6 +13,7 @@ export function atbFillPerSecond(battler: Battler, balance: Balance): number {
   rate *= balance.TRAITS[battler.trait].atbMult
   if (battler.heldItem === 'quick-claw' && !battler.heldItemUsed) rate *= balance.QUICK_CLAW_ATB_MULT
   rate *= battler.fillMult
+  if (battler.status === 'paralysis') rate *= balance.PARALYSIS_FILL_MULT
   return Math.max(0, rate)
 }
 

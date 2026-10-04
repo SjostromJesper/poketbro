@@ -58,7 +58,6 @@ export interface Balance {
   // ---- Choosing moves (5.3) ----
   /** Category weights by what the nature favours (increased stat). */
   CATEGORY_WEIGHTS: { attack: Record<MoveCategory, number>, defense: Record<MoveCategory, number>, support: Record<MoveCategory, number>, neutral: Record<MoveCategory, number> }
-  /** Category multiplier applied when the nature *lowers* the matching stat. */
   DECREASED_CATEGORY_MULT: number
   SMART_MIN: number
   SMART_MAX: number
@@ -134,7 +133,8 @@ export interface Balance {
   POISON_PCT_PER_SEC: number
   LEECH_SEED_PCT_PER_SEC: number
   BURN_PHYSICAL_MULT: number
-  PARALYSIS_SPEED_MULT: number
+  /** Paralysis halves the ATB *fill rate* (not just the speed stat, which the +100 offset would mute). */
+  PARALYSIS_FILL_MULT: number
   PARALYSIS_FULL_CHANCE: number
   SLEEP_MS_RANGE: [number, number]
   FREEZE_THAW_PER_SEC: number
@@ -165,6 +165,8 @@ export interface Balance {
 
   // ---- Rewards (5.9) ----
   TRAINER_XP_MULT: number
+  /** Global multiplier on all battle XP (pacing knob on top of the Gen 3 formula). */
+  XP_MULTIPLIER: number
   MAX_LEVEL: number
   MAX_MOVES: number
   BLACKOUT_MONEY_LOSS: number
@@ -206,10 +208,10 @@ export const BALANCE: Balance = {
   RECHARGE_MOVES: ['hyper-beam', 'giga-impact', 'blast-burn', 'frenzy-plant', 'hydro-cannon', 'rock-wrecker', 'roar-of-time'],
 
   CATEGORY_WEIGHTS: {
-    attack: { attack: 0.65, defense: 0.15, support: 0.2 },
-    defense: { attack: 0.35, defense: 0.45, support: 0.2 },
-    support: { attack: 0.35, defense: 0.15, support: 0.5 },
-    neutral: { attack: 0.5, defense: 0.25, support: 0.25 },
+    attack: { attack: 0.78, defense: 0.09, support: 0.13 },
+    defense: { attack: 0.45, defense: 0.35, support: 0.2 },
+    support: { attack: 0.45, defense: 0.13, support: 0.42 },
+    neutral: { attack: 0.62, defense: 0.19, support: 0.19 },
   },
   DECREASED_CATEGORY_MULT: 0.75,
   SMART_MIN: 0.15,
@@ -225,7 +227,7 @@ export const BALANCE: Balance = {
   HABIT_GAIN_CAP_PER_BATTLE: 5,
 
   NUDGE_BUDGET_BASE: 3,
-  NUDGE_CURVE: [0.6, 0.4, 0.25, 0.15, 0.1],
+  NUDGE_CURVE: [0.7, 0.5, 0.3, 0.2, 0.1],
   NUDGE_TRUST_MIN_MULT: 0.5,
   NUDGE_TRUST_MAX_MULT: 1.2,
   NUDGE_MAX_STRENGTH: 0.95,
@@ -318,7 +320,7 @@ export const BALANCE: Balance = {
   POISON_PCT_PER_SEC: 0.025,
   LEECH_SEED_PCT_PER_SEC: 0.03,
   BURN_PHYSICAL_MULT: 0.5,
-  PARALYSIS_SPEED_MULT: 0.5,
+  PARALYSIS_FILL_MULT: 0.5,
   PARALYSIS_FULL_CHANCE: 0.25,
   SLEEP_MS_RANGE: [3000, 7000],
   FREEZE_THAW_PER_SEC: 0.2,
@@ -345,6 +347,7 @@ export const BALANCE: Balance = {
   POTION_HEAL: 20,
 
   TRAINER_XP_MULT: 1.5,
+  XP_MULTIPLIER: 1.5,
   MAX_LEVEL: 100,
   MAX_MOVES: 4,
   BLACKOUT_MONEY_LOSS: 0.5,

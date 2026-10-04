@@ -21,19 +21,20 @@ describe('nudge budget per trait', () => {
 describe('nudge strength curve', () => {
   it('decays per nudge and scales with trust', () => {
     const at = (i: number, trust: number) => nudgeStrengthFor(i, trust, BALANCE)
+    const [c0, c1, c2, , c4] = BALANCE.NUDGE_CURVE
     // Trust 0 => x0.5, trust 255 => x1.2
-    expect(at(0, 0)).toBeCloseTo(0.6 * 0.5)
-    expect(at(0, 255)).toBeCloseTo(0.6 * 1.2)
-    expect(at(1, 255)).toBeCloseTo(0.4 * 1.2)
-    expect(at(2, 255)).toBeCloseTo(0.25 * 1.2)
-    expect(at(4, 255)).toBeCloseTo(0.1 * 1.2)
+    expect(at(0, 0)).toBeCloseTo(c0 * 0.5)
+    expect(at(0, 255)).toBeCloseTo(c0 * 1.2)
+    expect(at(1, 255)).toBeCloseTo(c1 * 1.2)
+    expect(at(2, 255)).toBeCloseTo(c2 * 1.2)
+    expect(at(4, 255)).toBeCloseTo(c4 * 1.2)
     expect(at(0, 255)).toBeGreaterThan(at(1, 255))
     expect(at(1, 255)).toBeGreaterThan(at(2, 255))
     // The curve's last value repeats for budgets longer than the curve, and strength is capped.
-    expect(at(9, 255)).toBeCloseTo(0.1 * 1.2)
+    expect(at(9, 255)).toBeCloseTo(c4 * 1.2)
     const boosted = withBalance({ NUDGE_CURVE: [2] })
     expect(nudgeStrengthFor(0, 255, boosted)).toBe(boosted.NUDGE_MAX_STRENGTH)
-    expect(at(0, 127.5)).toBeCloseTo(0.6 * (0.5 + 0.7 * 0.5))
+    expect(at(0, 127.5)).toBeCloseTo(c0 * (0.5 + 0.7 * 0.5))
   })
 })
 
@@ -99,9 +100,10 @@ describe('nudging in a battle', () => {
       const events = advanceUntil(engine, es => es.some(e => e.type === 'move-chosen' && e.side === 'player'))
       if (ofType(events, 'move-chosen').find(e => e.side === 'player')!.followedNudge) followed++
     }
-    // strength = 0.6 * 1.2 = 0.72, plus the natural chance of Harden
-    expect(followed / runs).toBeGreaterThan(0.68)
-    expect(followed / runs).toBeLessThan(0.9)
+    // strength = first curve value * 1.2 (trust 255), plus the natural chance of Harden
+    const strength = BALANCE.NUDGE_CURVE[0] * 1.2
+    expect(followed / runs).toBeGreaterThan(strength - 0.06)
+    expect(followed / runs).toBeLessThan(strength + 0.2)
   })
 
   it('stubborn Pokémon ignore nudges on moves that deal no damage, but still pay for them', () => {

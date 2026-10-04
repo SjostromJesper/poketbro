@@ -9,7 +9,7 @@
 | M5 - Kopplingen karta <-> strid | done |
 | M6 - Lag, items, relation | done |
 | M7 - Gym, sparning, polish | done |
-| M8 - Balans och avslut | todo |
+| M8 - Balans och avslut | done |
 
 ## M1 - Projekt och data
 - Nuxt/Pinia/Vitest/tsx set up inside the existing project, scripts `dev`, `build`, `test`, `typecheck`, `fetch-data`, `sim`.
@@ -74,3 +74,12 @@ Known issues: "Spara", "Inställningar" and "Titelskärm" in the menu do nothing
 - 7 save tests + 3 playthrough tests (200 tests in total).
 
 Known issues: pacing is grindy (the bot needs ~80-100 wild battles to reach level 15) - that is what M8 tunes.
+
+## M8 - Balans och avslut
+- Balance pass done with the simulator and the playthrough bot (see "Balance (M8)" in DECISIONS.md): category weights, stat-move saturation, paralysis, nudge curve, XP multiplier,
+  gym level. Nudging cuts battle time by ~27 % and lost gym attempts by ~50 % over a whole run; trust matters a lot (18 % -> 48 % win rate in the hardest early fight).
+- `nudge/README.md`: how to run, controls, debug switches, scripts and layout.
+- `npm run build` succeeds (and the production server serves /nudge, /nudge/play); `npm test` 200 passed, 1 benchmark skipped by default; `npm run typecheck` is green.
+- The game can be played through from a new game to the Granit badge (automatic bot, 3 seeds x 3 starters).
+
+Known issues / ideas: see the open questions at the end of the M8 balance section; 60 inert moves; no sound; mobile controls out of scope.

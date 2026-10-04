@@ -30,13 +30,15 @@ describe('ATB timer', () => {
     expect(player / enemy).toBeLessThan(1.7)
   })
 
-  it('halves speed when paralysed, scales with stages and gets the Quick Claw and trait bonuses', () => {
+  it('halves the bar speed when paralysed, scales with stages and gets the Quick Claw and trait bonuses', () => {
     const engine = engineFor([mon('magikarp', 10, { trait: 'hasty', heldItem: 'quick-claw' })], [mon('magikarp', 10)])
     const player = engine.active('player')
     player.stats.speed = 100
     expect(effectiveSpeed(player, BALANCE)).toBe(100)
+    // Paralysis slows the bar itself (the fill rate), not the speed stat.
     player.status = 'paralysis'
-    expect(effectiveSpeed(player, BALANCE)).toBe(50)
+    expect(effectiveSpeed(player, BALANCE)).toBe(100)
+    expect(atbFillPerSecond(player, BALANCE)).toBeCloseTo(BALANCE.ATB_K * 200 * 1.05 * 1.1 * BALANCE.PARALYSIS_FILL_MULT, 5)
     player.status = null
     player.stages.speed = 2
     expect(effectiveSpeed(player, BALANCE)).toBe(200)

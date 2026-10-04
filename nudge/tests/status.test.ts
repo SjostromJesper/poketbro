@@ -203,10 +203,8 @@ describe('status effects over time (ATB form)', () => {
     expect(skips.length / (skips.length + acts)).toBeGreaterThan(0.18)
     expect(skips.length / (skips.length + acts)).toBeLessThan(0.32)
     const enemyActs = ofType(events, 'move-chosen').filter(e => e.side === 'enemy').length
-    // Paralysis halves the effective speed (the bar speed is K * (speed + 100), so the bar is slower, but not by half).
-    const speed = engine.active('player').stats.speed
-    const expectedRatio = (speed * 0.5 + 100) / (speed + 100)
-    expect(Math.abs((acts + skips.length) / enemyActs - expectedRatio)).toBeLessThan(0.08)
+    // Paralysis halves the bar's fill rate, so about half as many bars complete (and a quarter of those are lost to full paralysis).
+    expect(Math.abs((acts + skips.length) / enemyActs - BALANCE.PARALYSIS_FILL_MULT)).toBeLessThan(0.06)
   })
 
   it('sleep freezes the bar for a few seconds, then wakes up', () => {

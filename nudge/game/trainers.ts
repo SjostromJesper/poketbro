@@ -73,7 +73,7 @@ export const TRAINERS: Record<string, TrainerDef> = {
     name: 'Granit',
     title: 'Gymledare',
     look: 'leader',
-    team: [{ speciesId: 74, level: 10 }, { speciesId: 95, level: 13 }],
+    team: [{ speciesId: 74, level: 10 }, { speciesId: 95, level: 12 }],
     intro: [
       'Jag är Granit, Grusstads gymledare!',
       'Min försvarsstrategi är lika hård som sten. Kan dina Pokémon knäcka den?',

@@ -201,3 +201,33 @@ where the auto-choice is already fine. Balance is revisited in M8.
   numbers used for balancing in M8.
 - **Polish already in place:** flash transition into battles, fades with a map-name banner, "!" and walking trainers, HP bar animation, emotes, floating damage numbers,
   screen-wide Swedish texts (species and move names stay English because PokeAPI has no Swedish ones).
+
+## Balance (M8)
+
+Method: `npm run sim` for single fights (1000-2500 battles each, seeded, with and without a "best expected damage" nudge bot) and
+`BENCH=1 npx vitest run nudge/tests/bench.test.ts` for whole playthroughs (the automatic bot, 18 runs = 6 seeds x 3 starters per setting). All numbers below were measured *after* the
+values were actually in `balance.ts` (an early measurement ran with an unapplied edit and was redone).
+
+| What | Before | After | Why / evidence |
+|---|---|---|---|
+| Category weights (nature -> attack/defense/support) | neutral .50/.25/.25, attack-nature .65/.15/.20 | neutral **.62/.19/.19**, attack **.78/.09/.13**, defense .45/.35/.20, support .45/.13/.42 | Starters used Growl/Tail Whip 33-37 % of the time and only 57-63 % of all moves were attacks. Now Growl is ~27 % and attacks are 66-72 % of the moves (natures still shift this: support natures use more status moves). |
+| Stat-move saturation in `choice.ts` | `1 -/+ stage/7` | **`1 -/+ stage/3`** | After 2-3 Growls the move is almost worthless, so Pokémon stop spamming it. |
+| Paralysis | effective speed x0.5 (only ~15-25 % slower bar because of the +100 speed offset) | **bar fill rate x0.5** (`PARALYSIS_FILL_MULT`) + 25 % lost turns | Plan 5.7 says "halverad ATB-hastighet"; now it really is. Tested: a paralysed Pokémon completes about half as many bars. |
+| Nudge curve | [0.60, 0.40, 0.25, 0.15, 0.10] | **[0.70, 0.50, 0.30, 0.20, 0.10]** (budget stays 3 + trait) | Charmander vs Bulbasaur (calm, trust 120): no nudge 95.3 % / 93 losses per 2000; nudge bot with the new curve 97.2 % / 56 losses (-40 % losses, -15 % fight time). The old curve was only slightly weaker once the choice weights were fixed (96.8 % vs 97.2 % per 2500), so this is a small bump, not a big lever. A nudge does not rescue a type-disadvantaged boss fight. |
+| Trust | unchanged (`SMART_MIN` .15 .. `SMART_MAX` 1, nudge x0.5..1.2, endure at 200) | unchanged | Verified that it matters a lot: Charmander Lv15 vs the gym leader (no nudges) wins 18 % at trust 40, 31 % at trust 120, 48 % at trust 230. |
+| XP | Gen 3 formula | x **`XP_MULTIPLIER` 1.5** on top | The bot needed ~100 wild fights (16-20 battle-minutes) to reach Lv15 on Route 1; with x1.5 ~65 fights (10-14 min). x2 felt too fast (48-56 fights, 8-11 min). Real play also includes the forest and its trainers, so a human takes longer. |
+| Granit (gym leader) | Geodude Lv10, Onix Lv13 | Geodude Lv10, Onix **Lv12** | Charmander is the hard route by design (rock/ground resist fire): Lv14 wins ~12 %, Lv15 ~24-28 % (nudge bot). Squirtle Lv11 wins 87-92 %, Bulbasaur Lv11 75-80 %. A 2-level change swings the fight enormously because Onix's Defense is a wall (Charmander Lv14 vs Onix 13: 6-8 %). |
+| Encounter rate / levels | 10 %, Route 1 Lv2-4, forest Lv3-6 | unchanged | The playthrough bot meets enough fights; trainers (Lv3-7) give the XP boost. |
+| Prices, money | Ball 100, Potion 150, trainers 40 x level | unchanged | The bot ends the run with 1300-1600 kr after shopping. |
+
+Whole-run pacing (bot, XP x1.5, gym challenged once the lead is Lv14; 18 runs each):
+
+| | no nudges | nudge bot |
+|---|---|---|
+| wild battles | 68 | 63 |
+| battle time | 13.6 min | **9.9 min (-27 %)** |
+| blackouts (lost gym attempts) | 1.7 | **0.8 (-53 %)** |
+| lead level at the badge | 16.1 | 15.9 |
+
+Open questions: the early-game bot overstates grinding (it only farms Route 1), a human probably reaches the gym at Lv12-13 via the forest; Charmander players will want a second Pokémon
+(catching and switching are supported but the bot does not use switching); 60 moves are still inert (see the M2 section).
