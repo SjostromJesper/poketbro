@@ -192,7 +192,7 @@ const hasSummary = computed(() => summary.value.length > 0)
                   <option v-for="item in heldItems" :key="item" :value="item">{{ item ? gameData.items[item]?.displayName ?? item : '-' }}</option>
                 </select>
               </label>
-              <label><input v-model="r.favorite" type="checkbox"> ♥ Favorit</label>
+              <label style="flex-direction: row; align-items: center; white-space: nowrap; gap: 4px"><input v-model="r.favorite" type="checkbox"> ♥ Favorit</label>
               <button type="button" class="px-btn small" :disabled="rows.length <= 1" @click="removeRow(rows, i)">X</button>
             </div>
             <button type="button" class="px-btn small" :disabled="rows.length >= 6" @click="addRow(rows)">+ Lägg till</button>

@@ -174,7 +174,7 @@ export type BattleEvent =
   | { type: 'status-skip', side: Side, name: string, reason: 'paralysis' | 'confusion-hurt' }
   | { type: 'stat-change', side: Side, name: string, stat: BattleStatKey, delta: number, stage: number }
   | { type: 'flinch', side: Side, name: string }
-  | { type: 'faint', side: Side, name: string }
+  | { type: 'faint', side: Side, name: string, speciesId: number }
   | { type: 'endure', side: Side, name: string }
   | { type: 'disobey', side: Side, name: string, outcome: 'loaf' | 'random' | 'nap' }
   | { type: 'nudge', result: NudgeResult, moveIndex: number, remaining: number }

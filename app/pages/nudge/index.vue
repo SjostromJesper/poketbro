@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from '#imports'
 import { gameData } from '~~/nudge/data'
 import type { SaveSummary } from '~~/nudge/game/save'
@@ -12,14 +12,25 @@ const router = useRouter()
 const game = useGameStore()
 const settings = useSettingsStore()
 
+const audioReady = ref(false)
 const summary = ref<SaveSummary | null>(null)
 const showSettings = ref(false)
 const starters = [1, 4, 7].map(id => gameData.species[id])
 
+function onFirstInput() {
+  audioReady.value = true
+  window.removeEventListener('pointerdown', onFirstInput, true)
+  window.removeEventListener('keydown', onFirstInput, true)
+}
+
 onMounted(() => {
   settings.load()
   refresh()
+  window.addEventListener('pointerdown', onFirstInput, true)
+  window.addEventListener('keydown', onFirstInput, true)
 })
+
+onBeforeUnmount(onFirstInput)
 
 function refresh() {
   summary.value = game.savedGame()
@@ -45,6 +56,7 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
         <img v-for="(s, i) in starters" :key="s.id" :src="s.sprites.front" alt="" :style="{ animationDelay: `${i * 0.35}s` }">
       </div>
       <h1 class="px-title logo">NUDGE</h1>
+      <p v-if="!audioReady" class="press">Tryck för att börja</p>
       <p class="sub">Pokémon som slåss av sig själva. Du viskar bara i örat.</p>
 
       <div class="buttons">
@@ -163,5 +175,16 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
 @keyframes bob {
   from { translate: 0 0; }
   to { translate: 0 -8px; }
+}
+.press {
+  margin: 0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #ffd840;
+  animation: blink 1.2s steps(2) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.2; }
 }
 </style>

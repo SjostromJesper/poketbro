@@ -10,6 +10,7 @@ defineEmits<{ (e: 'nudge'): void }>()
   <button
     type="button"
     class="move"
+    data-sound="none"
     :class="{ pending: move.pending, empty: !move.usable, favorite: move.favorite }"
     :style="{ '--type': TYPE_COLORS[move.type] }"
     :disabled="!move.usable || disabled"

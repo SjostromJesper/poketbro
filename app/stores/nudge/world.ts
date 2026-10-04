@@ -6,6 +6,7 @@ import { getMap } from '~~/nudge/game/maps'
 import type { Direction, NpcAction, WorldState } from '~~/nudge/game/types'
 import { newWorldState, World, type Trigger, type WildEncounter } from '~~/nudge/game/world'
 import { DIRECTIONS, OPPOSITE } from '~~/nudge/game/types'
+import { useAudioStore } from './audio'
 
 export type WorldMode = 'walk' | 'dialog' | 'fade' | 'menu' | 'busy'
 
@@ -49,6 +50,7 @@ interface StepAnimation {
 
 /** The overworld: the World logic plus the real-time parts (input, step animation, fades, dialog typewriter). */
 export const useWorldStore = defineStore('nudgeWorld', () => {
+  const audio = useAudioStore()
   const world = shallowRef<World | null>(null)
   const mode = ref<WorldMode>('walk')
   const dialog = ref<DialogState | null>(null)
@@ -268,11 +270,21 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
     tryStep(dir)
   }
 
+  let lastBump = 0
+  /** A soft thud when walking into a wall (not more often than every 350 ms, even if the key is held). */
+  function bumpSound() {
+    const now = Date.now()
+    if (now - lastBump < 350) return
+    lastBump = now
+    audio.sfx('bump')
+  }
+
   function tryStep(dir: Direction) {
     const w = world.value
     if (!w) return
     const result = w.step(dir)
     if (result.kind === 'blocked') {
+      if (result.reason !== 'gate') bumpSound()
       if (result.reason === 'gate' && result.dialog) {
         openDialog(result.dialog)
         // Step the player back from the gate so holding the key does not re-trigger it instantly.
@@ -374,6 +386,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
 
   function beginWarp(warp: Extract<Trigger, { type: 'warp' }>['warp']) {
     held = []
+    audio.sfx('door')
     fadePhase = { stage: 'out', elapsed: 0, warp }
     mode.value = 'fade'
   }

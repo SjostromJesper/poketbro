@@ -2,12 +2,14 @@
 import { computed, ref } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { itemInfo, sellPrice, SHOP_BADGE_REQUIREMENT, SHOPS } from '~~/nudge/game/items'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { usePlayerStore } from '~/stores/nudge/player'
 
 const props = defineProps<{ shopId: string }>()
 defineEmits<{ (e: 'close'): void }>()
 
 const player = usePlayerStore()
+const audio = useAudioStore()
 const tab = ref<'buy' | 'sell'>('buy')
 const message = ref('')
 
@@ -24,6 +26,7 @@ function buy(id: string) {
   const info = itemInfo(gameData, id)
   if (!player.spend(info.price)) return say('Du har inte tillräckligt med pengar.')
   player.addItem(id)
+  audio.sfx('buy')
   say(`Du köpte ${info.name}.`)
 }
 
@@ -31,6 +34,7 @@ function sell(id: string) {
   if (!player.removeItem(id)) return
   const price = sellPrice(gameData, id)
   player.money += price
+  audio.sfx('coin')
   say(`Du sålde ${itemInfo(gameData, id).name} för ${price} kr.`)
 }
 </script>

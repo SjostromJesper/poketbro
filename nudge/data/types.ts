@@ -28,6 +28,8 @@ export interface SpeciesData {
   captureRate: number
   growthRate: string
   sprites: { front: string, back: string, icon: string }
+  /** URL of the Pokémon's cry (PokeAPI `cries`, legacy preferred). Empty when missing. */
+  cry: string
   /** Level-up learnset in the firered-leafgreen version group, sorted by level. */
   levelUpMoves: { level: number, move: string }[]
   /** Moves the species can learn from a TM (move names). */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { BALANCE } from '~~/nudge/engine/balance'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import { useGameStore } from '~/stores/nudge/game'
 import { useSettingsStore } from '~/stores/nudge/settings'
@@ -9,6 +10,7 @@ defineProps<{ allowDelete?: boolean }>()
 const emit = defineEmits<{ (e: 'deleted'): void }>()
 
 const settings = useSettingsStore()
+const audio = useAudioStore()
 const battle = useBattleStore()
 const game = useGameStore()
 
@@ -40,7 +42,18 @@ function deleteSave() {
       <input v-model="battle.debug" type="checkbox">
       <span>Debug-overlay i strid (visar sannolikheterna för attackval)</span>
     </label>
-    <p class="note">Ljud finns inte i den här prototypen.</p>
+    <label class="row check">
+      <input v-model="settings.muted" type="checkbox">
+      <span>Ljud av</span>
+    </label>
+    <label class="row slider">
+      <span>Musik {{ Math.round(settings.musicVolume * 100) }}%</span>
+      <input v-model.number="settings.musicVolume" type="range" min="0" max="1" step="0.05" :disabled="settings.muted">
+    </label>
+    <label class="row slider">
+      <span>Ljudeffekter {{ Math.round(settings.sfxVolume * 100) }}%</span>
+      <input v-model.number="settings.sfxVolume" type="range" min="0" max="1" step="0.05" :disabled="settings.muted" @change="audio.sfx('menuConfirm')">
+    </label>
     <button v-if="allowDelete" type="button" class="px-btn danger" @click="deleteSave">Radera sparfil</button>
   </div>
 </template>
@@ -69,6 +82,10 @@ h3 {
 .check {
   justify-content: flex-start;
   cursor: pointer;
+}
+
+.slider input {
+  width: 160px;
 }
 
 .speeds {

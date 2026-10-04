@@ -284,3 +284,21 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   for an easy matchup it barely matters (99.3 -> 99.9 %). Noticeable but not decisive, so the constants from the plan stay as they are.
 - **Tests** (`favorite.test.ts`): trust + threshold gating, nudged progress x2 / x3 (Loyal), one favorite at a time with the switch margin and trait differences, forget -> trust loss + cooldown, weight, immune + high
   trust, free nudge, nudge away.
+
+## P2-M2: audio engine
+
+- **Structure.** `nudge/game/audio.ts` is the logic (`AudioManager`: music with a 600 ms crossfade, jingles that duck the music to 20 % and resolve when they end (8 s safety release), freely overlapping SFX, separate
+  music/sfx volume + mute, everything silent until `unlock()`), written against a small `AudioBackend` interface so it is tested in Node with a fake backend (`audio.test.ts`). `audioBackend.ts` is the browser
+  implementation: Web Audio buffers for short sounds (cheap overlap, pitch via `playbackRate`, buffers cached, failures cached as "null" and warned about once) and one looping `<audio>` element per music track.
+  Missing files / blocked autoplay / decode errors are swallowed everywhere, the game just plays on silently.
+- **Sound table.** `audio-manifest.ts` maps ids to files and a per-file gain; `nudge/scripts/copy-audio.ts` (`npm run copy-audio`) copies exactly those files from `assets-raw/` to `public/assets/nudge/audio/` (about 5 MB).
+  A test checks that every manifest file exists in `public/`. UI/battle/overworld SFX are mostly from Juhani Junkala's retro pack, some (cancel, miss, ball throw, heal, encounter alert) from Ninja Adventure; jingles are Ninja
+  Adventure's `Success`/`LevelUp`/`Secret`/`GameOver` files. I could not listen to them, so they were picked by name and category; swapping one is a one-line change in `copy-audio.ts` and the manifest.
+- **Settings.** `settingsStore` now has `musicVolume` (default 0.5), `sfxVolume` (0.7) and `muted`, saved in localStorage (`nudge:settings:v2`); sliders and a mute box in the settings panel. The old unused `sound` flag is gone.
+- **Autoplay.** `NudgeFrame` listens for the first pointer/key press and calls `audio.unlock()`; the title screen shows a blinking "Tryck för att börja" until then. Music requested before the unlock starts right after it.
+- **Cues.** `audioCues.ts` is a pure mapping from battle events to sounds (tested): hit sound by effectiveness/crit, miss, no effect, faint (thud + lower pitched cry, `faint` events now carry `speciesId`), stat up/down,
+  status, heal, nudge accepted / followed / ignored, run. The battle store plays them from `handleEvents`. The capture animation's cues (throw, absorb = ball opens, each shake, caught = click, release = break out) play
+  in `BattleScene`. Every button also gets a confirm/cancel sound in `NudgeFrame` (cancel when the label starts with Avbryt/Tillbaka/Stäng/Nej..., opt out with `data-sound="none"`, as the move buttons do because the nudge has its own sound).
+- **Overworld / game.** Wall bump (throttled to every 350 ms), door/warp, encounter alert at battle start, coins for a trainer prize and selling, buy sound, level-up and evolution and heal and badge and favorite jingles.
+- **Cries.** `fetch-data.ts` stores `cry` (PokeAPI `cries.legacy`, `latest` as fallback) per species; the sounds are loaded from raw.githubusercontent.com at runtime exactly like the sprites (it sends CORS headers). Played on
+  send-out, on faint at pitch 0.7, and when a summary screen opens.

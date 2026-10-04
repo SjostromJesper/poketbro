@@ -13,6 +13,7 @@ import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
 import { parseSave, SAVE_KEY, serializeSave, summarizeSave, type SaveSummary } from '~~/nudge/game/save'
 import { readItem, removeItem, writeItem } from './storage'
 import type { NpcAction, TrainerDef, WorldState } from '~~/nudge/game/types'
+import { useAudioStore } from './audio'
 import { useBattleStore } from './battle'
 import { usePlayerStore } from './player'
 import { useWorldStore } from './world'
@@ -49,6 +50,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   const player = usePlayerStore()
   const world = useWorldStore()
   const battle = useBattleStore()
+  const audio = useAudioStore()
 
   const screen = ref<Screen>('overworld')
   const overlay = ref<Overlay | null>(null)
@@ -135,6 +137,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     switch (action) {
       case 'heal':
         player.healAll(true)
+        void audio.jingle('heal')
         w.rememberCenter()
         break
       case 'shop':
@@ -228,6 +231,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   function begin(ctx: BattleContext, enemy: OwnedPokemon[]) {
     context = ctx
     screen.value = 'transition'
+    audio.sfx('encounter')
     setTimeout(() => {
       battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length })
       screen.value = 'battle'
@@ -291,6 +295,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         run: () => {
           w?.markDefeated(def.id)
           player.money += prize
+          audio.sfx('coin')
         },
       })
       queue.push({ type: 'dialog', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker: `${def.title} ${def.name}` })
@@ -300,6 +305,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
           type: 'run',
           run: () => {
             if (!player.badges.includes(gym.badge)) player.badges.push(gym.badge)
+            void audio.jingle('badge')
             w?.setFlag(`badge-${gym.badge}`)
             player.addItem(tmId(gym.tm))
           },
@@ -317,6 +323,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   function queueLevelUp(info: LevelUpInfo) {
     const name = nameOf(info.uid)
+    queue.push({ type: 'run', run: () => { void audio.jingle('levelUp') } })
     queue.push({ type: 'dialog', lines: [`${name} nådde nivå ${info.to}!`] })
     for (const move of info.learned) {
       queue.push({ type: 'dialog', lines: [`${name} lärde sig ${gameData.moves[move]?.displayName ?? move}!`] })
@@ -355,6 +362,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         overlay.value = { kind: 'nickname', uid: step.uid }
         break
       case 'favorite':
+        void audio.jingle('favorite')
         overlay.value = { kind: 'favorite', uid: step.uid, move: step.move, previous: step.previous }
         break
     }
@@ -393,6 +401,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
       const before = displayNameOf(gameData, pokemon)
       if (accept) {
         evolvePokemon(gameData, pokemon, o.to)
+        void audio.jingle('evolution')
         if (!player.pokedex.includes(o.to)) player.pokedex.push(o.to)
         const after = gameData.species[o.to].displayName
         queue.unshift({ type: 'dialog', lines: [`${before} utvecklades till ${after}!`] })

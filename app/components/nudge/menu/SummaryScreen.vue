@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { itemInfo } from '~~/nudge/game/items'
 import { buildSummary, CATEGORY_LABELS_SV } from '~~/nudge/game/summary'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { usePlayerStore } from '~/stores/nudge/player'
 import { hpColor, TYPE_COLORS, TYPE_LABELS } from '../ui'
 
@@ -12,8 +13,12 @@ const emit = defineEmits<{ (e: 'back'): void, (e: 'select', uid: string): void }
 
 const player = usePlayerStore()
 const pokemon = computed(() => player.findPokemon(props.uid))
+const audio = useAudioStore()
 const summary = computed(() => (pokemon.value ? buildSummary(gameData, BALANCE, pokemon.value) : null))
 const sprite = computed(() => (summary.value ? gameData.species[summary.value.speciesId].sprites.front : ''))
+// The Pokémon cries when its summary opens (and when you flip to the next one).
+watch(() => pokemon.value?.uid, () => audio.cry(pokemon.value?.speciesId), { immediate: true })
+
 const index = computed(() => player.party.findIndex(p => p.uid === props.uid))
 
 function go(delta: number) {

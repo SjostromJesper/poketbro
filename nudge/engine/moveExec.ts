@@ -64,7 +64,7 @@ export function dealDamage(ctx: ExecContext, target: Battler, amount: number, in
     target.fainted = true
     target.action = null
     target.pendingNudge = null
-    events.push({ type: 'faint', side: target.side, name: target.name })
+    events.push({ type: 'faint', side: target.side, name: target.name, speciesId: target.speciesId })
   } else {
     checkBerry(ctx, target)
   }

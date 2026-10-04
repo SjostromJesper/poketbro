@@ -7,6 +7,7 @@ import { BattleEngine } from '~~/nudge/engine/battle'
 import { describeEvent } from '~~/nudge/engine/messages'
 import { createRng } from '~~/nudge/engine/rng'
 import type { ActionResult, BattleEvent, BattleKind, BattleOutcome, BattleResult, OwnedPokemon, PlayerAction, Side } from '~~/nudge/engine/types'
+import { useAudioStore } from './audio'
 import { useSettingsStore } from './settings'
 
 export interface LogLine {
@@ -52,6 +53,7 @@ export interface StartOptions {
 /** The running battle: owns the engine, drives it from the UI frame loop and turns events into log lines and animations. */
 export const useBattleStore = defineStore('nudgeBattle', () => {
   const settings = useSettingsStore()
+  const audio = useAudioStore()
 
   const engine = shallowRef<BattleEngine | null>(null)
   const view = shallowRef<BattleView | null>(null)
@@ -109,6 +111,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
   function handleEvents(events: BattleEvent[]) {
     const eng = engine.value
     if (!eng) return
+    audio.battleEvents(events, side => eng.active(side).speciesId)
     for (const event of events) {
       const text = describeEvent(event, { kind: eng.state.kind, data: gameData })
       if (text) pushLog(text, toneFor(event))

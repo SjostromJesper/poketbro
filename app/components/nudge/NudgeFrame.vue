@@ -1,5 +1,48 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted } from 'vue'
 import { useHead } from '#imports'
+import { useAudioStore } from '~/stores/nudge/audio'
+import { useSettingsStore } from '~/stores/nudge/settings'
+
+const audio = useAudioStore()
+const settings = useSettingsStore()
+
+const CANCEL = /^(avbryt|tillbaka|stäng|nej|ångra|lämna)/i
+
+// Browsers only allow sound after a click or key press: the first one unlocks the audio.
+// Every button also gets a menu sound (opt out with data-sound="none", or data-sound="cancel" for a cancel sound).
+function onPointerDown() {
+  void audio.unlock()
+}
+
+function onKeyDown() {
+  void audio.unlock()
+}
+
+function onClick(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof Element)) return
+  const button = target.closest('button, a.px-btn')
+  if (!button || (button as HTMLButtonElement).disabled) return
+  const kind = button.getAttribute('data-sound')
+  if (kind === 'none') return
+  const label = (button.textContent ?? '').trim()
+  audio.sfx(kind === 'cancel' || CANCEL.test(label) ? 'menuCancel' : 'menuConfirm')
+}
+
+onMounted(() => {
+  settings.load()
+  window.addEventListener('pointerdown', onPointerDown, true)
+  window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('click', onClick, true)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onPointerDown, true)
+  window.removeEventListener('keydown', onKeyDown, true)
+  window.removeEventListener('click', onClick, true)
+  audio.stopAll()
+})
 
 // Full-screen pixel-style frame for every Nudge page. Pulls the pixel fonts from Google Fonts (falls back to monospace offline).
 useHead({

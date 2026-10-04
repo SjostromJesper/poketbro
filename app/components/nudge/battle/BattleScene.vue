@@ -4,6 +4,7 @@ import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { BALLS } from '~~/nudge/game/items'
 import type { BattleOutcome, Side } from '~~/nudge/engine/types'
+import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import AtbBar from './AtbBar.vue'
 import BattleLog from './BattleLog.vue'
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useBattleStore()
+const audio = useAudioStore()
 const view = computed(() => store.view)
 
 // ---------------------------------------------------------------------------
@@ -151,7 +153,20 @@ const enemyEl = ref<HTMLElement | null>(null)
 const playerEl = ref<HTMLElement | null>(null)
 const enemyHidden = ref(false)
 
+function onThrow() {
+  audio.sfx('ballThrow')
+}
+
+function onShake() {
+  audio.sfx('ballShake')
+}
+
+function onResult(caught: boolean) {
+  if (caught) audio.sfx('ballClick')
+}
+
 function onAbsorb() {
+  audio.sfx('ballOpen')
   const el = spriteEls.enemy
   const scale = 1 / Math.max(1, store.speed)
   el?.animate([
@@ -163,6 +178,7 @@ function onAbsorb() {
 }
 
 function onRelease() {
+  audio.sfx('ballBreak')
   const el = spriteEls.enemy
   enemyHidden.value = false
   el?.getAnimations().forEach(a => a.cancel())
@@ -273,7 +289,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
       <CaptureAnimation
         v-if="store.capturing" :key="`${store.capturing.ball}-${store.capturing.shakes}-${view.timeMs}`" :ball="store.capturing.ball"
         :shakes="store.capturing.shakes" :caught="store.capturing.caught" :speed="store.speed" :origin="playerEl" :target="enemyEl"
-        :stage="stageEl" @absorb="onAbsorb" @release="onRelease" @done="onCaptureDone"
+        :stage="stageEl" @throw="onThrow" @absorb="onAbsorb" @shake="onShake" @result="onResult" @release="onRelease" @done="onCaptureDone"
       />
       <div v-if="store.paused && !store.result" class="paused px-title">PAUS</div>
     </div>

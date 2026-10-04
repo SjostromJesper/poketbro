@@ -169,6 +169,8 @@ function normaliseSpecies(pokemon: any, species: any, evolutions: SpeciesData['e
       back: animated?.back_default ?? back,
       icon: front,
     },
+    // The old (generation 1-5) cry sounds most like the original games; fall back to the latest one.
+    cry: pokemon.cries?.legacy ?? pokemon.cries?.latest ?? '',
     levelUpMoves: learnsets.levelUp,
     tmMoves: learnsets.machine,
     evolutions,
