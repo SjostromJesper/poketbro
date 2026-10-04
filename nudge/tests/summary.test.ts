@@ -58,18 +58,20 @@ describe('summary data', () => {
     expect(effects('tackle')).toEqual([])
   })
 
-  it('shows habits learned in won battles ("Föredrar: Ember") and they make that move more likely', () => {
+  it('shows habits learned in won battles (progress hearts) and they make that move more likely', () => {
     const p = mon('charmander', 12, { moves: ['scratch', 'ember', 'growl', 'tackle'], trust: 150 })
     expect(buildSummary(data, BALANCE, p).favourite).toBeNull()
     const before = computeChoice({ self: createBattler(data, BALANCE, p, 'player', 0), foe: createBattler(data, BALANCE, mon('rattata', 12), 'enemy', 0), data, balance: BALANCE })
     const outcome: BattleOutcome = {
       result: 'win', xp: {}, defeated: [], caught: null,
-      party: [{ uid: p.uid, currentHp: p.currentHp, status: null, moves: p.moves, heldItem: null, fainted: false, participated: true, movesUsed: { ember: 4, scratch: 1 }, followedNudge: false, trait: p.trait }],
+      party: [{ uid: p.uid, currentHp: p.currentHp, status: null, moves: p.moves, heldItem: null, fainted: false, participated: true, movesUsed: { ember: 4, scratch: 1 }, nudgedMoves: {}, followedNudge: false, trait: p.trait }],
     }
     applyBattleOutcome(data, BALANCE, [p], outcome)
     applyBattleOutcome(data, BALANCE, [p], outcome)
     const s = buildSummary(data, BALANCE, p)
-    expect(s.favourite).toBe('Ember')
+    // Habits alone do not make a favorite yet (it needs FAVORITE_THRESHOLD progress).
+    expect(s.favourite).toBeNull()
+    expect(s.moves.find(m => m.name === 'Ember')!.progressHearts).toBeGreaterThan(0)
     expect(s.habits[0]).toMatchObject({ name: 'Ember', value: 8 })
     const after = computeChoice({ self: createBattler(data, BALANCE, p, 'player', 0), foe: createBattler(data, BALANCE, mon('rattata', 12), 'enemy', 0), data, balance: BALANCE })
     const pEmber = (c: typeof before) => c.moves.find(m => m.move === 'ember')!.pAuto

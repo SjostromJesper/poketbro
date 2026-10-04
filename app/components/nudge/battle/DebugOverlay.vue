@@ -2,6 +2,7 @@
 import type { BattlerView, BattleView } from '~~/nudge/game/battleView'
 import type { ChoiceDebug } from '~~/nudge/engine/types'
 import { BALANCE } from '~~/nudge/engine/balance'
+import { favoriteThreshold } from '~~/nudge/engine/favorite'
 import { CATEGORY_LABELS } from '../ui'
 
 defineProps<{ view: BattleView }>()
@@ -9,7 +10,8 @@ defineProps<{ view: BattleView }>()
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`
 
 function rows(battler: BattlerView, debug: ChoiceDebug) {
-  return debug.moves.map(m => ({ ...m, name: battler.moves[m.moveIndex]?.name ?? m.move, nudged: debug.nudgedMoveIndex === m.moveIndex }))
+  const threshold = favoriteThreshold(battler.trait, BALANCE)
+  return debug.moves.map(m => ({ ...m, name: battler.moves[m.moveIndex]?.name ?? m.move, nudged: debug.nudgedMoveIndex === m.moveIndex, progress: battler.habits[m.move] ?? 0, threshold }))
 }
 </script>
 
@@ -48,7 +50,7 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
       </div>
       <table>
         <thead>
-          <tr><th>move</th><th>kat.</th><th>p_auto</th><th>p_final</th><th>skada~</th></tr>
+          <tr><th>move</th><th>kat.</th><th>p_auto</th><th>p_final</th><th>skada~</th><th>♥</th></tr>
         </thead>
         <tbody>
           <tr v-for="row in rows(view[side], view.debug[side])" :key="row.moveIndex" :class="{ nudged: row.nudged }">
@@ -61,8 +63,9 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
               <span class="bar final"><i :style="{ width: pct(row.pFinal) }" /></span>{{ pct(row.pFinal) }}
             </td>
             <td>{{ row.expectedDamage ? row.expectedDamage.toFixed(1) : '-' }}</td>
+            <td>{{ row.favorite ? `♥ ×${row.favoriteMult.toFixed(2)}` : `${row.progress}/${row.threshold}` }}</td>
           </tr>
-          <tr v-if="view.debug[side].struggle"><td colspan="5">Struggle (ingen PP kvar)</td></tr>
+          <tr v-if="view.debug[side].struggle"><td colspan="6">Struggle (ingen PP kvar)</td></tr>
         </tbody>
       </table>
     </div>

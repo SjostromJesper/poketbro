@@ -10,6 +10,7 @@ import { computeChoice, pickMove, pickRandomUsableMove } from './choice'
 import { calcDamage, captureChance, fleeSucceeds, rollCapture, xpYield, type CaptureParams } from './formulas'
 import { effectivePower, isChargeMove, isDamaging, isRechargeMove } from './moves'
 import { dealDamage, executeMove, healBattler, moveDataFor, type ExecContext } from './moveExec'
+import { favoriteApplies } from './favorite'
 import { nudgeStrengthFor } from './nudge'
 import { rollObedience } from './obedience'
 import { createBattler, emptyStages, speciesOf } from './pokemon'
@@ -211,6 +212,9 @@ export class BattleEngine {
   private finishTurn(b: Battler, move: ReturnType<typeof moveDataFor> | null, lockMs: number): void {
     const { balance } = this
     b.atb = move ? priorityHeadstart(move.priority, balance) : 0
+    if (move && b.favoriteMove === move.name && favoriteApplies(b, move.name, this.active(other(b.side)), this.data, balance)) {
+      b.atb += balance.FAVORITE_ATB_HEADSTART
+    }
     let mult = 1
     if (move && isRechargeMove(move, balance)) mult *= balance.RECOVERY_MULTIPLIER
     if (move && balance.POWER_TEMPO_SCALING) {
@@ -289,8 +293,12 @@ export class BattleEngine {
     const moveName = moveIndex >= 0 ? b.moves[moveIndex].move : 'struggle'
     const move = moveDataFor(this.ctx(events), moveName)
     if (moveIndex >= 0) b.moves[moveIndex].pp = Math.max(0, b.moves[moveIndex].pp - 1)
-    events.push({ type: 'move-chosen', side: b.side, name: b.name, move: moveName, moveName: move.displayName, followedNudge: followed })
-    if (followed !== null) events.push({ type: 'emote', side: b.side, emote: followed ? '♪' : '…' })
+    if (followed) b.nudgedUses[moveName] = (b.nudgedUses[moveName] ?? 0) + 1
+    const loved = favoriteApplies(b, moveName, foe, this.data, balance)
+    events.push({ type: 'move-chosen', side: b.side, name: b.name, move: moveName, moveName: move.displayName, followedNudge: followed, favorite: loved })
+    // One bubble at a time: the heart of a loved move wins over the "followed" note.
+    if (loved) events.push({ type: 'emote', side: b.side, emote: '♥' })
+    else if (followed !== null) events.push({ type: 'emote', side: b.side, emote: followed ? '♪' : '…' })
 
     if (isChargeMove(move, balance)) {
       const charge = balance.CHARGE_MOVES[moveName]
@@ -392,7 +400,9 @@ export class BattleEngine {
     if (b.pendingNudge?.moveIndex === moveIndex) {
       return { result: 'same-move', remaining, events: [{ type: 'nudge', result: 'same-move', moveIndex, remaining }] }
     }
-    if (b.nudgesUsed >= b.nudgeBudget) {
+    // A nudge towards the favorite is free: it costs no budget and does not step the curve down.
+    const free = this.balance.FAVORITE_NUDGE_FREE && b.favoriteMove === instance.move
+    if (!free && b.nudgesUsed >= b.nudgeBudget) {
       return {
         result: 'exhausted',
         remaining: 0,
@@ -404,9 +414,9 @@ export class BattleEngine {
     let strength = nudgeStrengthFor(b.nudgesUsed, b.trust, this.balance)
     if (this.balance.TRAITS[b.trait].ignoresNonDamagingNudges && !isDamaging(move)) strength = 0
     const replaced = b.pendingNudge !== null
-    b.nudgesUsed++
+    if (!free) b.nudgesUsed++
     b.pendingNudge = { moveIndex, strength }
-    const left = b.nudgeBudget - b.nudgesUsed
+    const left = Math.max(0, b.nudgeBudget - b.nudgesUsed)
     const result = replaced ? 'replaced' : 'accepted'
     return {
       result,
@@ -556,6 +566,7 @@ export class BattleEngine {
       fainted: b.fainted,
       participated: b.facedEnemies.size > 0,
       movesUsed: { ...b.movesUsed },
+      nudgedMoves: { ...b.nudgedUses },
       followedNudge: b.followedNudge,
       trait: b.trait,
     }))

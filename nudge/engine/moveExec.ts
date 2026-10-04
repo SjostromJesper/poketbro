@@ -234,7 +234,7 @@ function executeDamagingMove(ctx: ExecContext, user: Battler, target: Battler, m
         crit,
         burned: physical && user.status === 'burn',
         random: balance.DAMAGE_RANDOM_MIN + rng.next() * (1 - balance.DAMAGE_RANDOM_MIN),
-        other: typeBoostFor(user, move, balance),
+        other: typeBoostFor(user, move, balance) * (user.favoriteMove === move.name ? balance.FAVORITE_POWER_MULT : 1),
       }, balance)
     }
     total += dealDamage(ctx, target, damage, { effectiveness, crit, source: isStruggle ? 'struggle' : 'move' })

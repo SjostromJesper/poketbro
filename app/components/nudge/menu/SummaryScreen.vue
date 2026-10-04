@@ -77,7 +77,8 @@ function go(delta: number) {
           <h3 class="px-title">Attacker</h3>
           <div v-for="m in summary.moves" :key="m.name" class="move" :style="{ '--type': TYPE_COLORS[m.type] }">
             <div class="mhead">
-              <strong>{{ m.name }}</strong>
+              <strong>{{ m.name }}<span v-if="m.favorite" class="heart" title="Favoritattack"> ♥</span></strong>
+              <span v-if="!m.favorite && m.progressHearts > 0" class="pheart" :title="`Gillar den här attacken: ${m.progressHearts}/5`">{{ '♥'.repeat(m.progressHearts) }}</span>
               <span class="mtype">{{ TYPE_LABELS[m.type] }}</span>
               <span class="mcat">{{ CATEGORY_LABELS_SV[m.category] }}</span>
               <span class="mpp">PP {{ m.pp }}/{{ m.maxPp }}</span>
@@ -91,10 +92,11 @@ function go(delta: number) {
 
         <div class="px-panel">
           <h3 class="px-title">Vanor</h3>
-          <p v-if="summary.favourite" class="fav">Föredrar: <b>{{ summary.favourite }}</b></p>
-          <p v-else class="explain">Inga tydliga vanor än. Attacker som används i vunna strider blir med tiden lite mer sannolika.</p>
+          <p v-if="summary.favourite" class="fav"><span class="heart">♥</span> Favorit: <b>{{ summary.favourite }}</b></p>
+          <p v-else-if="summary.favoriteCooldown > 0" class="explain">Har ingen favorit just nu, men kan få en ny efter några fler strider.</p>
+          <p v-else class="explain">Ingen favorit än. Attacker som används i vunna strider blir med tiden lite mer sannolika, och med tillräckligt förtroende kan en bli en favorit. Attacker som den använder för att du knuffade den räknas extra.</p>
           <div v-for="h in summary.habits.slice(0, 4)" :key="h.move" class="habit">
-            <span>{{ h.name }}</span><i class="bar"><span :style="{ width: `${Math.min(100, h.value * 5)}%` }" /></i><b>{{ h.value }}</b>
+            <span>{{ h.name }}</span><i class="bar"><span :style="{ width: `${Math.min(100, (h.value / summary.favoriteThreshold) * 100)}%` }" /></i><b>{{ h.value }}</b>
           </div>
         </div>
       </section>
@@ -308,5 +310,14 @@ section.col:last-child {
 
 @media (max-width: 760px) {
   .cols { grid-template-columns: 1fr; }
+}
+.heart {
+  color: #ff5a7a;
+}
+
+.pheart {
+  color: #ff9ab0;
+  font-size: 9px;
+  letter-spacing: 1px;
 }
 </style>

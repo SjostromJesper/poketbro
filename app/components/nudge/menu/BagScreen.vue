@@ -79,9 +79,19 @@ function pick(uid: string) {
   picking.value = null
 }
 
+/** Index of the favorite move about to be forgotten, waiting for a second confirmation. */
+const confirmingFavorite = ref<number | null>(null)
+
+function askReplace(index: number) {
+  const pokemon = replacing.value ? player.findPokemon(replacing.value.uid) : null
+  if (pokemon && pokemon.moves[index]?.move === pokemon.favoriteMove) confirmingFavorite.value = index
+  else replace(index)
+}
+
 function replace(index: number) {
   const r = replacing.value
   if (!r) return
+  confirmingFavorite.value = null
   message.value = player.teachTm(r.item.id, r.uid, index) ?? 'Det gick inte.'
   replacing.value = null
 }
@@ -135,14 +145,24 @@ function replace(index: number) {
     </div>
 
     <div v-else-if="replacing" class="picker">
+      <template v-if="confirmingFavorite !== null">
+        <h3 class="px-title">
+          ♥ {{ displayNameOf(gameData, player.findPokemon(replacing.uid)!) }} älskar {{ gameData.moves[player.findPokemon(replacing.uid)!.favoriteMove ?? '']?.displayName }}. Är du säker?
+        </h3>
+        <p class="why">Förtroendet sjunker lite och den får ingen ny favorit på ett tag.</p>
+        <button type="button" class="px-btn" @click="replace(confirmingFavorite)">Ja, glöm den</button>
+        <button type="button" class="px-btn primary" @click="confirmingFavorite = null">Nej, tillbaka</button>
+      </template>
+      <template v-else>
       <h3 class="px-title">Vilken attack ska glömmas?</h3>
       <button
-        v-for="(m, i) in player.findPokemon(replacing.uid)?.moves ?? []" :key="m.move" type="button" class="px-btn row" @click="replace(i)"
+        v-for="(m, i) in player.findPokemon(replacing.uid)?.moves ?? []" :key="m.move" type="button" class="px-btn row" @click="askReplace(i)"
       >
         <span class="swatch" :style="{ background: TYPE_COLORS[gameData.moves[m.move].type] }" />
         <span class="pname">Glöm {{ gameData.moves[m.move].displayName }}</span>
       </button>
       <button type="button" class="px-btn" @click="replacing = null">Avbryt</button>
+      </template>
     </div>
 
     <p class="message">{{ message }}</p>

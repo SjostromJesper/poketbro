@@ -2,7 +2,8 @@
 //   npm run sim
 //   npm run sim -- --battles 2000 --player charmander:12 --enemy geodude:10 --trust 120 --trait calm
 //   npm run sim -- --player bulbasaur:15,pidgey:10 --enemy brock --compare
-// Options: --battles N --seed N --player SPEC --enemy SPEC --trust N --trait ID --strategy none|best|always-best --compare --badges N
+// Options: --battles N --seed N --player SPEC --enemy SPEC --trust N --trait ID --strategy none|best|always-best --compare --badges N --favorites
+//          --favorites  also compare teams whose Pokémon have trained a favorite move (their most powerful attack)
 //          --set KEY=JSON  (override a balance value for the experiment, e.g. --set NUDGE_BUDGET_BASE=4 --set 'NUDGE_CURVE=[0.7,0.5,0.3,0.2,0.1]')
 import { gameData } from '../data'
 import { createTrainerPokemon, createWildPokemon } from '../engine/ai'
@@ -23,11 +24,14 @@ interface Args {
   strategy: NudgeStrategy
   compare: boolean
   badges: number
+  favorites: boolean
+  /** Set while simulating the "trained favorite" team. */
+  withFavorite: boolean
 }
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
-    battles: 1000, seed: 1, player: 'charmander:12', enemy: 'geodude:10,onix:13', trust: 120, trait: null, strategy: 'best', compare: true, badges: 0,
+    battles: 1000, seed: 1, player: 'charmander:12', enemy: 'geodude:10,onix:13', trust: 120, trait: null, strategy: 'best', compare: true, badges: 0, favorites: false, withFavorite: false,
   }
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]
@@ -48,6 +52,7 @@ function parseArgs(argv: string[]): Args {
         break
       }
       case '--compare': args.compare = true; break
+      case '--favorites': args.favorites = true; break
       default: break
     }
   }
@@ -94,6 +99,12 @@ function simulate(args: Args, strategy: NudgeStrategy): Tally {
     const player: OwnedPokemon[] = playerSpec.map(s => createPokemon({
       data: gameData, balance: BALANCE, rng, speciesId: s.speciesId, level: s.level, trust: args.trust, trait: args.trait ?? undefined,
     }))
+    if (args.withFavorite) {
+      for (const p of player) {
+        const best = p.moves.filter(m => gameData.moves[m.move]?.power).sort((a, b) => (gameData.moves[b.move].power ?? 0) - (gameData.moves[a.move].power ?? 0))[0]
+        if (best) p.favoriteMove = best.move
+      }
+    }
     const enemy: OwnedPokemon[] = enemySpec.map(s => (enemySpec.length > 1 || args.enemy.includes('!')
       ? createTrainerPokemon({ data: gameData, balance: BALANCE, rng, speciesId: s.speciesId, level: s.level, trainerName: 'sim' })
       : createWildPokemon({ data: gameData, balance: BALANCE, rng, speciesId: s.speciesId, level: s.level })))
@@ -145,6 +156,11 @@ function main() {
   if (args.compare) {
     report('no nudges', args, simulate(args, 'none'))
     report('nudge strategy ("best")', args, simulate(args, 'best'))
+    if (args.favorites) {
+      const trained = { ...args, withFavorite: true }
+      report('trained favorites, no nudges', trained, simulate(trained, 'none'))
+      report('trained favorites, nudge strategy ("best")', trained, simulate(trained, 'best'))
+    }
   } else {
     report(`strategy "${args.strategy}"`, args, simulate(args, args.strategy))
   }

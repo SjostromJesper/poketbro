@@ -3,6 +3,7 @@
 import type { GameData, MoveData } from '../data/types'
 import type { Balance, MoveCategory } from './balance'
 import { calcDamage, stageMultiplier, typeEffectiveness } from './formulas'
+import { favoriteApplies, favoriteWeightMultiplier, nudgeAwayMultiplier } from './favorite'
 import { classifyMove, effectivePower, isDamaging, isInert, targetsSelf } from './moves'
 import { pickWeightedIndex, type Rng } from './rng'
 import type { Battler, ChoiceDebug, MoveChoice, PendingNudge } from './types'
@@ -74,7 +75,7 @@ export function estimateDamage(user: Battler, target: Battler, move: MoveData, d
     crit: false,
     burned: physical && user.status === 'burn',
     random: (1 + balance.DAMAGE_RANDOM_MIN) / 2,
-    other: typeBoostFor(user, move, balance),
+    other: typeBoostFor(user, move, balance) * (user.favoriteMove === move.name ? balance.FAVORITE_POWER_MULT : 1),
   }, balance)
   const accuracy = move.accuracy == null ? 1 : move.accuracy / 100
   return damage * accuracy * expectedHits(move)
@@ -223,6 +224,13 @@ export function computeChoice(ctx: ChoiceContext): ChoiceDebug {
   for (const c of present) normalised[c] = adjusted[c] / adjustedTotal
   let weights = entries.map((entry, i) => normalised[entry.category] * (shares[i] / (categorySums[entry.category] || 1)))
 
+  // The favorite move gets a weight bonus on top of nature and smartness (but not when it cannot hurt the target and the Pokémon is smart enough to know).
+  const favoriteMults = entries.map((entry) => {
+    if (!favoriteApplies(self, entry.instance.move, foe, data, balance)) return 1
+    return favoriteWeightMultiplier(self.trait, balance)
+  })
+  weights = weights.map((w, i) => w * favoriteMults[i])
+
   // Playful Pokémon flatten the distribution.
   if (trait.flatten > 0) {
     const uniform = 1 / entries.length
@@ -233,7 +241,12 @@ export function computeChoice(ctx: ChoiceContext): ChoiceDebug {
 
   // Step 5: nudge.
   const nudgedEntryIndex = ctx.nudge ? entries.findIndex(e => e.moveIndex === ctx.nudge!.moveIndex) : -1
-  const strength = nudgedEntryIndex >= 0 ? Math.max(0, Math.min(1, ctx.nudge!.strength)) : 0
+  let strength = nudgedEntryIndex >= 0 ? Math.max(0, Math.min(1, ctx.nudge!.strength)) : 0
+  // Pulling a Pokémon away from its favorite is harder, as long as the favorite is usable and would have an effect.
+  if (strength > 0 && self.favoriteMove && entries[nudgedEntryIndex].instance.move !== self.favoriteMove) {
+    const favoriteUsable = entries.some(e => e.instance.move === self.favoriteMove && favoriteApplies(self, e.instance.move, foe, data, balance))
+    if (favoriteUsable) strength *= nudgeAwayMultiplier(self.trait, balance)
+  }
   const moves: MoveChoice[] = entries.map((entry, i) => ({
     moveIndex: entry.moveIndex,
     move: entry.instance.move,
@@ -242,6 +255,8 @@ export function computeChoice(ctx: ChoiceContext): ChoiceDebug {
     pAuto: pAuto[i],
     pFinal: (1 - strength) * pAuto[i] + (i === nudgedEntryIndex ? strength : 0),
     expectedDamage: damages[i],
+    favorite: entry.instance.move === self.favoriteMove,
+    favoriteMult: favoriteMults[i],
   }))
 
   return {

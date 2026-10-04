@@ -28,6 +28,15 @@ export interface TraitDef {
   /** Below this HP fraction the defense/support categories get `lowHpDefenseMult`. 0 = disabled. */
   lowHpThreshold: number
   lowHpDefenseMult: number
+  /** Favorite move (PLAN-2 1B): multipliers on the global FAVORITE_* constants. */
+  favoriteThresholdMult: number
+  favoriteWeightMult: number
+  /** Multiplies NUDGE_AWAY_FROM_FAVORITE_MULT (< 1 = nudging away from the favorite is even harder). */
+  favoriteAwayMult: number
+  /** Multiplies the margin another move needs to take over as favorite (> 1 = harder to switch). */
+  favoriteSwitchMult: number
+  /** How many progress points a move chosen because of a followed nudge is worth. */
+  nudgedProgress: number
 }
 
 export interface Balance {
@@ -82,6 +91,28 @@ export interface Balance {
   /** Optional slow refill of the budget during long battles (off by default). */
   NUDGE_REFILL_ENABLED: boolean
   NUDGE_REFILL_MS: number
+
+  // ---- Favorite move (PLAN-2 1B) ----
+  /** Habit points a move needs to become a favorite candidate. */
+  FAVORITE_THRESHOLD: number
+  FAVORITE_MIN_TRUST: number
+  /** Weight multiplier for the favorite in choice.ts (after nature and smartness). */
+  FAVORITE_WEIGHT_MULT: number
+  /** ATB the next bar starts with after the favorite was used. */
+  FAVORITE_ATB_HEADSTART: number
+  /** Small damage bonus for the favorite (1 = off). */
+  FAVORITE_POWER_MULT: number
+  /** Nudging towards the favorite does not use up nudge budget (and does not step up the nudge curve). */
+  FAVORITE_NUDGE_FREE: boolean
+  /** Nudge strength multiplier for nudging towards any other move while the favorite is usable. */
+  NUDGE_AWAY_FROM_FAVORITE_MULT: number
+  /** Another move takes over when it has THRESHOLD * this much more progress than the favorite. */
+  FAVORITE_SWITCH_FACTOR: number
+  /** At/above this trust a Pokémon does not use a favorite that cannot hurt the target. */
+  FAVORITE_SMART_TRUST: number
+  FAVORITE_FORGET_TRUST_PENALTY: number
+  /** Battles after losing a favorite (forgetting it) during which no new favorite can form. */
+  FAVORITE_COOLDOWN_BATTLES: number
 
   // ---- Traits (4.1) ----
   TRAITS: Record<TraitId, TraitDef>
@@ -243,48 +274,67 @@ export const BALANCE: Balance = {
   NUDGE_REFILL_ENABLED: false,
   NUDGE_REFILL_MS: 30000,
 
+  FAVORITE_THRESHOLD: 20,
+  FAVORITE_MIN_TRUST: 150,
+  FAVORITE_WEIGHT_MULT: 2,
+  FAVORITE_ATB_HEADSTART: 100,
+  FAVORITE_POWER_MULT: 1.1,
+  FAVORITE_NUDGE_FREE: true,
+  NUDGE_AWAY_FROM_FAVORITE_MULT: 0.8,
+  FAVORITE_SWITCH_FACTOR: 1.5,
+  FAVORITE_SMART_TRUST: 200,
+  FAVORITE_FORGET_TRUST_PENALTY: 10,
+  FAVORITE_COOLDOWN_BATTLES: 10,
+
   TRAITS: {
     loyal: {
       label: 'Lojal',
       description: 'Lyssnar gärna på dig: +2 nudges per strid.',
       nudgeBudgetDelta: 2, nudgeBudgetFixed: null, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 1,
       atbMult: 1, smartMult: 1, flatten: 0, prefersPower: false, typeWeightExponent: 1, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 1, favoriteWeightMult: 1, favoriteAwayMult: 1, favoriteSwitchMult: 1, nudgedProgress: 3,
     },
     stubborn: {
       label: 'Envis',
       description: 'Bara 1 nudge per strid, och ignorerar nudges på moves som inte gör skada.',
       nudgeBudgetDelta: 0, nudgeBudgetFixed: 1, ignoresNonDamagingNudges: true, nudgeTrustBonusMult: 1,
       atbMult: 1, smartMult: 1, flatten: 0, prefersPower: false, typeWeightExponent: 1, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 0.75, favoriteWeightMult: 1, favoriteAwayMult: 1, favoriteSwitchMult: 2.5, nudgedProgress: 2,
     },
     shy: {
       label: 'Skygg',
       description: 'Under 30 % HP väljer den mycket oftare försvars- och stödmoves.',
       nudgeBudgetDelta: 0, nudgeBudgetFixed: null, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 1,
       atbMult: 1, smartMult: 1, flatten: 0, prefersPower: false, typeWeightExponent: 1, lowHpThreshold: 0.3, lowHpDefenseMult: 4,
+      favoriteThresholdMult: 1, favoriteWeightMult: 1, favoriteAwayMult: 1, favoriteSwitchMult: 1, nudgedProgress: 2,
     },
     hasty: {
       label: 'Hetsig',
       description: 'Föredrar den starkaste moven, och ATB fylls 5 % snabbare. Lite sämre på att välja smart.',
       nudgeBudgetDelta: 0, nudgeBudgetFixed: null, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 1,
       atbMult: 1.05, smartMult: 0.6, flatten: 0, prefersPower: true, typeWeightExponent: 1, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 1, favoriteWeightMult: 1, favoriteAwayMult: 1, favoriteSwitchMult: 1, nudgedProgress: 2,
     },
     calm: {
       label: 'Lugn',
       description: 'Väljer extra smart, och typfördelar väger tyngre.',
       nudgeBudgetDelta: 0, nudgeBudgetFixed: null, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 1,
       atbMult: 1, smartMult: 1.3, flatten: 0, prefersPower: false, typeWeightExponent: 1.5, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 1, favoriteWeightMult: 1, favoriteAwayMult: 1, favoriteSwitchMult: 1, nudgedProgress: 2,
     },
     playful: {
       label: 'Lekfull',
       description: 'Mer slumpmässiga val, men +1 nudge per strid.',
       nudgeBudgetDelta: 1, nudgeBudgetFixed: null, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 1,
       atbMult: 1, smartMult: 0.8, flatten: 0.5, prefersPower: false, typeWeightExponent: 1, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 1.5, favoriteWeightMult: 0.75, favoriteAwayMult: 1, favoriteSwitchMult: 0.6, nudgedProgress: 2,
     },
     proud: {
       label: 'Stolt',
       description: '2 nudges per strid, men en lyckad nudge ger dubbelt så mycket förtroende.',
       nudgeBudgetDelta: 0, nudgeBudgetFixed: 2, ignoresNonDamagingNudges: false, nudgeTrustBonusMult: 2,
       atbMult: 1, smartMult: 1, flatten: 0, prefersPower: false, typeWeightExponent: 1, lowHpThreshold: 0, lowHpDefenseMult: 1,
+      favoriteThresholdMult: 0.7, favoriteWeightMult: 1.25, favoriteAwayMult: 0.85, favoriteSwitchMult: 1.2, nudgedProgress: 2,
     },
   },
 

@@ -19,6 +19,8 @@ interface Row {
   nature: string
   trust: number
   heldItem: string
+  /** Gives the Pokémon its strongest attack as a favorite move. */
+  favorite?: boolean
 }
 
 const route = useRoute()
@@ -84,7 +86,18 @@ function removeRow(rows: Row[], index: number) {
 }
 
 function build(rows: Row[], rng: ReturnType<typeof createRng>, owner: string): OwnedPokemon[] {
-  return rows.map(r => createPokemon({
+  return rows.map((r) => {
+    const pokemon = makePokemon(r, rng, owner)
+    if (r.favorite) {
+      const best = pokemon.moves.filter(m => gameData.moves[m.move]?.power).sort((a, b) => (gameData.moves[b.move].power ?? 0) - (gameData.moves[a.move].power ?? 0))[0]
+      if (best) pokemon.favoriteMove = best.move
+    }
+    return pokemon
+  })
+}
+
+function makePokemon(r: Row, rng: ReturnType<typeof createRng>, owner: string): OwnedPokemon {
+  return createPokemon({
     data: gameData,
     balance: BALANCE,
     rng,
@@ -95,7 +108,7 @@ function build(rows: Row[], rng: ReturnType<typeof createRng>, owner: string): O
     nature: r.nature === 'random' ? undefined : r.nature,
     heldItem: r.heldItem || undefined,
     originalTrainer: owner,
-  }))
+  })
 }
 
 function start() {
@@ -179,6 +192,7 @@ const hasSummary = computed(() => summary.value.length > 0)
                   <option v-for="item in heldItems" :key="item" :value="item">{{ item ? gameData.items[item]?.displayName ?? item : '-' }}</option>
                 </select>
               </label>
+              <label><input v-model="r.favorite" type="checkbox"> ♥ Favorit</label>
               <button type="button" class="px-btn small" :disabled="rows.length <= 1" @click="removeRow(rows, i)">X</button>
             </div>
             <button type="button" class="px-btn small" :disabled="rows.length >= 6" @click="addRow(rows)">+ Lägg till</button>

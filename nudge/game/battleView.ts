@@ -19,6 +19,8 @@ export interface MoveView {
   usable: boolean
   /** The move that the next choice is nudged towards. */
   pending: boolean
+  /** The Pokémon's favorite move: shown with a ♥, and nudging towards it is free. */
+  favorite: boolean
 }
 
 export interface BattlerView {
@@ -50,6 +52,8 @@ export interface BattlerView {
   heldItem: string | null
   stages: { stat: BattleStatKey, stage: number }[]
   moves: MoveView[]
+  /** Habit progress per move (debug overlay). */
+  habits: Record<string, number>
   nudge: { budget: number, used: number, remaining: number, pending: { moveIndex: number, strength: number } | null }
 }
 
@@ -132,8 +136,10 @@ function battlerView(engine: BattleEngine, side: Side): BattlerView {
         category: classifyMove(move, balance),
         usable: instance.pp > 0,
         pending: pending?.moveIndex === index,
+        favorite: b.favoriteMove === instance.move,
       }
     }),
+    habits: { ...b.habits },
     nudge: {
       budget: b.nudgeBudget,
       used: b.nudgesUsed,

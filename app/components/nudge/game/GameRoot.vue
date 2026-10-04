@@ -7,6 +7,7 @@ import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import BoxScreen from './BoxScreen.vue'
 import EvolutionScene from './EvolutionScene.vue'
+import FavoriteScene from './FavoriteScene.vue'
 import NicknameDialog from './NicknameDialog.vue'
 import Hud from './Hud.vue'
 import GameMenu from '~/components/nudge/menu/GameMenu.vue'
@@ -38,6 +39,7 @@ const initialMenu = computed(() => {
         <MoveReplaceDialog v-else-if="overlay?.kind === 'learn'" :uid="overlay.uid" :move="overlay.move" @resolve="game.resolveLearn" />
         <BoxScreen v-else-if="overlay?.kind === 'pc'" @close="game.closePc" />
         <NicknameDialog v-else-if="overlay?.kind === 'nickname'" :uid="overlay.uid" @resolve="game.resolveNickname" />
+        <FavoriteScene v-else-if="overlay?.kind === 'favorite'" :uid="overlay.uid" :move="overlay.move" :previous="overlay.previous" @resolve="game.resolveFavorite" />
         <EvolutionScene v-else-if="overlay?.kind === 'evolve'" :uid="overlay.uid" :to="overlay.to" @resolve="game.resolveEvolve" />
       </template>
     </OverworldScene>

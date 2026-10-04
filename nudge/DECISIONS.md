@@ -264,3 +264,23 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **PC box and nicknames.** `player.box` already existed; now there is a PC in the Pokémon Center (an NPC with the `pc` action) with a simple screen to move Pokémon between party and box (the party keeps at
   least one Pokémon that can fight, max 6). After a catch the player may give a nickname (max 12 characters, can be skipped).
 - **Tests** (`capture.test.ts`): a >= 255 always catches, 1 HP vs full HP, status/ball/level multipliers, 10 000 seeded throws match the theoretical shake distribution, the engine pauses and resolves correctly.
+
+## P2-M1B: favorite move
+
+- **Progress = habits.** No separate counter: a move's progress is its `habits` value (so the old "Föredrar" line is replaced by the real favorite). Each won battle adds `min(plain uses, 5) + min(nudged uses, 5) x mult`
+  per move, where "nudged" = the move was picked because a nudge was followed (`Battler.nudgedUses`, reported as `PartyUpdate.nudgedMoves`). The mult is `TraitDef.nudgedProgress`: 2 normally, 3 for Loyal.
+- **Forming.** After each won battle (`progression.updateFavorite`): no favorite yet, no cooldown, trust >= `FAVORITE_MIN_TRUST` (150) and some move has progress >= `FAVORITE_THRESHOLD` (20, x the trait's multiplier:
+  Proud/Stubborn 0.7/0.75, Playful 1.5) -> the highest one becomes the favorite. `applyBattleOutcome` returns `favorites` events, the game store queues a `FavoriteScene` (hopping sprite, floating hearts, the
+  text from the plan) after the level-ups. The jingle comes with P2-M2.
+- **Switching.** A rival whose progress is >= favorite + `FAVORITE_THRESHOLD x FAVORITE_SWITCH_FACTOR (1.5)` x trait switch mult (Stubborn 2.5, Proud 1.2, Playful 0.6) takes over; the old favorite's progress is halved.
+- **Forgetting.** `learnMove` returns whether the forgotten move was the favorite; then `loseFavorite`: favorite removed, trust -10, `favoriteCooldown = FAVORITE_COOLDOWN_BATTLES (10)` participated battles. Both
+  the level-up dialog and the bag (TMs) ask "X älskar Y. Är du säker?" first.
+- **In battle** (`engine/favorite.ts`, `choice.ts`, `moveExec.ts`, `battle.ts`): weight x2 (Proud x1.25, Playful x0.75) after nature/smartness; power x1.1; +100 ATB on the next bar after using it; a ♥ emote
+  replaces the usual nudge note when it is used. Nudging towards it is free (no budget, no curve step); a nudge away from it is x0.8 as strong (Proud 0.85) as long as it has PP. No bonus (weight, power, head start) if the
+  move would be completely ineffective against the target and trust >= `FAVORITE_SMART_TRUST` (200): the Pokémon "knows better"; with lower trust it keeps stubbornly loving it.
+- **UI:** summary shows a ♥ by the favorite and up to five small hearts for the other moves (progress / threshold); the move button shows ♥ and "gratis nudge"; the debug overlay shows the favorite multiplier or
+  progress/threshold per move.
+- **Sim** (`npm run sim -- --favorites`): giving the team its strongest attack as favorite moves win rate for Charmander 14 vs Geodude 12 from 43 % to 56 % without nudges, 47 % to 65 % with the "best" nudge strategy;
+  for an easy matchup it barely matters (99.3 -> 99.9 %). Noticeable but not decisive, so the constants from the plan stay as they are.
+- **Tests** (`favorite.test.ts`): trust + threshold gating, nudged progress x2 / x3 (Loyal), one favorite at a time with the switch margin and trait differences, forget -> trust loss + cooldown, weight, immune + high
+  trust, free nudge, nudge away.

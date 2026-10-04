@@ -9,7 +9,7 @@ export type Side = 'player' | 'enemy'
 export type StatusId = 'burn' | 'poison' | 'paralysis' | 'sleep' | 'freeze'
 export type BattleKind = 'wild' | 'trainer'
 export type BattleResult = 'win' | 'lose' | 'fled' | 'caught'
-export type Emote = '!' | '♪' | '…' | '💢' | '💤'
+export type Emote = '!' | '♪' | '…' | '💢' | '💤' | '♥'
 
 export interface MoveInstance {
   move: string
@@ -34,8 +34,12 @@ export interface OwnedPokemon {
   heldItem?: string
   currentHp: number
   status?: StatusId
-  /** Learned habits: move name -> value. */
+  /** Learned habits: move name -> value. These double as favorite-move progress. */
   habits: Record<string, number>
+  /** The move this Pokémon loves to use (PLAN-2 1B). */
+  favoriteMove?: string
+  /** Battles left in which no new favorite can form (after the old one was forgotten). */
+  favoriteCooldown?: number
   caughtAt: number
   originalTrainer: string
 }
@@ -84,6 +88,9 @@ export interface Battler {
   habits: Record<string, number>
   /** Moves used in this battle (for habits). */
   movesUsed: Record<string, number>
+  /** How many of those uses were chosen because the Pokémon followed a nudge. */
+  nudgedUses: Record<string, number>
+  favoriteMove: string | null
   nudgeBudget: number
   nudgesUsed: number
   pendingNudge: PendingNudge | null
@@ -152,7 +159,7 @@ export type NudgeResult = 'accepted' | 'replaced' | 'same-move' | 'exhausted' | 
 
 export type BattleEvent =
   | { type: 'send-out', side: Side, name: string, teamIndex: number, speciesId: number, forced: boolean }
-  | { type: 'move-chosen', side: Side, name: string, move: string, moveName: string, followedNudge: boolean | null }
+  | { type: 'move-chosen', side: Side, name: string, move: string, moveName: string, followedNudge: boolean | null, favorite: boolean }
   | { type: 'emote', side: Side, emote: Emote }
   | { type: 'charge-start', side: Side, name: string, move: string, moveName: string, ms: number }
   | { type: 'move-used', side: Side, name: string, move: string, moveName: string, moveType: TypeName }
@@ -214,6 +221,8 @@ export interface PartyUpdate {
   fainted: boolean
   participated: boolean
   movesUsed: Record<string, number>
+  /** Uses that happened because a nudge was followed (they count extra for habits). */
+  nudgedMoves: Record<string, number>
   followedNudge: boolean
   trait: TraitId
 }
@@ -238,6 +247,10 @@ export interface MoveChoice {
   pFinal: number
   /** Estimated damage (attack moves), for the debug overlay. */
   expectedDamage: number
+  /** This move is the Pokémon's favorite. */
+  favorite: boolean
+  /** The favorite multiplier that was applied to its weight (1 = none, e.g. when it would have no effect). */
+  favoriteMult: number
 }
 
 export interface ChoiceDebug {

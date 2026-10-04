@@ -129,6 +129,8 @@ export function createBattler(data: GameData, balance: Balance, pokemon: OwnedPo
     action: null,
     habits: { ...pokemon.habits },
     movesUsed: {},
+    nudgedUses: {},
+    favoriteMove: pokemon.favoriteMove && pokemon.moves.some(m => m.move === pokemon.favoriteMove) ? pokemon.favoriteMove : null,
     nudgeBudget: nudgeBudgetFor(pokemon.trait, balance),
     nudgesUsed: 0,
     pendingNudge: null,

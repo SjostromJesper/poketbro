@@ -215,10 +215,11 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     const label = gameData.moves[move].displayName
     if (pokemon.moves.length >= BALANCE.MAX_MOVES && replaceIndex === null) return null
     const forgotten = replaceIndex !== null ? pokemon.moves[replaceIndex] : undefined
-    learnMove(gameData, pokemon, move, pokemon.moves.length < BALANCE.MAX_MOVES ? null : replaceIndex, BALANCE)
-    return forgotten
+    const lostFavorite = learnMove(gameData, pokemon, move, pokemon.moves.length < BALANCE.MAX_MOVES ? null : replaceIndex, BALANCE)
+    const text = forgotten
       ? `${nameOf(pokemon)} glömde ${gameData.moves[forgotten.move].displayName} och lärde sig ${label}!`
       : `${nameOf(pokemon)} lärde sig ${label}!`
+    return lostFavorite ? `${text} ${nameOf(pokemon)} verkar ledsen över att ha glömt sin favorit.` : text
   }
 
   function serialize(): PlayerSave {

@@ -1,6 +1,7 @@
 // What happens to a Pokémon after a battle: HP/PP/status, XP and level-ups, new moves, evolution, habits and trust (4.2, 4.3, 5.5, 5.9).
 import type { GameData } from '../data/types'
 import type { Balance } from './balance'
+import { favoriteSwitchMargin, favoriteThreshold } from './favorite'
 import { levelForXp, xpForLevel } from './formulas'
 import { maxHpOf, newMoveInstance, speciesOf } from './pokemon'
 import type { BattleOutcome, OwnedPokemon } from './types'
@@ -17,8 +18,17 @@ export interface LevelUpInfo {
   evolveTo: number | null
 }
 
+export interface FavoriteEvent {
+  uid: string
+  kind: 'new' | 'switch'
+  move: string
+  /** The old favorite (switch only). */
+  previous?: string
+}
+
 export interface OutcomeApplication {
   levelUps: LevelUpInfo[]
+  favorites: FavoriteEvent[]
 }
 
 export function addTrust(pokemon: OwnedPokemon, delta: number, balance: Balance): void {
@@ -43,17 +53,63 @@ export function pendingEvolution(data: GameData, pokemon: OwnedPokemon): number 
   return evolution?.to ?? null
 }
 
-/** Replaces move slot `replaceIndex` (or appends when there is room and replaceIndex is null). Habits for a forgotten move are dropped. */
-export function learnMove(data: GameData, pokemon: OwnedPokemon, moveName: string, replaceIndex: number | null, balance: Balance): void {
-  if (pokemon.moves.some(m => m.move === moveName)) return
+/** Called when a move is forgotten: forgetting the favorite hurts the relationship and blocks a new favorite for a while. */
+export function loseFavorite(pokemon: OwnedPokemon, balance: Balance): void {
+  delete pokemon.favoriteMove
+  pokemon.favoriteCooldown = balance.FAVORITE_COOLDOWN_BATTLES
+  addTrust(pokemon, -balance.FAVORITE_FORGET_TRUST_PENALTY, balance)
+}
+
+/**
+ * Replaces move slot `replaceIndex` (or appends when there is room and replaceIndex is null). Habits for a forgotten move are dropped.
+ * Returns true when the forgotten move was the Pokémon's favorite (trust penalty and cooldown are applied).
+ */
+export function learnMove(data: GameData, pokemon: OwnedPokemon, moveName: string, replaceIndex: number | null, balance: Balance): boolean {
+  if (pokemon.moves.some(m => m.move === moveName)) return false
   const instance = newMoveInstance(data, moveName)
   if (replaceIndex === null) {
     if (pokemon.moves.length < balance.MAX_MOVES) pokemon.moves.push(instance)
-    return
+    return false
   }
   const forgotten = pokemon.moves[replaceIndex]
-  if (forgotten) delete pokemon.habits[forgotten.move]
+  let lostFavorite = false
+  if (forgotten) {
+    delete pokemon.habits[forgotten.move]
+    if (pokemon.favoriteMove === forgotten.move) {
+      loseFavorite(pokemon, balance)
+      lostFavorite = true
+    }
+  }
   pokemon.moves[replaceIndex] = instance
+  return lostFavorite
+}
+
+/**
+ * Checks whether a favorite forms or changes after a won battle. Progress is the habit value of each move.
+ * A new favorite needs enough progress *and* enough trust; a rival move takes over when it is far enough ahead.
+ */
+export function updateFavorite(data: GameData, balance: Balance, pokemon: OwnedPokemon): FavoriteEvent | null {
+  const known = new Set(pokemon.moves.map(m => m.move))
+  if (pokemon.favoriteMove && !known.has(pokemon.favoriteMove)) delete pokemon.favoriteMove
+  if (pokemon.trust < balance.FAVORITE_MIN_TRUST) return null
+  const progress = (move: string) => pokemon.habits[move] ?? 0
+
+  if (!pokemon.favoriteMove) {
+    if ((pokemon.favoriteCooldown ?? 0) > 0) return null
+    const threshold = favoriteThreshold(pokemon.trait, balance)
+    const best = pokemon.moves.map(m => m.move).filter(m => data.moves[m] && progress(m) >= threshold).sort((a, b) => progress(b) - progress(a))[0]
+    if (!best) return null
+    pokemon.favoriteMove = best
+    return { uid: pokemon.uid, kind: 'new', move: best }
+  }
+
+  const current = pokemon.favoriteMove
+  const margin = favoriteSwitchMargin(pokemon.trait, balance)
+  const rival = pokemon.moves.map(m => m.move).filter(m => m !== current && progress(m) >= progress(current) + margin).sort((a, b) => progress(b) - progress(a))[0]
+  if (!rival) return null
+  pokemon.habits[current] = Math.floor(progress(current) / 2)
+  pokemon.favoriteMove = rival
+  return { uid: pokemon.uid, kind: 'switch', move: rival, previous: current }
 }
 
 export function evolvePokemon(data: GameData, pokemon: OwnedPokemon, toSpeciesId: number): void {
@@ -94,6 +150,7 @@ export function grantXp(data: GameData, balance: Balance, pokemon: OwnedPokemon,
 /** Applies a finished battle to the player's party (in place). */
 export function applyBattleOutcome(data: GameData, balance: Balance, party: OwnedPokemon[], outcome: BattleOutcome): OutcomeApplication {
   const levelUps: LevelUpInfo[] = []
+  const favorites: FavoriteEvent[] = []
   const won = outcome.result === 'win'
   for (const update of outcome.party) {
     const pokemon = party.find(p => p.uid === update.uid)
@@ -104,13 +161,20 @@ export function applyBattleOutcome(data: GameData, balance: Balance, party: Owne
     if (update.heldItem === null) delete pokemon.heldItem
 
     if (update.fainted) addTrust(pokemon, balance.TRUST_FAINT, balance)
+    if (update.participated && (pokemon.favoriteCooldown ?? 0) > 0) pokemon.favoriteCooldown = (pokemon.favoriteCooldown ?? 0) - 1
 
     if (won && !update.fainted && update.participated) {
       addTrust(pokemon, balance.TRUST_WIN, balance)
+      const cap = balance.HABIT_GAIN_CAP_PER_BATTLE
+      const nudgeValue = balance.TRAITS[pokemon.trait].nudgedProgress
       for (const [move, used] of Object.entries(update.movesUsed)) {
         if (move === 'struggle' || !pokemon.moves.some(m => m.move === move)) continue
-        pokemon.habits[move] = (pokemon.habits[move] ?? 0) + Math.min(used, balance.HABIT_GAIN_CAP_PER_BATTLE)
+        // Uses that happened because a nudge was followed count extra (x2, x3 for loyal Pokémon), with their own cap.
+        const nudged = Math.min(update.nudgedMoves?.[move] ?? 0, used)
+        pokemon.habits[move] = (pokemon.habits[move] ?? 0) + Math.min(used - nudged, cap) + Math.min(nudged, cap) * nudgeValue
       }
+      const favorite = updateFavorite(data, balance, pokemon)
+      if (favorite) favorites.push(favorite)
       if (update.followedNudge) {
         addTrust(pokemon, balance.TRUST_NUDGE_WIN * balance.TRAITS[pokemon.trait].nudgeTrustBonusMult, balance)
       }
@@ -120,7 +184,7 @@ export function applyBattleOutcome(data: GameData, balance: Balance, party: Owne
     const info = grantXp(data, balance, pokemon, gained)
     if (info) levelUps.push(info)
   }
-  return { levelUps }
+  return { levelUps, favorites }
 }
 
 /** Pokémon Center: full HP, no status, full PP, +1 trust. */

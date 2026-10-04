@@ -90,7 +90,7 @@ Known issues / ideas: see the open questions at the end of the M8 balance sectio
 |---|---|
 | P2-M0 - Hämta paketen | done (all packs downloaded; `npm run fetch-assets`) |
 | P2-M1 - Fångst-systemet | done |
-| P2-M1B - Favoritmove | todo |
+| P2-M1B - Favoritmove | done (`npm run sim -- --favorites` jämför lag med tränad favorit) |
 | P2-M2 - Ljudmotorn | todo |
 | P2-M3 - Musik på plats | todo |
 | P2-M4 - Kartgrafik | todo |

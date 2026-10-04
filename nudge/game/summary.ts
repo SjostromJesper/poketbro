@@ -3,6 +3,7 @@ import type { GameData, MoveData, StatKey, TypeName } from '../data/types'
 import { STAT_KEYS } from '../data/types'
 import type { Balance, MoveCategory } from '../engine/balance'
 import { natureCategoryWeights } from '../engine/choice'
+import { favoriteThreshold } from '../engine/favorite'
 import { xpForLevel } from '../engine/formulas'
 import { classifyMove, isInert } from '../engine/moves'
 import { displayNameOf, speciesOf, statsOf } from '../engine/pokemon'
@@ -13,6 +14,9 @@ export const STAT_LABELS_SV: Record<StatKey, string> = {
 }
 
 export const CATEGORY_LABELS_SV: Record<MoveCategory, string> = { attack: 'attacker', defense: 'försvarsmoves', support: 'stödmoves' }
+
+/** Number of small hearts shown as progress towards a favorite. */
+export const PROGRESS_HEARTS = 5
 
 export interface StatLine {
   stat: StatKey
@@ -34,6 +38,10 @@ export interface MoveLine {
   /** Short effect descriptions in Swedish. */
   effects: string[]
   habit: number
+  /** True for the Pokémon's favorite move (shown with a ♥). */
+  favorite: boolean
+  /** 0..HEARTS filled small hearts showing progress towards becoming a favorite. */
+  progressHearts: number
 }
 
 export interface SummaryView {
@@ -58,7 +66,12 @@ export interface SummaryView {
   moves: MoveLine[]
   /** Top habits, most used first. */
   habits: { move: string, name: string, value: number }[]
+  /** Display name of the favorite move, if the Pokémon has one. */
   favourite: string | null
+  /** Progress needed for a move to become a favorite (for the progress hearts). */
+  favoriteThreshold: number
+  /** True while forgetting favorites is blocked after a recent loss. */
+  favoriteCooldown: number
   originalTrainer: string
 }
 
@@ -163,10 +176,14 @@ export function buildSummary(data: GameData, balance: Balance, pokemon: OwnedPok
         maxPp: instance.maxPp,
         effects: describeMoveEffects(move, balance),
         habit: pokemon.habits[instance.move] ?? 0,
+        favorite: pokemon.favoriteMove === instance.move,
+        progressHearts: Math.min(PROGRESS_HEARTS, Math.floor(((pokemon.habits[instance.move] ?? 0) / favoriteThreshold(pokemon.trait, balance)) * PROGRESS_HEARTS)),
       }
     }),
     habits,
-    favourite: habits.length > 0 && habits[0].value >= 3 ? habits[0].name : null,
+    favourite: pokemon.favoriteMove && data.moves[pokemon.favoriteMove] ? data.moves[pokemon.favoriteMove].displayName : null,
+    favoriteThreshold: favoriteThreshold(pokemon.trait, balance),
+    favoriteCooldown: pokemon.favoriteCooldown ?? 0,
     originalTrainer: pokemon.originalTrainer,
   }
 }

@@ -26,6 +26,7 @@ export type Overlay =
   | { kind: 'evolve', uid: string, to: number }
   | { kind: 'pc' }
   | { kind: 'nickname', uid: string }
+  | { kind: 'favorite', uid: string, move: string, previous?: string }
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
@@ -33,6 +34,7 @@ type PostStep =
   | { type: 'learn', uid: string, move: string }
   | { type: 'evolve', uid: string, to: number }
   | { type: 'nickname', uid: string }
+  | { type: 'favorite', uid: string, move: string, previous?: string }
   | { type: 'run', run: () => void }
 
 interface BattleContext {
@@ -308,6 +310,9 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
     // Level-ups, new moves and evolutions, in the order they happened.
     for (const info of result.levelUps) queueLevelUp(info)
+
+    // A favorite move forming (or changing) is shown after the level-ups.
+    for (const fav of result.favorites) queue.push({ type: 'favorite', uid: fav.uid, move: fav.move, previous: fav.previous })
   }
 
   function queueLevelUp(info: LevelUpInfo) {
@@ -349,6 +354,9 @@ export const useGameStore = defineStore('nudgeGame', () => {
       case 'nickname':
         overlay.value = { kind: 'nickname', uid: step.uid }
         break
+      case 'favorite':
+        overlay.value = { kind: 'favorite', uid: step.uid, move: step.move, previous: step.previous }
+        break
     }
   }
 
@@ -361,14 +369,18 @@ export const useGameStore = defineStore('nudgeGame', () => {
     const moveName = gameData.moves[o.move]?.displayName ?? o.move
     if (pokemon && replaceIndex !== null) {
       const forgotten = pokemon.moves[replaceIndex]?.move
-      learnMove(gameData, pokemon, o.move, replaceIndex, BALANCE)
-      queue.unshift({
-        type: 'dialog',
-        lines: [`${displayNameOf(gameData, pokemon)} glömde ${gameData.moves[forgotten ?? '']?.displayName ?? 'en attack'} och lärde sig ${moveName}!`],
-      })
+      const lostFavorite = learnMove(gameData, pokemon, o.move, replaceIndex, BALANCE)
+      const lines = [`${displayNameOf(gameData, pokemon)} glömde ${gameData.moves[forgotten ?? '']?.displayName ?? 'en attack'} och lärde sig ${moveName}!`]
+      if (lostFavorite) lines.push(`${displayNameOf(gameData, pokemon)} verkar ledsen över att ha glömt sin favorit.`)
+      queue.unshift({ type: 'dialog', lines })
     } else if (pokemon) {
       queue.unshift({ type: 'dialog', lines: [`${displayNameOf(gameData, pokemon)} lärde sig inte ${moveName}.`] })
     }
+    runQueue()
+  }
+
+  function resolveFavorite() {
+    if (overlay.value?.kind === 'favorite') overlay.value = null
     runQueue()
   }
 
@@ -393,6 +405,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, resolveNickname, finishBattle, resolveLearn, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, resolveNickname, finishBattle, resolveLearn, resolveEvolve, resolveFavorite, startWildBattle, onTrainer, onAction,
   }
 })

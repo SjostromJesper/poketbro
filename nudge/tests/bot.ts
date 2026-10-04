@@ -142,6 +142,9 @@ export class Bot {
       case 'pc':
         this.game.closePc()
         break
+      case 'favorite':
+        this.game.resolveFavorite()
+        break
     }
   }
 

@@ -8,7 +8,7 @@ import type { BattleOutcome, PartyUpdate } from '../engine/types'
 import { BALANCE, data, mon, speciesId } from './helpers'
 
 function update(uid: string, patch: Partial<PartyUpdate> = {}): PartyUpdate {
-  return { uid, currentHp: 10, status: null, moves: [], heldItem: null, fainted: false, participated: true, movesUsed: {}, followedNudge: false, trait: 'loyal', ...patch }
+  return { uid, currentHp: 10, status: null, moves: [], heldItem: null, fainted: false, participated: true, movesUsed: {}, nudgedMoves: {}, followedNudge: false, trait: 'loyal', ...patch }
 }
 function outcome(updates: PartyUpdate[], xp: Record<string, number> = {}, result: BattleOutcome['result'] = 'win'): BattleOutcome {
   return { result, party: updates, xp, defeated: [], caught: null }

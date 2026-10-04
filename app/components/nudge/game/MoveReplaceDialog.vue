@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { displayNameOf } from '~~/nudge/engine/pokemon'
 import { usePlayerStore } from '~/stores/nudge/player'
@@ -12,7 +12,16 @@ const player = usePlayerStore()
 const pokemon = computed(() => player.findPokemon(props.uid))
 const newMove = computed(() => gameData.moves[props.move])
 const name = computed(() => (pokemon.value ? displayNameOf(gameData, pokemon.value) : '?'))
-const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({ index, data: gameData.moves[m.move], pp: m.pp, maxPp: m.maxPp })))
+/** Index of the favorite move the player is about to forget (needs a second confirmation). */
+const confirming = ref<number | null>(null)
+const favoriteName = computed(() => (pokemon.value?.favoriteMove ? gameData.moves[pokemon.value.favoriteMove]?.displayName : null))
+
+function choose(index: number) {
+  const move = pokemon.value?.moves[index]?.move
+  if (move && move === pokemon.value?.favoriteMove) confirming.value = index
+  else emit('resolve', index)
+}
+const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({ index, id: m.move, data: gameData.moves[m.move], pp: m.pp, maxPp: m.maxPp })))
 </script>
 
 <template>
@@ -23,13 +32,21 @@ const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({
         <strong>{{ newMove.displayName }}</strong>
         <span>{{ TYPE_LABELS[newMove.type] }} &middot; Kraft {{ newMove.power ?? '-' }} &middot; Träff {{ newMove.accuracy ?? '-' }} &middot; PP {{ newMove.pp }}</span>
       </div>
+      <template v-if="confirming !== null">
+        <p class="warn">♥ {{ name }} älskar {{ favoriteName }}. Är du säker?</p>
+        <p class="ask">Förtroendet sjunker lite och {{ name }} får ingen ny favorit på ett tag.</p>
+        <button type="button" class="px-btn" @click="emit('resolve', confirming)">Ja, glöm {{ favoriteName }}</button>
+        <button type="button" class="px-btn primary" @click="confirming = null">Nej, tillbaka</button>
+      </template>
+      <template v-else>
       <p class="ask">Men {{ name }} kan bara kunna fyra attacker. Vilken ska glömmas?</p>
-      <button v-for="m in current" :key="m.index" type="button" class="px-btn row" :style="{ '--type': TYPE_COLORS[m.data.type] }" @click="emit('resolve', m.index)">
+      <button v-for="m in current" :key="m.index" type="button" class="px-btn row" :style="{ '--type': TYPE_COLORS[m.data.type] }" @click="choose(m.index)">
         <span class="swatch" />
-        <span class="mname">Glöm {{ m.data.displayName }}</span>
+        <span class="mname">Glöm {{ m.data.displayName }}<span v-if="m.id === pokemon?.favoriteMove" class="heart"> ♥</span></span>
         <span class="mmeta">{{ TYPE_LABELS[m.data.type] }} &middot; Kraft {{ m.data.power ?? '-' }}</span>
       </button>
       <button type="button" class="px-btn" @click="emit('resolve', null)">Lär sig inte {{ newMove.displayName }}</button>
+      </template>
     </div>
   </div>
 </template>
@@ -100,5 +117,14 @@ h2 {
   font-family: 'Pixelify Sans', monospace;
   font-size: 13px;
   color: #9fb2cc;
+}
+.warn {
+  margin: 0;
+  color: #ff9ab0;
+  font-size: 16px;
+}
+
+.heart {
+  color: #ff6f8e;
 }
 </style>

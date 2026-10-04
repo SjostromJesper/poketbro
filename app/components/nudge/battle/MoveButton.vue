@@ -10,18 +10,19 @@ defineEmits<{ (e: 'nudge'): void }>()
   <button
     type="button"
     class="move"
-    :class="{ pending: move.pending, empty: !move.usable }"
+    :class="{ pending: move.pending, empty: !move.usable, favorite: move.favorite }"
     :style="{ '--type': TYPE_COLORS[move.type] }"
     :disabled="!move.usable || disabled"
-    :title="move.pending ? 'Nudge väntar - gäller nästa val' : 'Klicka för att nudga'"
+    :title="move.pending ? 'Nudge väntar - gäller nästa val' : move.favorite ? 'Favoritattack: nudgen är gratis' : 'Klicka för att nudga'"
     @click="$emit('nudge')"
   >
     <span class="key">{{ hotkey }}</span>
     <span class="body">
-      <span class="name">{{ move.name }}</span>
+      <span class="name">{{ move.name }}<span v-if="move.favorite" class="heart"> ♥</span></span>
       <span class="meta">
         <span class="type">{{ TYPE_LABELS[move.type] }}</span>
         <span class="pp">PP {{ move.pp }}/{{ move.maxPp }}</span>
+        <span v-if="move.favorite" class="free">gratis nudge</span>
       </span>
     </span>
     <span v-if="move.pending" class="flag">♪</span>
@@ -120,5 +121,16 @@ defineEmits<{ (e: 'nudge'): void }>()
 @keyframes glow {
   from { box-shadow: inset 0 0 0 2px #ffd840, 0 0 4px rgba(255, 216, 64, 0.4); }
   to { box-shadow: inset 0 0 0 2px #ffd840, 0 0 12px rgba(255, 216, 64, 0.9); }
+}
+.heart {
+  color: #ff6f8e;
+}
+
+.free {
+  color: #ff9ab0;
+}
+
+.move.favorite {
+  box-shadow: inset 0 0 0 2px #7a3a56;
 }
 </style>
