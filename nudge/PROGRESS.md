@@ -93,7 +93,7 @@ Known issues / ideas: see the open questions at the end of the M8 balance sectio
 | P2-M1B - Favoritmove | done (`npm run sim -- --favorites` jämför lag med tränad favorit) |
 | P2-M2 - Ljudmotorn | done (`npm run copy-audio`; musiken kommer i P2-M3) |
 | P2-M3 - Musik på plats | done |
-| P2-M4 - Kartgrafik | todo |
+| P2-M4 - Kartgrafik | done (`npm run copy-tiles`) |
 | P2-M5 - Karaktärer och UI | todo |
 
 Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets`.

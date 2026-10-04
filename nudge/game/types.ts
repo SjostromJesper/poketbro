@@ -1,5 +1,6 @@
 // Types for the overworld: maps, entities and the world state. Pure TypeScript.
 import type { MusicId } from './audio-manifest'
+import type { BuildingPlacement } from './tileset-manifest'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
@@ -72,6 +73,10 @@ export interface MapDef {
   /** Key into the encounter tables (encounters.ts). */
   encounterTable?: string
   indoor?: boolean
+  /** Indoor floor material: wood-coloured cobbles (default) or dark stone. */
+  floor?: 'wood' | 'stone'
+  /** Multi-tile buildings drawn from sprites. The ASCII tiles under them stay R/W/D so collision does not change. */
+  buildings?: BuildingPlacement[]
   /** Music loop id (see audio-manifest.ts) that plays on this map. */
   music?: MusicId
 }

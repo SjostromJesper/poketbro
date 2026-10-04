@@ -329,3 +329,22 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Pages.** The title screen asks for `title` (it starts at the first click), the dev battle page uses the battle loops. `NudgeFrame` silences everything only when the player leaves Nudge altogether (a short timeout lets the
   next Nudge page ask for its own music first, so title -> game is a crossfade).
 - **`AudioManager`** got a `catalog` option so the tests can use their own tracks.
+
+## P2-M4: map graphics
+
+- **Sheets used** (Ninja Adventure, `Backgrounds/`, copied by `npm run copy-tiles` to `public/assets/nudge/tiles/`, 170 KB in all): `TilesetFloor` (grass, tufts, dirt path), `TilesetNature` (trees, bushes, tall grass tufts,
+  flowers), `TilesetHouse` (buildings, fences, signs, counters), `TilesetWater` (pond), `Interior/TilesetInteriorFloor` (indoor floors), and the animated `Water Ripples` and `Plant` (daisy) sheets. The pack's interior
+  wall kit is made of ring-shaped room frames that do not fit tile-by-tile maps, so indoor walls (and the door mat) stay drawn with canvas rectangles, recoloured to match the brick floors. The Kenney pack is not used.
+- **`nudge/game/tileset-manifest.ts`** (pure) is the mapping from tile characters to sprites: `describeTile(map, tx, ty, {frame})` returns the stack of pieces for one tile, `SHEETS` lists the sheets with their size in tiles.
+  `ninjaRenderer.ts` just draws what it says (and falls back to the old placeholder tiles for tiles without sprites, or for the whole map if a sheet fails to load). `TileRenderer.drawTile` now gets the map, so tiles
+  can look at their neighbours.
+- **Autotiling** for water and dirt paths: every autotile in the sheets is laid out as a 4x4 set (3x3 block, a vertical strip, a horizontal strip, one island piece). `autotilePiece(up, down, left, right)` picks from it with the
+  four neighbours (outside the map counts as "same", so paths and lakes leave the map without a rim; a path above a door connects to it). No inner corners. Open water in the middle ripples through the 4 ripple frames.
+- **Trees** are 2x2 pieces: along a row of `#` they pair up from the left end of the run, in a column from the bottom (trunk row, canopy row, ...); a tile without a partner becomes a small bush. Two tree kinds (round and pine).
+  **Tall grass** sways between two tuft sprites every 450 ms; **flowers** are sunflowers, red flowers or the animated daisy.
+- **Buildings.** `MapDef.buildings: { kind, x, y }[]` (top-left of the sprite). The sprite is drawn tile by tile from the house sheet, the ASCII under it stays `R`/`W` with a `D` at the door, so collision, warps and the map
+  format are unchanged. Footprints are 4x3 (`houseOrange`, `houseCream`, `houseOrange2`, `houseRed`, `gym`) or 3x3 (`lab`, `center`, `mart`) with the door on the bottom row (`BUILDINGS[kind].door`). To fit the sprites I trimmed the
+  taller ASCII buildings by one row (the freed row is walkable grass behind the house) in Hemstad and Grusstad. Recognisable Pokémon buildings: the Center is the round stone building with a red cross badge, the Mart the blue shop
+  with an "M" badge, the gym the dark green dojo with a red "GYM" plate (the badges are tiny canvas drawings on the roof row above the door, `drawBadge`).
+- **Tests** (`tileset.test.ts`): autotile pieces for every neighbour combination, lake corners, sprite coordinates inside the sheets for every tile of every map in every animation frame, sheet sizes equal the PNG files,
+  every outdoor tile has sprites, every building footprint is solid except the door which is a warp, every `R`/`W`/`D` on an outdoor map belongs to a building, the three Pokémon buildings carry their badges.

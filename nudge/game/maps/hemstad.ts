@@ -7,10 +7,10 @@ export const hemstad: MapDef = {
   music: 'hemstad',
   tiles: [
     '#########==#########',
-    '#.RRRR...==..RRRRRR#',
-    '#.RRRR...==..RRRRRR#',
-    '#.WWWW...==..WWWWWW#',
-    '#.WDWW...==..WWDWWW#',
+    '#........==........#',
+    '#.RRRR...==...RRR..#',
+    '#.WWWW...==...WWW..#',
+    '#.WDWW...==...WDW..#',
     '#..=============...#',
     '#......S.==......o.#',
     '#.oo.....==.....o..#',
@@ -20,6 +20,10 @@ export const hemstad: MapDef = {
     '#.o...........~~~~.#',
     '#.............~~~~.#',
     '####################',
+  ],
+  buildings: [
+    { kind: 'houseOrange', x: 2, y: 2 },
+    { kind: 'lab', x: 14, y: 2 },
   ],
   warps: [
     { x: 3, y: 4, to: 'hemhus', toX: 3, toY: 4, facing: 'up' },

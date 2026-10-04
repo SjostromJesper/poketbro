@@ -5,6 +5,7 @@ export const grussGym: MapDef = {
   name: 'Grusstads gym',
   music: 'gym',
   indoor: true,
+  floor: 'stone',
   tiles: [
     '############',
     '#FFFFFFFFFF#',

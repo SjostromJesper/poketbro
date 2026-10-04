@@ -13,7 +13,8 @@
     "fetch-data": "tsx nudge/scripts/fetch-data.ts",
     "sim": "tsx nudge/scripts/sim.ts",
     "fetch-assets": "tsx nudge/scripts/fetch-assets.ts",
-    "copy-audio": "tsx nudge/scripts/copy-audio.ts"
+    "copy-audio": "tsx nudge/scripts/copy-audio.ts",
+    "copy-tiles": "tsx nudge/scripts/copy-tiles.ts"
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.10",

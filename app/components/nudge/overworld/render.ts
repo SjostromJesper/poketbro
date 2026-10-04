@@ -1,16 +1,16 @@
-// Placeholder graphics for the overworld, drawn with canvas primitives (the plan's MVP "no tileset" approach).
-// To plug in a real tileset later, create a renderer with `createTilesetRenderer(image, mapping)` instead of
-// `createPlaceholderRenderer()`: both implement TileRenderer.
-import type { Direction, NpcLook } from '~~/nudge/game/types'
+// Placeholder graphics for the overworld, drawn with canvas primitives. They are the fallback when a tile sheet is missing
+// and still draw the tiles the Ninja Adventure tileset does not cover (indoor walls and mats). The real tiles are in
+// `ninjaRenderer.ts`; both implement TileRenderer.
+import type { Direction, MapDef, NpcLook } from '~~/nudge/game/types'
 
 export const TILE = 16
 
 export interface TileRenderer {
   /**
-   * Draws tile character `char` of the map at map position (tx, ty) into `ctx` at pixel position (px, py).
-   * `frame` animates water/grass; `indoor` makes the solid '#' tile an interior wall instead of a tree.
+   * Draws the tile at map position (tx, ty) into `ctx` at pixel position (px, py).
+   * `frame` animates water/grass; indoor maps show the solid '#' tile as an interior wall instead of a tree.
    */
-  drawTile(ctx: CanvasRenderingContext2D, char: string, tx: number, ty: number, px: number, py: number, frame: number, indoor: boolean): void
+  drawTile(ctx: CanvasRenderingContext2D, map: MapDef, tx: number, ty: number, px: number, py: number, frame: number): void
 }
 
 // ---------------------------------------------------------------------------
@@ -121,12 +121,19 @@ const PAINTERS: Record<string, Painter> = {
     px(g, '#5a3a20', 4, 4, 8, 1)
     px(g, '#5a3a20', 4, 6, 6, 1)
   },
+  // The wall you see from inside the room (cream plaster above a wooden base) ...
   'indoor-wall': (g, v) => {
-    px(g, '#7a6a8a', 0, 0, 16, 16)
-    px(g, '#8a7a9a', 0, 0, 16, 7)
-    px(g, '#5a4a6a', 0, 7, 16, 1)
-    px(g, '#4a3a5a', 0, 8, 16, 8)
-    px(g, '#5a4a6a', 3 + (v % 2) * 6, 10, 4, 1)
+    px(g, '#c8a47a', 0, 0, 16, 16)
+    px(g, '#e8d0a8', 0, 0, 16, 7)
+    px(g, '#a8805a', 0, 7, 16, 1)
+    px(g, '#9a6a44', 0, 8, 16, 8)
+    px(g, '#b88c64', 3 + (v % 2) * 6, 10, 4, 1)
+  },
+  // ... and the top of a wall that has more wall below it.
+  'indoor-wall-top': (g, v) => {
+    px(g, '#7a5236', 0, 0, 16, 16)
+    px(g, '#8a6240', 1, 1, 14, 14)
+    px(g, '#9a7250', 2 + (v % 2) * 6, 3, 5, 1)
   },
   'F': (g, _v, _f, tx, ty) => {
     const light = (tx + ty) % 2 === 0
@@ -163,29 +170,14 @@ export function createPlaceholderRenderer(): TileRenderer {
     return canvas
   }
   return {
-    drawTile(ctx, char, tx, ty, x, y, frame, indoor) {
+    drawTile(ctx, map, tx, ty, x, y, frame) {
+      const char = map.tiles[ty][tx]
       const variant = hash(tx, ty) % 4
       const animated = char === '~' || char === ','
-      const name = indoor && char === '#' ? 'indoor-wall' : char
+      // Indoors, a '#' with floor below it is the wall face; a '#' with wall below is just the top of a thick wall.
+      const faceVisible = map.tiles[ty + 1]?.[tx] !== '#'
+      const name = map.indoor && char === '#' ? (faceVisible ? 'indoor-wall' : 'indoor-wall-top') : char
       ctx.drawImage(sprite(name, variant, animated ? frame % 2 : 0, tx, ty), x, y)
-    },
-  }
-}
-
-export interface TilesetConfig {
-  image: CanvasImageSource
-  tileSize: number
-  /** Tile character -> top-left pixel of its sprite in the image. */
-  map: Record<string, { sx: number, sy: number }>
-}
-
-export function createTilesetRenderer(config: TilesetConfig): TileRenderer {
-  const fallback = createPlaceholderRenderer()
-  return {
-    drawTile(ctx, char, tx, ty, x, y, frame, indoor) {
-      const at = config.map[char]
-      if (!at) return fallback.drawTile(ctx, char, tx, ty, x, y, frame, indoor)
-      ctx.drawImage(config.image, at.sx, at.sy, config.tileSize, config.tileSize, x, y, TILE, TILE)
     },
   }
 }

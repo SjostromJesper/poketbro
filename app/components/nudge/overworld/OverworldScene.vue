@@ -4,6 +4,7 @@ import { DIRECTIONS } from '~~/nudge/game/types'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { useWorldStore } from '~/stores/nudge/world'
 import DialogBox from './DialogBox.vue'
+import { createNinjaRenderer } from './ninjaRenderer'
 import { createPlaceholderRenderer, drawCharacter, drawExclamation, LOOKS, TILE, type TileRenderer } from './render'
 
 const props = defineProps<{
@@ -53,8 +54,7 @@ function draw() {
   const x1 = Math.min(map.tiles[0].length - 1, Math.ceil((camX + WIDTH) / TILE))
   const y1 = Math.min(map.tiles.length - 1, Math.ceil((camY + HEIGHT) / TILE))
   for (let ty = y0; ty <= y1; ty++) {
-    const row = map.tiles[ty]
-    for (let tx = x0; tx <= x1; tx++) renderer.drawTile(ctx, row[tx], tx, ty, tx * TILE - camX, ty * TILE - camY, frame, !!map.indoor)
+    for (let tx = x0; tx <= x1; tx++) renderer.drawTile(ctx, map, tx, ty, tx * TILE - camX, ty * TILE - camY, frame)
   }
 
   // Characters, back to front.
@@ -126,6 +126,12 @@ function onBlur() {
 
 onMounted(() => {
   renderer = props.renderer ?? createPlaceholderRenderer()
+  // The sprite tiles load in the background; until they are there (or if a sheet is missing) the placeholder tiles are shown.
+  if (!props.renderer) {
+    void createNinjaRenderer().then((loaded) => {
+      if (loaded) renderer = loaded
+    })
+  }
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('blur', onBlur)
