@@ -23,6 +23,7 @@ interface Row {
 
 const route = useRoute()
 const store = useBattleStore()
+const battle = store
 const settings = useSettingsStore()
 
 const speciesOptions = Object.values(gameData.species).map(s => ({ id: s.id, label: `#${s.id} ${s.displayName}` }))
@@ -67,6 +68,11 @@ onMounted(() => {
   if (route.query.badges) badges.value = Number(route.query.badges) || 0
   if (route.query.seed) seedText.value = String(route.query.seed)
   if (route.query.go === '1') start()
+  // Dev shortcut to preview the catch animation: ?throw=ultra-ball
+  if (typeof route.query.throw === 'string' && route.query.go === '1') {
+    const ball = route.query.throw
+    setTimeout(() => { battle.engine && (battle.engine.active('enemy').hp = 1); battle.act({ type: 'ball', ball }) }, 600)
+  }
 })
 
 function addRow(rows: Row[]) {

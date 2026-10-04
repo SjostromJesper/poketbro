@@ -158,8 +158,16 @@ export interface Balance {
   SEND_OUT_LOCK_MS: number
   ITEM_COOLDOWN_MS: number
   ITEM_LOCK_MS: number
-  BALL_LOCK_MS: number
   BALL_COOLDOWN_MS: number
+  /** Catch-rate multiplier per ball item. */
+  BALL_BONUS: Record<string, number>
+  /** Catch-rate multiplier by status condition of the target. */
+  STATUS_CAPTURE_BONUS: Record<string, number>
+  /** Pokémon below this level are easier to catch: bonus = max(1, (REF - level) / 10), capped. */
+  CAPTURE_LEVEL_REF: number
+  CAPTURE_LEVEL_BONUS_MAX: number
+  /** ATB the wild Pokémon gains when a catch attempt fails (the price of a failed throw). */
+  CAPTURE_FAIL_ATB_BONUS: number
   RUN_LOCK_MS: number
   POTION_HEAL: number
 
@@ -341,8 +349,12 @@ export const BALANCE: Balance = {
   SEND_OUT_LOCK_MS: 1200,
   ITEM_COOLDOWN_MS: 4000,
   ITEM_LOCK_MS: 900,
-  BALL_LOCK_MS: 2400,
   BALL_COOLDOWN_MS: 3000,
+  BALL_BONUS: { 'poke-ball': 1, 'great-ball': 1.5, 'ultra-ball': 2 },
+  STATUS_CAPTURE_BONUS: { sleep: 2, freeze: 2, paralysis: 1.5, poison: 1.5, burn: 1.5 },
+  CAPTURE_LEVEL_REF: 30,
+  CAPTURE_LEVEL_BONUS_MAX: 2,
+  CAPTURE_FAIL_ATB_BONUS: 200,
   RUN_LOCK_MS: 600,
   POTION_HEAL: 20,
 

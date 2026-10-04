@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accuracyStageMultiplier, calcDamage, calcStat, calcStats, catchValue, critChance, levelForXp, natureMultiplier, stageMultiplier, typeEffectiveness, xpForLevel, xpYield } from '../engine/formulas'
+import { accuracyStageMultiplier, calcDamage, calcStat, calcStats, critChance, levelForXp, natureMultiplier, stageMultiplier, typeEffectiveness, xpForLevel, xpYield } from '../engine/formulas'
 import { BALANCE, data, speciesId } from './helpers'
 
 describe('stats', () => {
@@ -106,16 +106,5 @@ describe('xp', () => {
     expect(xpYield(64, 10, true, 1, BALANCE)).toBe(Math.floor((1.5 * 64 * 10 * m) / 7))
     expect(xpYield(64, 10, false, 2, BALANCE)).toBe(Math.floor((64 * 10 * m) / 14))
     expect(xpYield(64, 10, false, 1, { ...BALANCE, XP_MULTIPLIER: 1 })).toBe(Math.floor((64 * 10) / 7))
-  })
-})
-
-describe('capture', () => {
-  it('catches more easily at low HP and with status', () => {
-    const full = catchValue(100, 100, 45, 1, null)
-    const low = catchValue(100, 5, 45, 1, null)
-    const asleep = catchValue(100, 100, 45, 1, 'sleep')
-    expect(low).toBeGreaterThan(full)
-    expect(asleep).toBe(full * 2)
-    expect(catchValue(100, 100, 255, 1, null)).toBe(85) // floor((300 - 200) * 255 / 300)
   })
 })

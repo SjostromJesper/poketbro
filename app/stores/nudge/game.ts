@@ -24,12 +24,15 @@ export type Overlay =
   | { kind: 'shop', shopId: string }
   | { kind: 'learn', uid: string, move: string }
   | { kind: 'evolve', uid: string, to: number }
+  | { kind: 'pc' }
+  | { kind: 'nickname', uid: string }
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
   | { type: 'dialog', lines: string[], speaker?: string }
   | { type: 'learn', uid: string, move: string }
   | { type: 'evolve', uid: string, to: number }
+  | { type: 'nickname', uid: string }
   | { type: 'run', run: () => void }
 
 interface BattleContext {
@@ -136,6 +139,10 @@ export const useGameStore = defineStore('nudgeGame', () => {
         world.setBusy(true)
         overlay.value = { kind: 'shop', shopId: SHOP_BY_MAP[w.state.mapId] ?? 'gruss_mart' }
         break
+      case 'pc':
+        world.setBusy(true)
+        overlay.value = { kind: 'pc' }
+        break
       case 'starter':
         if (!w.hasFlag('starter')) {
           world.setBusy(true)
@@ -170,6 +177,20 @@ export const useGameStore = defineStore('nudgeGame', () => {
   function closeShop() {
     overlay.value = null
     world.setBusy(false)
+  }
+
+  function closePc() {
+    overlay.value = null
+    world.setBusy(false)
+    save(true)
+  }
+
+  /** `null` skips the nickname. */
+  function resolveNickname(nickname: string | null) {
+    const o = overlay.value
+    overlay.value = null
+    if (o?.kind === 'nickname' && nickname) player.setNickname(o.uid, nickname)
+    runQueue()
   }
 
   // ---------------------------------------------------------------------------
@@ -257,6 +278,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         type: 'dialog',
         lines: [where === 'party' ? `${name} lades till i ditt lag!` : `${name} skickades till boxen eftersom ditt lag är fullt.`],
       })
+      queue.push({ type: 'nickname', uid: caught.uid })
     }
 
     if (outcome.result === 'win' && ctx?.trainer) {
@@ -324,6 +346,9 @@ export const useGameStore = defineStore('nudgeGame', () => {
       case 'evolve':
         overlay.value = { kind: 'evolve', uid: step.uid, to: step.to }
         break
+      case 'nickname':
+        overlay.value = { kind: 'nickname', uid: step.uid }
+        break
     }
   }
 
@@ -368,6 +393,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, finishBattle, resolveLearn, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, resolveNickname, finishBattle, resolveLearn, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

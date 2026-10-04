@@ -246,3 +246,21 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **What is in them:** Ninja Adventure also ships its own music (40 `.ogg` tracks), jingles and sound effects (`.wav`), so those are candidates next to the Junkala packs. Junkala SFX are 512 `.wav`.
   Music is `.ogg`; sound effects stay `.wav` (short, universally supported, and no ffmpeg/sox is available to convert; `afconvert` can only make AAC/CAF). Only the files actually used are copied
   into `public/assets/`.
+
+## P2-M1: capture
+
+- **Formula** (`engine/formulas.ts`, `captureValue/captureChance/rollCapture`): `a = ((3 maxHP - 2 HP) * rate * ball) / (3 maxHP) * status * level`, `a >= 255` is an automatic catch (three shakes),
+  otherwise up to four shake checks against `b = 1048560 / sqrt(sqrt(16711680 / a))`; shakes shown = checks passed before the first failure (0-3), all four = caught. The result also carries the theoretical
+  chance `(b / 65536)^4` for the debug overlay. All constants in `balance.ts`: `BALL_BONUS` (1 / 1.5 / 2), `STATUS_CAPTURE_BONUS` (sleep/freeze 2, paralysis/poison/burn 1.5), `CAPTURE_LEVEL_REF` 30
+  (bonus `max(1, (30 - level) / 10)`, capped at `CAPTURE_LEVEL_BONUS_MAX` 2), `CAPTURE_FAIL_ATB_BONUS` 200.
+- **Engine phase.** `playerAction({ type: 'ball', ball })` decides the result at once (RNG) but only sets `state.capture` and emits a `capture` event; while it is set `tick()` does nothing, nudges and all other actions
+  are refused (`capturing`). The UI plays the animation and calls `resolveCapture()`, which emits `capture-result` (the Swedish log text) and then either ends the battle (`caught`) or gives the wild Pokémon
+  +200 ATB and starts the ball cooldown. The old `BALL_LOCK_MS` is gone.
+- **Animation** (`CaptureAnimation.vue`, Web Animations API): arc throw (650 ms) -> white flash + the Pokémon shrinks into the ball (450 ms) -> drop with a bounce (600 ms) -> one 600 ms wobble (+-20 deg) per shake with
+  200 ms between -> caught: ball dims, star burst / failed: flash, ball vanishes, the Pokémon pops back. Roughly 2.5-5 s. At 2x/3x everything scales by `max(0.5, 1/speed)` so the wobbles stay visible.
+  The scene reacts to the animation's cues (`absorb`, `release`, `done`), the buttons and the keys 1-4 are disabled meanwhile. Ball sprites come from the PokeAPI item sprites in `items.json`.
+- **Balls.** Great Ball (300 kr, sold in the Pokémart once you own a badge) and Ultra Ball (600 kr, not sold yet; the shop code supports it) exist as items. With more than one kind in the bag the "Boll" button opens a small picker.
+- **Debug overlay** shows the live catch chance for all three balls in wild battles.
+- **PC box and nicknames.** `player.box` already existed; now there is a PC in the Pokémon Center (an NPC with the `pc` action) with a simple screen to move Pokémon between party and box (the party keeps at
+  least one Pokémon that can fight, max 6). After a catch the player may give a nickname (max 12 characters, can be skipped).
+- **Tests** (`capture.test.ts`): a >= 255 always catches, 1 HP vs full HP, status/ball/level multipliers, 10 000 seeded throws match the theoretical shake distribution, the engine pauses and resolves correctly.

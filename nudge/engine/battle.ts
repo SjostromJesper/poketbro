@@ -7,7 +7,7 @@
 //   engine.state                           // readable state for the UI and debug overlay
 import { atbFillPerSecond, barCanFill, effectiveSpeed, priorityHeadstart } from './atb'
 import { computeChoice, pickMove, pickRandomUsableMove } from './choice'
-import { attemptCapture, calcDamage, fleeSucceeds, xpYield } from './formulas'
+import { calcDamage, captureChance, fleeSucceeds, rollCapture, xpYield, type CaptureParams } from './formulas'
 import { effectivePower, isChargeMove, isDamaging, isRechargeMove } from './moves'
 import { dealDamage, executeMove, healBattler, moveDataFor, type ExecContext } from './moveExec'
 import { nudgeStrengthFor } from './nudge'
@@ -60,6 +60,7 @@ export class BattleEngine {
       runAttempts: 0,
       result: null,
       nudgeRefillMs: 0,
+      capture: null,
     }
     const a = player[firstPlayer]
     const b = enemy[firstEnemy]
@@ -108,6 +109,8 @@ export class BattleEngine {
     const events: BattleEvent[] = this.pendingEvents
     this.pendingEvents = []
     if (this.state.result) return events
+    // A thrown ball freezes everything until the UI has played the animation and called resolveCapture().
+    if (this.state.capture) return events
     this.accumulatorMs += Math.max(0, dtMs)
     const step = this.balance.STEP_MS
     while (this.accumulatorMs >= step && !this.state.result) {
@@ -381,7 +384,7 @@ export class BattleEngine {
     const b = this.active('player')
     const remaining = Math.max(0, b.nudgeBudget - b.nudgesUsed)
     const unavailable = (): NudgeOutcome => ({ result: 'unavailable', remaining, events: [] })
-    if (this.state.result || b.fainted) return unavailable()
+    if (this.state.result || this.state.capture || b.fainted) return unavailable()
     if (this.state.paused && !this.balance.NUDGE_ALLOWED_WHILE_PAUSED) return unavailable()
     const instance = b.moves[moveIndex]
     if (!instance || instance.pp <= 0) return unavailable()
@@ -420,6 +423,7 @@ export class BattleEngine {
     const events: BattleEvent[] = []
     const reject = (reason: ActionResult['reason']): ActionResult => ({ accepted: false, reason, events })
     if (this.state.result) return reject('finished')
+    if (this.state.capture) return reject('capturing')
     const { balance, state } = this
 
     switch (action.type) {
@@ -436,27 +440,12 @@ export class BattleEngine {
       case 'ball': {
         if (state.kind !== 'wild') return reject('not-wild')
         if (state.cooldowns.ballMs > 0) return reject('cooldown')
-        const enemy = this.active('enemy')
-        const species = speciesOf(this.data, enemy)
-        const result = attemptCapture(this.rng, enemy.stats.hp, enemy.hp, species.captureRate, 1, enemy.status)
         const ball = action.ball ?? 'poke-ball'
-        events.push({ type: 'ball-throw', ball, name: enemy.name, shakes: result.shakes, caught: result.caught })
-        state.lockMs = Math.max(state.lockMs, balance.BALL_LOCK_MS)
-        if (result.caught) {
-          const source = this.sources.get(enemy.uid)
-          if (source) {
-            this.caught = {
-              ...source,
-              currentHp: enemy.hp,
-              status: enemy.status === 'sleep' || enemy.status === 'freeze' ? undefined : enemy.status ?? undefined,
-              moves: enemy.moves.map(m => ({ ...m })),
-              trust: balance.TRUST_START_WILD,
-            }
-          }
-          this.end('caught', events)
-        } else {
-          state.cooldowns.ballMs = balance.BALL_COOLDOWN_MS
-        }
+        if (!(ball in balance.BALL_BONUS)) return reject('invalid')
+        const enemy = this.active('enemy')
+        const result = rollCapture(this.rng, this.captureParams(ball), balance)
+        state.capture = { ball, shakes: result.shakes, caught: result.caught, chance: result.chance }
+        events.push({ type: 'capture', ball, name: enemy.name, shakes: result.shakes, caught: result.caught, chance: result.chance })
         return { accepted: true, events }
       }
       case 'item': {
@@ -499,6 +488,55 @@ export class BattleEngine {
         return { accepted: true, events }
       }
     }
+  }
+
+  private captureParams(ball: string): CaptureParams {
+    const enemy = this.active('enemy')
+    const species = speciesOf(this.data, enemy)
+    return {
+      maxHp: enemy.stats.hp,
+      hp: enemy.hp,
+      captureRate: species.captureRate,
+      ballBonus: this.balance.BALL_BONUS[ball] ?? 1,
+      status: enemy.status,
+      level: enemy.level,
+    }
+  }
+
+  /** The current theoretical chance (0-1) of catching the wild Pokémon with `ball`; 0 outside wild battles. */
+  captureChance(ball = 'poke-ball'): number {
+    if (this.state.kind !== 'wild' || this.state.result) return 0
+    return captureChance(this.captureParams(ball), this.balance)
+  }
+
+  /**
+   * Called by the UI when the capture animation is over: ends the battle on a catch, otherwise the wild Pokémon gets a little ATB
+   * (the price of a failed throw), the ball cooldown starts and the battle goes on.
+   */
+  resolveCapture(): BattleEvent[] {
+    const pending = this.state.capture
+    if (!pending) return []
+    const events: BattleEvent[] = []
+    const enemy = this.active('enemy')
+    this.state.capture = null
+    events.push({ type: 'capture-result', name: enemy.name, shakes: pending.shakes, caught: pending.caught })
+    if (pending.caught) {
+      const source = this.sources.get(enemy.uid)
+      if (source) {
+        this.caught = {
+          ...source,
+          currentHp: enemy.hp,
+          status: enemy.status === 'sleep' || enemy.status === 'freeze' ? undefined : enemy.status ?? undefined,
+          moves: enemy.moves.map(m => ({ ...m })),
+          trust: this.balance.TRUST_START_WILD,
+        }
+      }
+      this.end('caught', events)
+    } else {
+      this.state.cooldowns.ballMs = this.balance.BALL_COOLDOWN_MS
+      enemy.atb = Math.min(this.balance.ATB_MAX, enemy.atb + this.balance.CAPTURE_FAIL_ATB_BONUS)
+    }
+    return events
   }
 
   // ---------------------------------------------------------------------------

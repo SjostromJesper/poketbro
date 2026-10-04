@@ -2,7 +2,7 @@
 import type { MoveView } from '~~/nudge/game/battleView'
 import { TYPE_COLORS, TYPE_LABELS } from '../ui'
 
-defineProps<{ move: MoveView, hotkey: number }>()
+defineProps<{ move: MoveView, hotkey: number, disabled?: boolean }>()
 defineEmits<{ (e: 'nudge'): void }>()
 </script>
 
@@ -12,7 +12,7 @@ defineEmits<{ (e: 'nudge'): void }>()
     class="move"
     :class="{ pending: move.pending, empty: !move.usable }"
     :style="{ '--type': TYPE_COLORS[move.type] }"
-    :disabled="!move.usable"
+    :disabled="!move.usable || disabled"
     :title="move.pending ? 'Nudge väntar - gäller nästa val' : 'Klicka för att nudga'"
     @click="$emit('nudge')"
   >
@@ -105,6 +105,11 @@ defineEmits<{ (e: 'nudge'): void }>()
   top: 4px;
   color: #ffd840;
   font-size: 18px;
+}
+
+.move:disabled:not(.empty) {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .empty {

@@ -34,6 +34,13 @@ export interface EmoteBubble {
   emote: string
 }
 
+export interface CaptureAnim {
+  ball: string
+  name: string
+  shakes: number
+  caught: boolean
+}
+
 export interface StartOptions {
   player: OwnedPokemon[]
   enemy: OwnedPokemon[]
@@ -59,6 +66,8 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
   const paused = ref(false)
   const debug = ref(false)
   const result = ref<BattleResult | null>(null)
+  /** The catch animation currently playing (null otherwise). */
+  const capturing = ref<CaptureAnim | null>(null)
   const outcome = ref<BattleOutcome | null>(null)
   const active = computed(() => engine.value !== null)
   let nextId = 1
@@ -91,7 +100,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
       case 'faint': return event.side === 'enemy' ? 'good' : 'bad'
       case 'damage': return event.effectiveness > 1 ? 'good' : 'normal'
       case 'battle-end': return event.result === 'win' || event.result === 'caught' ? 'good' : event.result === 'lose' ? 'bad' : 'info'
-      case 'ball-throw': return event.caught ? 'good' : 'info'
+      case 'capture-result': return event.caught ? 'good' : 'info'
       case 'disobey': case 'status-skip': return 'info'
       default: return 'normal'
     }
@@ -129,6 +138,9 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
         case 'emote':
           transient(emotes, { side: event.side, emote: event.emote } as Omit<EmoteBubble, 'id'>, 1300)
           break
+        case 'capture':
+          capturing.value = { ball: event.ball, name: event.name, shakes: event.shakes, caught: event.caught }
+          break
         case 'battle-end':
           result.value = event.result
           outcome.value = eng.outcome
@@ -146,6 +158,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     fx.player = { anim: null, nonce: 0, fainted: false }
     fx.enemy = { anim: null, nonce: 0, fainted: false }
     result.value = null
+    capturing.value = null
     outcome.value = null
     paused.value = false
     speed.value = settings.battleSpeed
@@ -201,10 +214,19 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     return res
   }
 
+  /** The capture animation is over: the engine ends the battle (caught) or resumes it (broke free). */
+  function resolveCapture() {
+    const eng = engine.value
+    if (!eng) return
+    capturing.value = null
+    handleEvents(eng.resolveCapture())
+    sync()
+  }
+
   function end() {
     engine.value = null
     view.value = null
   }
 
-  return { engine, view, log, fx, floaters, emotes, speed, paused, debug, result, outcome, active, start, frame, setSpeed, togglePause, nudge, act, end, sync }
+  return { engine, view, log, fx, floaters, emotes, speed, paused, debug, result, capturing, outcome, active, start, frame, setSpeed, togglePause, nudge, act, resolveCapture, end, sync }
 })

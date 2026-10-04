@@ -164,7 +164,12 @@ describe('wild battles', () => {
       battle.frame(16)
       if (i % 40 === 0) {
         const result = battle.act({ type: 'ball' })
-        if (result?.accepted) { player.removeItem('poke-ball'); thrown++ }
+        if (result?.accepted) {
+          player.removeItem('poke-ball')
+          thrown++
+          expect(battle.capturing).not.toBeNull()
+          battle.resolveCapture()
+        }
       }
     }
     expect(battle.result).toBe('caught')
@@ -175,6 +180,10 @@ describe('wild battles', () => {
     expect(player.pokedex).toContain(19)
     expect(world.dialog!.lines[0]).toContain('lades till i ditt lag')
     talkThrough(ctx)
+    expect(game.overlay).toMatchObject({ kind: 'nickname' })
+    game.resolveNickname('Ratte')
+    expect(player.party[1].nickname).toBe('Ratte')
+    expect(world.mode).toBe('walk')
 
     // With a full party the Pokémon goes to the box.
     for (let i = 0; i < 4; i++) player.addPokemon(strong('pidgey', 5))

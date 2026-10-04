@@ -28,7 +28,7 @@ const CONCURRENCY = 5
 
 /** Items used by the game (held items, consumables, balls). Missing ones are skipped with a warning. */
 const ITEM_NAMES = [
-  'poke-ball', 'potion', 'antidote', 'paralyze-heal', 'oran-berry',
+  'poke-ball', 'great-ball', 'ultra-ball', 'potion', 'antidote', 'paralyze-heal', 'oran-berry',
   'quick-claw', 'silk-scarf', 'charcoal', 'mystic-water', 'leftovers',
 ]
 

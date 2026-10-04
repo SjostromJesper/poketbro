@@ -20,6 +20,10 @@ export const grussCenter: MapDef = {
       id: 'sjukskoterska', x: 4, y: 2, facing: 'down', look: 'nurse', action: 'heal', name: 'Sjuksköterska',
       dialog: ['Välkommen till Pokémon Center! Ska jag ta hand om dina Pokémon?', 'Klart! Dina Pokémon är friska igen. Välkommen åter!'],
     },
+    {
+      id: 'pc', x: 7, y: 1, facing: 'down', look: 'pc', action: 'pc', name: 'PC',
+      dialog: ['Du loggade in på Pokémon-lagringen.'],
+    },
   ],
   trainers: [],
   signs: [],

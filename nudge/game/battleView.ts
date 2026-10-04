@@ -77,6 +77,10 @@ export interface BattleView {
   lockMs: number
   cooldowns: { switchMs: number, itemMs: number, ballMs: number }
   timeMs: number
+  /** True while a thrown ball is being animated: everything is paused and the buttons are greyed out. */
+  capturing: boolean
+  /** Theoretical catch chance (0-1) per ball item for the current wild Pokémon, for the debug overlay. */
+  captureChances: Record<string, number> | null
   debug?: { player: ChoiceDebug, enemy: ChoiceDebug }
 }
 
@@ -163,6 +167,10 @@ export function buildBattleView(engine: BattleEngine, includeDebug = false): Bat
     lockMs: state.lockMs,
     cooldowns: { ...state.cooldowns },
     timeMs: state.timeMs,
+    capturing: state.capture !== null,
+    captureChances: state.kind === 'wild'
+      ? Object.fromEntries(Object.keys(engine.balance.BALL_BONUS).map(ball => [ball, engine.captureChance(ball)]))
+      : null,
   }
   if (includeDebug) view.debug = { player: engine.debugChoice('player'), enemy: engine.debugChoice('enemy') }
   return view

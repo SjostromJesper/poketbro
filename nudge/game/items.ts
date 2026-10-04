@@ -21,6 +21,8 @@ export interface ItemInfo {
 
 const BASE: Record<string, Omit<ItemInfo, 'id' | 'name' | 'sprite'> & { name?: string }> = {
   'poke-ball': { description: 'Fångar vilda Pokémon. Det går lättare när de är försvagade eller har en statusåkomma.', kind: 'ball', price: 100, usableInBattle: false, holdable: false },
+  'great-ball': { description: 'En bättre boll än Poké Ball: 1,5 gånger så stor chans att fånga.', kind: 'ball', price: 300, usableInBattle: false, holdable: false },
+  'ultra-ball': { description: 'Den bästa bollen: dubbelt så stor chans att fånga som med Poké Ball.', kind: 'ball', price: 600, usableInBattle: false, holdable: false },
   'potion': { description: 'Läker 20 HP hos en Pokémon.', kind: 'potion', price: 150, usableInBattle: true, holdable: false },
   'antidote': { description: 'Botar gift.', kind: 'cure', price: 50, usableInBattle: true, holdable: false },
   'paralyze-heal': { description: 'Botar förlamning.', kind: 'cure', price: 100, usableInBattle: true, holdable: false },
@@ -73,8 +75,14 @@ export function sellPrice(data: GameData, id: string): number {
 }
 
 export const SHOPS: Record<string, string[]> = {
-  gruss_mart: ['poke-ball', 'potion', 'antidote', 'paralyze-heal', 'oran-berry', 'tm:double-team', 'tm:rest'],
+  gruss_mart: ['poke-ball', 'great-ball', 'potion', 'antidote', 'paralyze-heal', 'oran-berry', 'tm:double-team', 'tm:rest'],
 }
+
+/** Items that only appear in shops once the player owns at least this many badges. */
+export const SHOP_BADGE_REQUIREMENT: Record<string, number> = { 'great-ball': 1 }
+
+/** Ball items in the order shown in the battle menu. */
+export const BALLS = ['poke-ball', 'great-ball', 'ultra-ball']
 
 /** The three starters the professor offers. */
 export const STARTERS = [

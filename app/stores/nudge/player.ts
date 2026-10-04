@@ -104,6 +104,31 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     return total > 0 ? current / total : 0
   }
 
+  /** Moves a party member into the box. At least one Pokémon able to fight must stay in the party. */
+  function moveToBox(uid: string): string | null {
+    const index = party.value.findIndex(p => p.uid === uid)
+    if (index < 0) return null
+    if (party.value.length <= 1) return 'Du måste ha minst en Pokémon i laget.'
+    if (party.value[index].currentHp > 0 && party.value.filter(p => p.currentHp > 0).length <= 1) return 'Minst en Pokémon som kan slåss måste stanna i laget.'
+    const [pokemon] = party.value.splice(index, 1)
+    box.value.push(pokemon)
+    return `${displayNameOf(gameData, pokemon)} skickades till boxen.`
+  }
+
+  function moveToParty(uid: string): string | null {
+    const index = box.value.findIndex(p => p.uid === uid)
+    if (index < 0) return null
+    if (party.value.length >= MAX_PARTY) return 'Ditt lag är fullt.'
+    const [pokemon] = box.value.splice(index, 1)
+    party.value.push(pokemon)
+    return `${displayNameOf(gameData, pokemon)} gick med i laget.`
+  }
+
+  function setNickname(uid: string, nickname: string): void {
+    const pokemon = findPokemon(uid)
+    if (pokemon) pokemon.nickname = nickname.trim().slice(0, 12) || undefined
+  }
+
   // ---------------------------------------------------------------------------
   // Party management and using items outside battle. Each returns a message for the UI, or null when nothing happened.
   // ---------------------------------------------------------------------------
@@ -217,6 +242,6 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   return {
     name, party, box, money, bag, badges, pokedex, stepRemainder, ablePokemon, hasAbleParty,
     reset, count, addItem, removeItem, spend, addPokemon, healAll, findPokemon, addSteps, totalHpFraction, serialize, hydrate,
-    moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
+    moveToBox, moveToParty, setNickname, moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
   }
 })

@@ -214,6 +214,7 @@ export const LOOKS: Record<NpcLook | 'player', Look> = {
   hiker: { shirt: '#8a6a3a', pants: '#4a4a3a', hair: '#5a3a20', skin: '#e8b890', cap: '#6a8a3a' },
   bugcatcher: { shirt: '#6ab04a', pants: '#8a7a4a', hair: '#e0c050', skin: '#f4c9a0', cap: '#f0e060' },
   leader: { shirt: '#7a5a3a', pants: '#3a3a3a', hair: '#2a2a2a', skin: '#e0a878' },
+  pc: { shirt: '#3a4a5a', pants: '#2a2a3a', hair: '#2a2a3a', skin: '#8ad0ff' },
 }
 
 /**
@@ -221,6 +222,7 @@ export const LOOKS: Record<NpcLook | 'player', Look> = {
  * and drives the leg animation.
  */
 export function drawCharacter(ctx: CanvasRenderingContext2D, look: Look, facing: Direction, x: number, y: number, walk: number): void {
+  if (look === LOOKS.pc) return drawComputer(ctx, x, y)
   const bob = walk >= 0 && Math.sin(walk * Math.PI * 2) > 0 ? -1 : 0
   const legPhase = walk >= 0 ? (walk < 0.5 ? 0 : 1) : 0
   ctx.fillStyle = 'rgba(0,0,0,0.22)'
@@ -268,4 +270,18 @@ export function drawExclamation(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.fillStyle = '#e03030'
   ctx.fillRect(x + 7, y - 10, 2, 5)
   ctx.fillRect(x + 7, y - 4, 2, 2)
+}
+
+/** A storage PC: monitor with a glowing screen on a stand. */
+function drawComputer(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = '#3a4a5a'
+  ctx.fillRect(x + 2, y + 3, 12, 9)
+  ctx.fillStyle = '#8ad0ff'
+  ctx.fillRect(x + 3, y + 4, 10, 6)
+  ctx.fillStyle = '#d8f4ff'
+  ctx.fillRect(x + 4, y + 5, 4, 1)
+  ctx.fillRect(x + 4, y + 7, 6, 1)
+  ctx.fillStyle = '#2a3440'
+  ctx.fillRect(x + 6, y + 12, 4, 2)
+  ctx.fillRect(x + 4, y + 14, 8, 1)
 }

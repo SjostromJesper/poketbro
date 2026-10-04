@@ -110,33 +110,58 @@ export function xpYield(baseExp: number, defeatedLevel: number, isTrainer: boole
 }
 
 // ---------------------------------------------------------------------------
-// Capture (Gen 3 formula)
+// Capture (Gen 3/4 style with shake checks)
 // ---------------------------------------------------------------------------
 
-export function catchValue(maxHp: number, hp: number, captureRate: number, ballBonus: number, status: string | null): number {
-  const statusBonus = status === 'sleep' || status === 'freeze' ? 2 : status ? 1.5 : 1
-  return Math.floor(((3 * maxHp - 2 * hp) * captureRate * ballBonus) / (3 * maxHp)) * statusBonus
+export interface CaptureParams {
+  maxHp: number
+  hp: number
+  /** Species capture rate (3-255). */
+  captureRate: number
+  ballBonus: number
+  status: string | null
+  level: number
+}
+
+/** The catch value `a`; 255 or more is an automatic catch. */
+export function captureValue(p: CaptureParams, balance: Balance): number {
+  const base = ((3 * p.maxHp - 2 * p.hp) * p.captureRate * p.ballBonus) / (3 * p.maxHp)
+  const statusBonus = (p.status && balance.STATUS_CAPTURE_BONUS[p.status]) || 1
+  const levelBonus = Math.min(balance.CAPTURE_LEVEL_BONUS_MAX, Math.max(1, (balance.CAPTURE_LEVEL_REF - p.level) / 10))
+  return base * statusBonus * levelBonus
+}
+
+/** Per-check threshold: a random 0-65535 below `b` passes the check. */
+export function captureShakeThreshold(a: number): number {
+  return 1048560 / Math.sqrt(Math.sqrt(16711680 / Math.max(1, a)))
+}
+
+/** The theoretical probability of catching: all four checks pass, (b / 65536)^4. */
+export function captureChance(p: CaptureParams, balance: Balance): number {
+  const a = captureValue(p, balance)
+  if (a >= 255) return 1
+  return Math.pow(Math.min(1, captureShakeThreshold(a) / 65536), 4)
 }
 
 export interface CaptureResult {
   caught: boolean
-  /** Number of shakes shown before it broke free (0-3), or 3 when caught. */
-  shakes: number
+  /** Shakes shown before the result (0-3); 3 when caught. */
+  shakes: 0 | 1 | 2 | 3
+  /** Theoretical catch probability (for the debug overlay). */
+  chance: number
 }
 
-export function attemptCapture(rng: Rng, maxHp: number, hp: number, captureRate: number, ballBonus: number, status: string | null): CaptureResult {
-  const a = catchValue(maxHp, hp, captureRate, ballBonus, status)
-  if (a >= 255) return { caught: true, shakes: 3 }
-  const b = Math.floor(1048560 / Math.sqrt(Math.sqrt(16711680 / Math.max(1, a))))
-  let shakes = 0
+export function rollCapture(rng: Rng, p: CaptureParams, balance: Balance): CaptureResult {
+  const a = captureValue(p, balance)
+  const chance = captureChance(p, balance)
+  if (a >= 255) return { caught: true, shakes: 3, chance }
+  const b = captureShakeThreshold(a)
+  let passed = 0
   for (let i = 0; i < 4; i++) {
-    if (randInt(rng, 0, 65535) < b) {
-      shakes++
-    } else {
-      return { caught: false, shakes: Math.min(3, shakes) }
-    }
+    if (randInt(rng, 0, 65535) < b) passed++
+    else return { caught: false, shakes: Math.min(3, passed) as 0 | 1 | 2 | 3, chance }
   }
-  return { caught: true, shakes: 3 }
+  return { caught: true, shakes: 3, chance }
 }
 
 /** Gen 3 flee formula: F = floor(A * 128 / B) + 30 * attempts; success if F > 255 or a 0-255 roll is below F. */

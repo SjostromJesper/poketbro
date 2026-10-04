@@ -136,6 +136,12 @@ export class Bot {
       case 'evolve':
         this.game.resolveEvolve(true)
         break
+      case 'nickname':
+        this.game.resolveNickname(null)
+        break
+      case 'pc':
+        this.game.closePc()
+        break
     }
   }
 
@@ -183,7 +189,10 @@ export class Bot {
       const foe = eng.active('enemy')
       if (eng.state.kind === 'wild' && player.party.length < 3 && player.count('poke-ball') > 0 && foe.hp < foe.stats.hp * 0.5 && eng.state.cooldowns.ballMs <= 0) {
         const result = battle.act({ type: 'ball' })
-        if (result?.accepted) player.removeItem('poke-ball')
+        if (result?.accepted) {
+          player.removeItem('poke-ball')
+          battle.resolveCapture()
+        }
       }
     }
     if (battle.result) {

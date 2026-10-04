@@ -26,10 +26,10 @@ export interface WarpDef {
   blockedDialog?: string[]
 }
 
-export type NpcLook = 'boy' | 'girl' | 'old' | 'professor' | 'nurse' | 'clerk' | 'mum' | 'hiker' | 'bugcatcher' | 'leader'
+export type NpcLook = 'boy' | 'girl' | 'old' | 'professor' | 'nurse' | 'clerk' | 'mum' | 'hiker' | 'bugcatcher' | 'leader' | 'pc'
 
 /** Something an NPC does when talked to, besides the dialog. */
-export type NpcAction = 'heal' | 'shop' | 'starter'
+export type NpcAction = 'heal' | 'shop' | 'starter' | 'pc'
 
 export interface NpcDef {
   id: string

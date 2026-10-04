@@ -154,13 +154,18 @@ describe('player actions', () => {
     expect(engine.playerAction({ type: 'switch', teamIndex: 7 })).toMatchObject({ accepted: false, reason: 'invalid' })
   })
 
-  it('catches a weak wild Pokémon and hands over the caught Pokémon in the outcome', () => {
+  it('catches a weak wild Pokémon only once the animation is resolved, and hands over the caught Pokémon', () => {
     const wild = mon('rattata', 3)
     const engine = engineFor([mon('charmander', 20)], [wild], { rng: scriptedRng([], 0.001) })
     engine.active('enemy').hp = 1
     const result = engine.playerAction({ type: 'ball' })
     expect(result.accepted).toBe(true)
-    expect(ofType(result.events, 'ball-throw')[0]).toMatchObject({ caught: true, shakes: 3 })
+    expect(ofType(result.events, 'capture')[0]).toMatchObject({ caught: true, shakes: 3, ball: 'poke-ball' })
+    // The result is decided, but the battle waits for the UI to finish the animation.
+    expect(engine.state.result).toBeNull()
+    expect(engine.state.capture).not.toBeNull()
+    const resolved = engine.resolveCapture()
+    expect(ofType(resolved, 'capture-result')[0]).toMatchObject({ caught: true })
     expect(engine.state.result).toBe('caught')
     const caught = engine.outcome!.caught!
     expect(caught.speciesId).toBe(wild.speciesId)
@@ -168,24 +173,40 @@ describe('player actions', () => {
     expect(caught.trust).toBe(BALANCE.TRUST_START_WILD)
   })
 
-  it('lets the wild Pokémon break free, with a cooldown before the next throw', () => {
+  it('lets the wild Pokémon break free: ATB bonus for it, a cooldown before the next throw, then play resumes', () => {
     const engine = engineFor([mon('charmander', 20)], [mon('chansey', 40)], { rng: scriptedRng([], 0.999999) })
+    advance(engine, 1500)
+    const enemyAtb = engine.active('enemy').atb
     const result = engine.playerAction({ type: 'ball' })
-    expect(ofType(result.events, 'ball-throw')[0].caught).toBe(false)
+    expect(ofType(result.events, 'capture')[0].caught).toBe(false)
+    expect(engine.resolveCapture().some(e => e.type === 'capture-result')).toBe(true)
     expect(engine.state.result).toBeNull()
+    expect(engine.active('enemy').atb).toBeCloseTo(Math.min(BALANCE.ATB_MAX, enemyAtb + BALANCE.CAPTURE_FAIL_ATB_BONUS), 5)
     expect(engine.playerAction({ type: 'ball' })).toMatchObject({ accepted: false, reason: 'cooldown' })
     advance(engine, BALANCE.BALL_COOLDOWN_MS + 100)
     expect(engine.playerAction({ type: 'ball' }).accepted).toBe(true)
   })
 
-  it('pauses the bars while a ball is thrown', () => {
+  it('freezes the battle during the animation: no ATB, no nudges, no other actions', () => {
     const engine = engineFor([mon('charmander', 20)], [mon('chansey', 40)], { rng: scriptedRng([], 0.999999) })
     advance(engine, 1000)
-    const atb = engine.active('player').atb
+    const atb = { player: engine.active('player').atb, enemy: engine.active('enemy').atb }
     engine.playerAction({ type: 'ball' })
-    expect(engine.state.lockMs).toBe(BALANCE.BALL_LOCK_MS)
-    advance(engine, 1000)
-    expect(engine.active('player').atb).toBe(atb)
+    expect(advance(engine, 5000)).toEqual([])
+    expect(engine.active('player').atb).toBe(atb.player)
+    expect(engine.active('enemy').atb).toBe(atb.enemy)
+    expect(engine.nudge(0).result).toBe('unavailable')
+    expect(engine.playerAction({ type: 'run' })).toMatchObject({ accepted: false, reason: 'capturing' })
+    expect(engine.playerAction({ type: 'ball' })).toMatchObject({ accepted: false, reason: 'capturing' })
+    engine.resolveCapture()
+    expect(advance(engine, 1000).length).toBeGreaterThanOrEqual(0)
+    expect(engine.active('player').atb).toBeGreaterThan(atb.player)
+  })
+
+  it('uses the thrown ball type and rejects unknown balls', () => {
+    const engine = engineFor([mon('charmander', 20)], [mon('chansey', 40)])
+    expect(engine.playerAction({ type: 'ball', ball: 'master-ball' })).toMatchObject({ accepted: false, reason: 'invalid' })
+    expect(ofType(engine.playerAction({ type: 'ball', ball: 'ultra-ball' }).events, 'capture')[0].ball).toBe('ultra-ball')
   })
 
   it('does not allow balls or running in trainer battles', () => {

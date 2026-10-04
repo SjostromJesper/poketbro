@@ -109,6 +109,14 @@ export interface Cooldowns {
   ballMs: number
 }
 
+/** A catch attempt in progress: the result is already decided, the UI plays the animation and then calls resolveCapture(). */
+export interface CaptureState {
+  ball: string
+  shakes: number
+  caught: boolean
+  chance: number
+}
+
 export interface BattleState {
   kind: BattleKind
   player: SideState
@@ -120,6 +128,8 @@ export interface BattleState {
   runAttempts: number
   result: BattleResult | null
   nudgeRefillMs: number
+  /** Set while a ball is being thrown: the battle is paused until resolveCapture(). */
+  capture: CaptureState | null
 }
 
 export interface BattleConfig {
@@ -164,7 +174,8 @@ export type BattleEvent =
   | { type: 'held-item', side: Side, name: string, item: string }
   | { type: 'item-used', side: Side, name: string, item: string }
   | { type: 'switch', side: Side, fromName: string, toName: string, teamIndex: number }
-  | { type: 'ball-throw', ball: string, name: string, shakes: number, caught: boolean }
+  | { type: 'capture', ball: string, name: string, shakes: number, caught: boolean, chance: number }
+  | { type: 'capture-result', name: string, shakes: number, caught: boolean }
   | { type: 'run', success: boolean }
   | { type: 'unsupported', side: Side, name: string, moveName: string }
   | { type: 'battle-end', result: BattleResult }
@@ -181,7 +192,7 @@ export type PlayerAction =
 
 export interface ActionResult {
   accepted: boolean
-  reason?: 'finished' | 'cooldown' | 'invalid' | 'not-wild' | 'fainted' | 'no-effect'
+  reason?: 'finished' | 'cooldown' | 'invalid' | 'not-wild' | 'fainted' | 'no-effect' | 'capturing'
   events: BattleEvent[]
 }
 

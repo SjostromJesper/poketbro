@@ -122,11 +122,16 @@ export function describeEvent(event: BattleEvent, ctx: MessageContext = {}): str
     }
     case 'switch':
       return `${event.fromName}, kom tillbaka!`
-    case 'ball-throw':
-      if (event.caught) return `Fångad! ${event.name} är din!`
-      if (event.shakes >= 2) return 'Åh nej! Så nära! Den kom loss.'
-      if (event.shakes === 1) return 'Den kom loss!'
-      return 'Bollen missade nästan helt, den kom loss direkt.'
+    case 'capture':
+      return null
+    case 'capture-result':
+      if (event.caught) return `Gotcha! ${event.name} fångades!`
+      return [
+        'Åh nej! Den bröt sig loss direkt!',
+        'Aww! Det verkade vara på väg!',
+        'Argh! Nästan fångad!',
+        'Nej! Den var så nära!',
+      ][Math.min(3, Math.max(0, event.shakes))]
     case 'run':
       return event.success ? 'Du kom undan!' : 'Du kunde inte fly!'
     case 'effect':

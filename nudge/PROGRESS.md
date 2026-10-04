@@ -89,7 +89,7 @@ Known issues / ideas: see the open questions at the end of the M8 balance sectio
 | Milestone | Status |
 |---|---|
 | P2-M0 - Hämta paketen | done (all packs downloaded; `npm run fetch-assets`) |
-| P2-M1 - Fångst-systemet | todo |
+| P2-M1 - Fångst-systemet | done |
 | P2-M1B - Favoritmove | todo |
 | P2-M2 - Ljudmotorn | todo |
 | P2-M3 - Musik på plats | todo |

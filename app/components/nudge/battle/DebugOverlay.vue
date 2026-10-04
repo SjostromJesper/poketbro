@@ -15,6 +15,10 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
 
 <template>
   <div v-if="view.debug" class="debug">
+    <div v-if="view.captureChances" class="capture-line">
+      Fångstchans nu: Poké Ball <b>{{ pct(view.captureChances['poke-ball']) }}</b> &middot; Great Ball <b>{{ pct(view.captureChances['great-ball']) }}</b>
+      &middot; Ultra Ball <b>{{ pct(view.captureChances['ultra-ball']) }}</b>
+    </div>
     <div v-for="side in (['player', 'enemy'] as const)" :key="side" class="block">
       <div class="title">
         {{ side === 'player' ? 'SPELARE' : 'MOTSTÅNDARE' }}: {{ view[side].name }} Lv{{ view[side].level }}
@@ -76,6 +80,15 @@ function rows(battler: BattlerView, debug: ChoiceDebug) {
   background: rgba(0, 0, 0, 0.55);
   border: 2px dashed #ffd840;
   padding: 8px;
+}
+
+.capture-line {
+  grid-column: 1 / -1;
+  color: #b8c6dc;
+}
+
+.capture-line b {
+  color: #7ee07e;
 }
 
 .title {

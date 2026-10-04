@@ -2,11 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
+import { BALLS } from '~~/nudge/game/items'
 import type { BattleOutcome, Side } from '~~/nudge/engine/types'
 import { useBattleStore } from '~/stores/nudge/battle'
 import AtbBar from './AtbBar.vue'
 import BattleLog from './BattleLog.vue'
 import BattlerPanel from './BattlerPanel.vue'
+import CaptureAnimation from './CaptureAnimation.vue'
 import DebugOverlay from './DebugOverlay.vue'
 import MoveButton from './MoveButton.vue'
 import NudgePips from './NudgePips.vue'
@@ -41,7 +43,7 @@ function loop(now: number) {
 function onKey(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
-  if (menu.value !== 'none' || store.result) return
+  if (menu.value !== 'none' || store.result || store.capturing) return
   if (event.key >= '1' && event.key <= '4') {
     store.nudge(Number(event.key) - 1)
     event.preventDefault()
@@ -67,7 +69,11 @@ onBeforeUnmount(() => {
 // ---------------------------------------------------------------------------
 
 const spriteEls: Record<Side, HTMLElement | null> = { player: null, enemy: null }
-const setSprite = (side: Side) => (el: unknown) => { spriteEls[side] = el as HTMLElement | null }
+const setSprite = (side: Side) => (el: unknown) => {
+  spriteEls[side] = el as HTMLElement | null
+  if (side === 'enemy') enemyEl.value = el as HTMLElement | null
+  else playerEl.value = el as HTMLElement | null
+}
 
 function animate(side: Side, kind: 'lunge' | 'hit' | 'enter' | null) {
   const el = spriteEls[side]
@@ -110,11 +116,14 @@ const message = ref('')
 const BAG_ITEMS = ['potion', 'antidote', 'paralyze-heal']
 const itemLabel = (item: string) => gameData.items[item]?.displayName ?? item
 const itemCount = (item: string): number | null => (props.bag ? (props.bag[item] ?? 0) : null)
-const ballCount = computed(() => itemCount('poke-ball'))
+const ownedBalls = computed(() => BALLS.filter(id => itemCount(id) === null || (itemCount(id) ?? 0) > 0))
+const ballCount = computed(() => BALLS.reduce((sum, id) => sum + (itemCount(id) ?? 0), 0))
+const ballMenu = ref(false)
+const capturing = computed(() => !!store.capturing)
 
-const locked = computed(() => !!store.result)
+const locked = computed(() => !!store.result || capturing.value)
 const wild = computed(() => view.value?.kind === 'wild')
-const ballDisabled = computed(() => locked.value || !wild.value || (view.value?.cooldowns.ballMs ?? 0) > 0 || ballCount.value === 0)
+const ballDisabled = computed(() => locked.value || !wild.value || (view.value?.cooldowns.ballMs ?? 0) > 0 || ownedBalls.value.length === 0)
 const runDisabled = computed(() => locked.value || !wild.value)
 const switchDisabled = computed(() => locked.value || (view.value?.cooldowns.switchMs ?? 0) > 0 || !(view.value?.team.some(m => !m.fainted && !m.active)))
 const bagDisabled = computed(() => locked.value || (view.value?.cooldowns.itemMs ?? 0) > 0)
@@ -124,9 +133,49 @@ function say(text: string) {
   setTimeout(() => { if (message.value === text) message.value = '' }, 1800)
 }
 
-function throwBall() {
-  const result = store.act({ type: 'ball' })
-  if (result?.accepted) emit('item-used', 'poke-ball')
+function openBalls() {
+  // With only one kind of ball there is nothing to choose.
+  if (ownedBalls.value.length === 1) throwBall(ownedBalls.value[0])
+  else ballMenu.value = !ballMenu.value
+}
+
+function throwBall(ball: string) {
+  ballMenu.value = false
+  const result = store.act({ type: 'ball', ball })
+  if (result?.accepted) emit('item-used', ball)
+}
+
+// --- catch animation: the scene reacts to the animation's cues ---
+const stageEl = ref<HTMLElement | null>(null)
+const enemyEl = ref<HTMLElement | null>(null)
+const playerEl = ref<HTMLElement | null>(null)
+const enemyHidden = ref(false)
+
+function onAbsorb() {
+  const el = spriteEls.enemy
+  const scale = 1 / Math.max(1, store.speed)
+  el?.animate([
+    { filter: 'brightness(1)', transform: 'scale(1)', opacity: 1 },
+    { filter: 'brightness(8)', transform: 'scale(0.8)', opacity: 1, offset: 0.35 },
+    { filter: 'brightness(8)', transform: 'scale(0)', opacity: 0 },
+  ], { duration: Math.max(260, 450 * scale), fill: 'forwards' })
+  setTimeout(() => { enemyHidden.value = true }, Math.max(260, 450 * scale))
+}
+
+function onRelease() {
+  const el = spriteEls.enemy
+  enemyHidden.value = false
+  el?.getAnimations().forEach(a => a.cancel())
+  el?.animate([
+    { filter: 'brightness(8)', transform: 'scale(0)', opacity: 0 },
+    { filter: 'brightness(3)', transform: 'scale(1.1)', opacity: 1, offset: 0.6 },
+    { filter: 'brightness(1)', transform: 'scale(1)', opacity: 1 },
+  ], { duration: 450 / Math.max(1, store.speed) + 150 })
+}
+
+function onCaptureDone() {
+  enemyHidden.value = false
+  store.resolveCapture()
 }
 
 function run() {
@@ -189,7 +238,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
 <template>
   <div v-if="view" class="scene" :style="{ '--fx': 1 / store.speed }">
     <!-- Battlefield -->
-    <div class="stage px-panel">
+    <div ref="stageEl" class="stage px-panel">
       <div class="sky" />
       <div class="ground" />
 
@@ -203,7 +252,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
       <div class="platform enemy-platform" />
       <div class="platform player-platform" />
 
-      <div :ref="setSprite('enemy')" class="sprite enemy" :class="{ fainted: store.fx.enemy.fainted, charging: !!view.enemy.charging }">
+      <div :ref="setSprite('enemy')" class="sprite enemy" :class="{ fainted: store.fx.enemy.fainted, charging: !!view.enemy.charging, hidden: enemyHidden }">
         <img :src="view.enemy.sprite.front" :alt="view.enemy.name" draggable="false">
       </div>
       <div :ref="setSprite('player')" class="sprite player" :class="{ fainted: store.fx.player.fainted, charging: !!view.player.charging }">
@@ -221,6 +270,11 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
         <span v-for="f in store.floaters" :key="f.id" class="floater" :class="[f.side, f.kind]">{{ f.text }}</span>
       </TransitionGroup>
 
+      <CaptureAnimation
+        v-if="store.capturing" :key="`${store.capturing.ball}-${store.capturing.shakes}-${view.timeMs}`" :ball="store.capturing.ball"
+        :shakes="store.capturing.shakes" :caught="store.capturing.caught" :speed="store.speed" :origin="playerEl" :target="enemyEl"
+        :stage="stageEl" @absorb="onAbsorb" @release="onRelease" @done="onCaptureDone"
+      />
       <div v-if="store.paused && !store.result" class="paused px-title">PAUS</div>
     </div>
 
@@ -228,7 +282,9 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
     <div class="controls">
       <div class="moves-col">
         <div class="moves">
-          <MoveButton v-for="m in view.player.moves" :key="m.index" :move="m" :hotkey="m.index + 1" @nudge="store.nudge(m.index)" />
+          <MoveButton
+            v-for="m in view.player.moves" :key="m.index" :move="m" :hotkey="m.index + 1" :disabled="capturing" @nudge="store.nudge(m.index)"
+          />
         </div>
         <div class="nudge-line">
           <span class="px-title tiny">Nudge</span>
@@ -238,11 +294,20 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
       </div>
 
       <div class="actions">
-        <button type="button" class="px-btn" :disabled="ballDisabled" @click="throwBall">
-          Boll<template v-if="ballCount !== null"> x{{ ballCount }}</template>
-        </button>
-        <button type="button" class="px-btn" :disabled="bagDisabled" @click="openMenu('bag')">Väska</button>
-        <button type="button" class="px-btn" :disabled="switchDisabled" @click="openMenu('switch')">Byt</button>
+        <div class="ball-wrap">
+          <button type="button" class="px-btn" :disabled="ballDisabled" @click="openBalls">
+            Boll<template v-if="props.bag"> x{{ ballCount }}</template>
+          </button>
+          <div v-if="ballMenu" class="ball-menu px-panel">
+            <button v-for="id in ownedBalls" :key="id" type="button" class="px-btn row" @click="throwBall(id)">
+              <img :src="gameData.items[id]?.sprite" alt="" class="ball-icon">
+              {{ itemLabel(id) }}<template v-if="itemCount(id) !== null"> x{{ itemCount(id) }}</template>
+              <small v-if="store.debug && view.captureChances"> {{ (view.captureChances[id] * 100).toFixed(0) }}%</small>
+            </button>
+          </div>
+        </div>
+        <button type="button" class="px-btn" :disabled="bagDisabled || capturing" @click="openMenu('bag')">Väska</button>
+        <button type="button" class="px-btn" :disabled="switchDisabled || capturing" @click="openMenu('switch')">Byt</button>
         <button type="button" class="px-btn" :disabled="runDisabled" @click="run">Fly</button>
         <div class="speed">
           <button
@@ -430,6 +495,40 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
 .sprite.fainted {
   opacity: 0;
   transform: translateY(40px);
+}
+
+.sprite.hidden {
+  visibility: hidden;
+}
+
+.ball-wrap {
+  position: relative;
+  display: contents;
+}
+
+.ball-menu {
+  position: absolute;
+  right: 12px;
+  bottom: 150px;
+  z-index: 8;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 190px;
+}
+
+.ball-menu .row {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ball-icon {
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
 }
 
 .sprite.charging img {
