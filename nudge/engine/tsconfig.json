@@ -1,0 +1,16 @@
+{
+  // The battle engine must stay free of Vue/Nuxt/DOM/Node dependencies: this config has no DOM lib and no @types/node,
+  // so an accidental import of either fails the typecheck.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["./**/*.ts", "../data/types.ts"]
+}

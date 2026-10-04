@@ -1,0 +1,17 @@
+{
+  // Typechecks only the Nudge parts of the Nuxt app (pages, components, stores). The older gladiator game has
+  // pre-existing type errors and is deliberately not covered by `npm run typecheck`.
+  "extends": "../.nuxt/tsconfig.app.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false
+  },
+  "include": [
+    "../.nuxt/nuxt.d.ts",
+    "../app/pages/nudge/**/*",
+    "../app/components/nudge/**/*",
+    "../app/stores/nudge/**/*",
+    "../app/composables/nudge/**/*",
+    "./**/*.ts"
+  ],
+  "exclude": ["../node_modules", "./tests", "./scripts"]
+}
