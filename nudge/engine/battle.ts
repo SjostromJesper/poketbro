@@ -1,0 +1,526 @@
+// The battle engine: ATB-driven auto battle with a nudge. Pure TypeScript, driven by tick(dtMs).
+//
+//   const engine = new BattleEngine({ player, enemy, kind: 'wild', rng, balance, data })
+//   const events = engine.tick(dtMs)       // advance the simulation
+//   engine.nudge(moveIndex)                // the player nudges the active Pokémon
+//   engine.playerAction({ type: 'ball' })  // ball / item / run / switch
+//   engine.state                           // readable state for the UI and debug overlay
+import { atbFillPerSecond, barCanFill, effectiveSpeed, priorityHeadstart } from './atb'
+import { computeChoice, pickMove, pickRandomUsableMove } from './choice'
+import { attemptCapture, calcDamage, fleeSucceeds, xpYield } from './formulas'
+import { effectivePower, isChargeMove, isDamaging, isRechargeMove } from './moves'
+import { dealDamage, executeMove, healBattler, moveDataFor, type ExecContext } from './moveExec'
+import { nudgeStrengthFor } from './nudge'
+import { rollObedience } from './obedience'
+import { createBattler, emptyStages, speciesOf } from './pokemon'
+import { chance, type Rng } from './rng'
+import { cureStatus, statusDamagePerSecond, tickTimedStates } from './status'
+import type {
+  ActionResult, BattleConfig, BattleEvent, BattleOutcome, BattleResult, BattleState, Battler, ChoiceDebug, NudgeOutcome,
+  OwnedPokemon, PartyUpdate, PlayerAction, Side,
+} from './types'
+
+const other = (side: Side): Side => (side === 'player' ? 'enemy' : 'player')
+
+export class BattleEngine {
+  readonly state: BattleState
+  readonly rng: Rng
+  readonly balance: BattleConfig['balance']
+  readonly data: BattleConfig['data']
+  private readonly badges: number
+  private readonly sources = new Map<string, OwnedPokemon>()
+  private accumulatorMs = 0
+  private pendingEvents: BattleEvent[] = []
+  private xp: Record<string, number> = {}
+  private defeated: { speciesId: number, level: number }[] = []
+  private caught: OwnedPokemon | null = null
+  private handledFaints = new Set<string>()
+
+  constructor(config: BattleConfig) {
+    this.rng = config.rng
+    this.balance = config.balance
+    this.data = config.data
+    this.badges = config.badges ?? 0
+    for (const p of [...config.player, ...config.enemy]) this.sources.set(p.uid, p)
+
+    const player = config.player.map((p, i) => createBattler(config.data, config.balance, p, 'player', i))
+    const enemy = config.enemy.map((p, i) => createBattler(config.data, config.balance, p, 'enemy', i))
+    const firstPlayer = player.findIndex(b => !b.fainted)
+    const firstEnemy = enemy.findIndex(b => !b.fainted)
+    if (firstPlayer < 0 || firstEnemy < 0) throw new Error('Both sides need at least one Pokémon that can battle')
+
+    this.state = {
+      kind: config.kind,
+      player: { battlers: player, activeIndex: firstPlayer },
+      enemy: { battlers: enemy, activeIndex: firstEnemy },
+      timeMs: 0,
+      lockMs: config.balance.SEND_OUT_LOCK_MS,
+      paused: false,
+      cooldowns: { switchMs: 0, itemMs: 0, ballMs: 0 },
+      runAttempts: 0,
+      result: null,
+      nudgeRefillMs: 0,
+    }
+    const a = player[firstPlayer]
+    const b = enemy[firstEnemy]
+    a.facedEnemies.add(b.uid)
+    b.facedEnemies.add(a.uid)
+    this.pendingEvents.push(
+      { type: 'send-out', side: 'enemy', name: b.name, teamIndex: firstEnemy, speciesId: b.speciesId, forced: false },
+      { type: 'send-out', side: 'player', name: a.name, teamIndex: firstPlayer, speciesId: a.speciesId, forced: false },
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Read access
+  // ---------------------------------------------------------------------------
+
+  active(side: Side): Battler {
+    const s = this.state[side]
+    return s.battlers[s.activeIndex]
+  }
+
+  get finished(): boolean {
+    return this.state.result !== null
+  }
+
+  setPaused(paused: boolean): void {
+    this.state.paused = paused
+  }
+
+  /** The live move distribution for a side's active Pokémon (debug overlay, nudge bots). */
+  debugChoice(side: Side): ChoiceDebug {
+    const self = this.active(side)
+    const foe = this.active(other(side))
+    return computeChoice({ self, foe, data: this.data, balance: this.balance, nudge: self.pendingNudge })
+  }
+
+  private ctx(events: BattleEvent[]): ExecContext {
+    return { rng: this.rng, balance: this.balance, data: this.data, events }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Time
+  // ---------------------------------------------------------------------------
+
+  /** Advances the battle by `dtMs` of game time (the UI multiplies by its speed setting). Deterministic for a given Rng. */
+  tick(dtMs: number): BattleEvent[] {
+    const events: BattleEvent[] = this.pendingEvents
+    this.pendingEvents = []
+    if (this.state.result) return events
+    this.accumulatorMs += Math.max(0, dtMs)
+    const step = this.balance.STEP_MS
+    while (this.accumulatorMs >= step && !this.state.result) {
+      this.accumulatorMs -= step
+      this.step(step, events)
+    }
+    return events
+  }
+
+  private step(dt: number, events: BattleEvent[]): void {
+    const { balance, state } = this
+    state.cooldowns.switchMs = Math.max(0, state.cooldowns.switchMs - dt)
+    state.cooldowns.itemMs = Math.max(0, state.cooldowns.itemMs - dt)
+    state.cooldowns.ballMs = Math.max(0, state.cooldowns.ballMs - dt)
+
+    if (state.lockMs > 0) {
+      state.lockMs = Math.max(0, state.lockMs - dt)
+      return
+    }
+    state.timeMs += dt
+
+    if (balance.NUDGE_REFILL_ENABLED) {
+      state.nudgeRefillMs += dt
+      if (state.nudgeRefillMs >= balance.NUDGE_REFILL_MS) {
+        state.nudgeRefillMs = 0
+        const player = this.active('player')
+        player.nudgesUsed = Math.max(0, player.nudgesUsed - 1)
+      }
+    }
+
+    for (const side of ['player', 'enemy'] as const) {
+      const b = this.active(side)
+      if (b.fainted) continue
+      tickTimedStates(b, dt, this.rng, balance, events)
+      this.tickPeriodic(b, this.active(other(side)), dt, events)
+      // A charging Pokémon does not fill its bar; its charge countdown runs instead (paused while asleep/frozen).
+      if (b.action?.kind === 'charging' && b.status !== 'sleep' && b.status !== 'freeze') b.action.remainingMs -= dt
+      if (barCanFill(b)) {
+        b.atb = Math.min(balance.ATB_MAX, b.atb + (atbFillPerSecond(b, balance) * dt) / 1000)
+      }
+    }
+    this.resolveFaints(events)
+    if (state.result || state.lockMs > 0) return
+
+    const ready = (['player', 'enemy'] as const)
+      .map(side => this.active(side))
+      .filter(b => this.isReady(b))
+      .sort((a, b) => this.readiness(b) - this.readiness(a) || (this.rng.next() < 0.5 ? -1 : 1))
+    for (const b of ready) {
+      if (b.fainted || state.result || state.lockMs > 0) break
+      this.act(b, events)
+      this.resolveFaints(events)
+    }
+  }
+
+  private isReady(b: Battler): boolean {
+    if (b.fainted || b.status === 'sleep' || b.status === 'freeze') return false
+    if (b.action?.kind === 'charging') return b.action.remainingMs <= 0
+    if (b.action) return false
+    return b.atb >= this.balance.ATB_MAX
+  }
+
+  private readiness(b: Battler): number {
+    return b.action?.kind === 'charging' ? this.balance.ATB_MAX * 10 - b.action.remainingMs : b.atb
+  }
+
+  /** Burn, poison, leech seed and Leftovers. */
+  private tickPeriodic(b: Battler, foe: Battler, dt: number, events: BattleEvent[]): void {
+    const { balance } = this
+    const statusPct = statusDamagePerSecond(b, balance)
+    const leechPct = b.seeded ? balance.LEECH_SEED_PCT_PER_SEC : 0
+    const totalPct = statusPct + leechPct
+    if (totalPct > 0) {
+      b.dotRemainder += (b.stats.hp * totalPct * dt) / 1000
+      const whole = Math.floor(b.dotRemainder)
+      if (whole >= 1) {
+        b.dotRemainder -= whole
+        dealDamage(this.ctx(events), b, whole, { source: statusPct > 0 ? 'status' : 'leech-seed' })
+        if (leechPct > 0 && !foe.fainted) {
+          healBattler(this.ctx(events), foe, Math.max(1, Math.round((whole * leechPct) / totalPct)), 'leech-seed')
+        }
+      }
+    }
+    if (b.heldItem === 'leftovers' && !b.fainted && b.hp < b.stats.hp) {
+      b.healRemainder += (b.stats.hp * balance.LEFTOVERS_PCT_PER_SEC * dt) / 1000
+      const whole = Math.floor(b.healRemainder)
+      if (whole >= 1) {
+        b.healRemainder -= whole
+        healBattler(this.ctx(events), b, whole, 'leftovers')
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Acting
+  // ---------------------------------------------------------------------------
+
+  private finishTurn(b: Battler, move: ReturnType<typeof moveDataFor> | null, lockMs: number): void {
+    const { balance } = this
+    b.atb = move ? priorityHeadstart(move.priority, balance) : 0
+    let mult = 1
+    if (move && isRechargeMove(move, balance)) mult *= balance.RECOVERY_MULTIPLIER
+    if (move && balance.POWER_TEMPO_SCALING) {
+      mult /= 1 + balance.POWER_TEMPO_FACTOR * Math.max(0, (effectivePower(move, balance) ?? 0) - 60)
+    }
+    b.fillMult = mult
+    this.state.lockMs = Math.max(this.state.lockMs, lockMs)
+  }
+
+  private act(b: Battler, events: BattleEvent[]): void {
+    const { balance } = this
+    const foe = this.active(other(b.side))
+
+    // A charged move (Solar Beam, Fly, ...) finishes now.
+    if (b.action?.kind === 'charging') {
+      const moveName = b.action.move
+      b.action = null
+      this.useMove(b, foe, moveName, events)
+      return
+    }
+
+    b.fillMult = 1
+
+    if (b.status === 'paralysis' && chance(this.rng, balance.PARALYSIS_FULL_CHANCE)) {
+      events.push({ type: 'status-skip', side: b.side, name: b.name, reason: 'paralysis' })
+      this.finishTurn(b, null, balance.SKIPPED_TURN_LOCK_MS)
+      return
+    }
+    if (b.confusionMs > 0 && chance(this.rng, balance.CONFUSION_SELF_HIT_CHANCE)) {
+      const damage = calcDamage({
+        level: b.level, power: balance.CONFUSION_SELF_POWER, attack: b.stats.attack, defense: b.stats.defense,
+        stab: false, effectiveness: 1, crit: false, burned: false,
+        random: balance.DAMAGE_RANDOM_MIN + this.rng.next() * (1 - balance.DAMAGE_RANDOM_MIN), other: 1,
+      }, balance)
+      events.push({ type: 'status-skip', side: b.side, name: b.name, reason: 'confusion-hurt' })
+      dealDamage(this.ctx(events), b, damage, { source: 'confusion' })
+      this.finishTurn(b, null, balance.SKIPPED_TURN_LOCK_MS)
+      return
+    }
+
+    let forcedRandom = false
+    if (b.side === 'player') {
+      const outcome = rollObedience(b, this.badges, this.rng, balance)
+      if (outcome === 'loaf') {
+        events.push({ type: 'disobey', side: b.side, name: b.name, outcome }, { type: 'emote', side: b.side, emote: '…' })
+        this.finishTurn(b, null, balance.SKIPPED_TURN_LOCK_MS)
+        return
+      }
+      if (outcome === 'nap') {
+        events.push({ type: 'disobey', side: b.side, name: b.name, outcome }, { type: 'emote', side: b.side, emote: '💤' })
+        b.action = { kind: 'napping', remainingMs: balance.NAP_MS }
+        this.finishTurn(b, null, balance.SKIPPED_TURN_LOCK_MS)
+        return
+      }
+      if (outcome === 'random') {
+        forcedRandom = true
+        events.push({ type: 'disobey', side: b.side, name: b.name, outcome })
+      }
+    }
+
+    // Choose the move (5.3 + nudge 5.4).
+    const nudge = b.pendingNudge
+    b.pendingNudge = null
+    let moveIndex: number
+    let followed: boolean | null = null
+    if (forcedRandom) {
+      moveIndex = pickRandomUsableMove(this.rng, b)
+      if (nudge) followed = false
+    } else {
+      const choice = computeChoice({ self: b, foe, data: this.data, balance, nudge })
+      moveIndex = pickMove(this.rng, choice)
+      if (nudge) followed = nudge.strength > 0 && moveIndex === nudge.moveIndex
+    }
+    if (followed) b.followedNudge = true
+
+    const moveName = moveIndex >= 0 ? b.moves[moveIndex].move : 'struggle'
+    const move = moveDataFor(this.ctx(events), moveName)
+    if (moveIndex >= 0) b.moves[moveIndex].pp = Math.max(0, b.moves[moveIndex].pp - 1)
+    events.push({ type: 'move-chosen', side: b.side, name: b.name, move: moveName, moveName: move.displayName, followedNudge: followed })
+    if (followed !== null) events.push({ type: 'emote', side: b.side, emote: followed ? '♪' : '…' })
+
+    if (isChargeMove(move, balance)) {
+      const charge = balance.CHARGE_MOVES[moveName]
+      b.action = { kind: 'charging', move: moveName, remainingMs: charge.chargeMs, semiInvulnerable: charge.semiInvulnerable }
+      b.atb = 0
+      events.push({ type: 'charge-start', side: b.side, name: b.name, move: moveName, moveName: move.displayName, ms: charge.chargeMs })
+      this.state.lockMs = Math.max(this.state.lockMs, balance.CHARGE_ANNOUNCE_LOCK_MS)
+      return
+    }
+    this.useMove(b, foe, moveName, events)
+  }
+
+  private useMove(b: Battler, foe: Battler, moveName: string, events: BattleEvent[]): void {
+    const ctx = this.ctx(events)
+    executeMove(ctx, b, foe, moveName)
+    this.finishTurn(b, moveDataFor(ctx, moveName), this.balance.ACTION_LOCK_MS)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fainting, send-out and the end of the battle
+  // ---------------------------------------------------------------------------
+
+  private resolveFaints(events: BattleEvent[]): void {
+    if (this.state.result) return
+    for (const side of ['enemy', 'player'] as const) {
+      const sideState = this.state[side]
+      const fainted = sideState.battlers[sideState.activeIndex]
+      if (!fainted.fainted || this.handledFaints.has(fainted.uid)) continue
+      this.handledFaints.add(fainted.uid)
+
+      if (side === 'enemy') this.awardXp(fainted)
+      const next = sideState.battlers.findIndex(b => !b.fainted)
+      if (next < 0) {
+        this.end(side === 'enemy' ? 'win' : 'lose', events)
+        return
+      }
+      this.sendOut(side, next, true, events)
+    }
+  }
+
+  private awardXp(defeated: Battler): void {
+    this.defeated.push({ speciesId: defeated.speciesId, level: defeated.level })
+    const participants = this.state.player.battlers.filter(b => !b.fainted && b.facedEnemies.has(defeated.uid))
+    if (participants.length === 0) return
+    const species = speciesOf(this.data, defeated)
+    const each = xpYield(species.baseExp, defeated.level, this.state.kind === 'trainer', participants.length, this.balance)
+    for (const p of participants) this.xp[p.uid] = (this.xp[p.uid] ?? 0) + each
+  }
+
+  private resetVolatile(b: Battler): void {
+    b.stages = emptyStages()
+    b.confusionMs = 0
+    b.seeded = false
+    b.protectedMs = 0
+    b.critBonus = 0
+    b.action = null
+    b.pendingNudge = null
+    b.atb = 0
+    b.fillMult = 1
+  }
+
+  private sendOut(side: Side, index: number, forced: boolean, events: BattleEvent[]): void {
+    const sideState = this.state[side]
+    const previous = sideState.battlers[sideState.activeIndex]
+    if (previous && previous !== sideState.battlers[index]) this.resetVolatile(previous)
+    sideState.activeIndex = index
+    const b = sideState.battlers[index]
+    b.atb = 0
+    b.fillMult = 1
+    b.action = null
+    const opponent = this.active(other(side))
+    if (opponent) {
+      b.facedEnemies.add(opponent.uid)
+      opponent.facedEnemies.add(b.uid)
+    }
+    events.push({ type: 'send-out', side, name: b.name, teamIndex: index, speciesId: b.speciesId, forced })
+    this.state.lockMs = Math.max(this.state.lockMs, this.balance.SEND_OUT_LOCK_MS)
+  }
+
+  private end(result: BattleResult, events: BattleEvent[]): void {
+    this.state.result = result
+    events.push({ type: 'battle-end', result })
+  }
+
+  // ---------------------------------------------------------------------------
+  // The nudge
+  // ---------------------------------------------------------------------------
+
+  /** Nudges the active Pokémon towards `moveIndex` for its next choice. */
+  nudge(moveIndex: number): NudgeOutcome {
+    const b = this.active('player')
+    const remaining = Math.max(0, b.nudgeBudget - b.nudgesUsed)
+    const unavailable = (): NudgeOutcome => ({ result: 'unavailable', remaining, events: [] })
+    if (this.state.result || b.fainted) return unavailable()
+    if (this.state.paused && !this.balance.NUDGE_ALLOWED_WHILE_PAUSED) return unavailable()
+    const instance = b.moves[moveIndex]
+    if (!instance || instance.pp <= 0) return unavailable()
+
+    if (b.pendingNudge?.moveIndex === moveIndex) {
+      return { result: 'same-move', remaining, events: [{ type: 'nudge', result: 'same-move', moveIndex, remaining }] }
+    }
+    if (b.nudgesUsed >= b.nudgeBudget) {
+      return {
+        result: 'exhausted',
+        remaining: 0,
+        events: [{ type: 'nudge', result: 'exhausted', moveIndex, remaining: 0 }, { type: 'emote', side: 'player', emote: '💢' }],
+      }
+    }
+
+    const move = this.data.moves[instance.move]
+    let strength = nudgeStrengthFor(b.nudgesUsed, b.trust, this.balance)
+    if (this.balance.TRAITS[b.trait].ignoresNonDamagingNudges && !isDamaging(move)) strength = 0
+    const replaced = b.pendingNudge !== null
+    b.nudgesUsed++
+    b.pendingNudge = { moveIndex, strength }
+    const left = b.nudgeBudget - b.nudgesUsed
+    const result = replaced ? 'replaced' : 'accepted'
+    return {
+      result,
+      remaining: left,
+      events: [{ type: 'nudge', result, moveIndex, remaining: left }, { type: 'emote', side: 'player', emote: '!' }],
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Other player actions
+  // ---------------------------------------------------------------------------
+
+  playerAction(action: PlayerAction): ActionResult {
+    const events: BattleEvent[] = []
+    const reject = (reason: ActionResult['reason']): ActionResult => ({ accepted: false, reason, events })
+    if (this.state.result) return reject('finished')
+    const { balance, state } = this
+
+    switch (action.type) {
+      case 'switch': {
+        if (state.cooldowns.switchMs > 0) return reject('cooldown')
+        const target = state.player.battlers[action.teamIndex]
+        if (!target || target.fainted || action.teamIndex === state.player.activeIndex) return reject('invalid')
+        const from = this.active('player')
+        events.push({ type: 'switch', side: 'player', fromName: from.name, toName: target.name, teamIndex: action.teamIndex })
+        this.sendOut('player', action.teamIndex, false, events)
+        state.cooldowns.switchMs = balance.SWITCH_COOLDOWN_MS
+        return { accepted: true, events }
+      }
+      case 'ball': {
+        if (state.kind !== 'wild') return reject('not-wild')
+        if (state.cooldowns.ballMs > 0) return reject('cooldown')
+        const enemy = this.active('enemy')
+        const species = speciesOf(this.data, enemy)
+        const result = attemptCapture(this.rng, enemy.stats.hp, enemy.hp, species.captureRate, 1, enemy.status)
+        const ball = action.ball ?? 'poke-ball'
+        events.push({ type: 'ball-throw', ball, name: enemy.name, shakes: result.shakes, caught: result.caught })
+        state.lockMs = Math.max(state.lockMs, balance.BALL_LOCK_MS)
+        if (result.caught) {
+          const source = this.sources.get(enemy.uid)
+          if (source) {
+            this.caught = {
+              ...source,
+              currentHp: enemy.hp,
+              status: enemy.status === 'sleep' || enemy.status === 'freeze' ? undefined : enemy.status ?? undefined,
+              moves: enemy.moves.map(m => ({ ...m })),
+              trust: balance.TRUST_START_WILD,
+            }
+          }
+          this.end('caught', events)
+        } else {
+          state.cooldowns.ballMs = balance.BALL_COOLDOWN_MS
+        }
+        return { accepted: true, events }
+      }
+      case 'item': {
+        if (state.cooldowns.itemMs > 0) return reject('cooldown')
+        const target = state.player.battlers[action.targetIndex]
+        if (!target || target.fainted) return reject('fainted')
+        const ctx = this.ctx(events)
+        let used = false
+        switch (action.item) {
+          case 'potion':
+            used = healBattler(ctx, target, balance.POTION_HEAL, 'item') > 0
+            break
+          case 'antidote':
+            if (target.status === 'poison') { cureStatus(target); used = true }
+            break
+          case 'paralyze-heal':
+            if (target.status === 'paralysis') { cureStatus(target); used = true }
+            break
+          default:
+            return reject('invalid')
+        }
+        if (!used) return reject('no-effect')
+        if (action.item !== 'potion') {
+          events.push({ type: 'status-cured', side: 'player', name: target.name, status: action.item === 'antidote' ? 'poison' : 'paralysis', reason: 'item' })
+        }
+        events.unshift({ type: 'item-used', side: 'player', name: target.name, item: action.item })
+        state.cooldowns.itemMs = balance.ITEM_COOLDOWN_MS
+        state.lockMs = Math.max(state.lockMs, balance.ITEM_LOCK_MS)
+        return { accepted: true, events }
+      }
+      case 'run': {
+        if (state.kind !== 'wild') return reject('not-wild')
+        const success = fleeSucceeds(
+          this.rng, effectiveSpeed(this.active('player'), balance), effectiveSpeed(this.active('enemy'), balance), state.runAttempts,
+        )
+        state.runAttempts++
+        events.push({ type: 'run', success })
+        if (success) this.end('fled', events)
+        else state.lockMs = Math.max(state.lockMs, balance.RUN_LOCK_MS)
+        return { accepted: true, events }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Result
+  // ---------------------------------------------------------------------------
+
+  /** Everything the game layer needs to apply once the battle is over; null while it is still running. */
+  get outcome(): BattleOutcome | null {
+    const result = this.state.result
+    if (!result) return null
+    const party: PartyUpdate[] = this.state.player.battlers.map(b => ({
+      uid: b.uid,
+      currentHp: b.hp,
+      status: b.status === 'sleep' || b.status === 'freeze' ? null : b.status,
+      moves: b.moves.map(m => ({ ...m })),
+      heldItem: b.heldItemUsed ? null : b.heldItem,
+      fainted: b.fainted,
+      participated: b.facedEnemies.size > 0,
+      movesUsed: { ...b.movesUsed },
+      followedNudge: b.followedNudge,
+      trait: b.trait,
+    }))
+    return { result, party, xp: { ...this.xp }, defeated: [...this.defeated], caught: this.caught }
+  }
+}

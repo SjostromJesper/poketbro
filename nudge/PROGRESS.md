@@ -3,7 +3,7 @@
 | Milestone | Status |
 |---|---|
 | M1 - Projekt och data | done |
-| M2 - Stridsmotorn (headless) | todo |
+| M2 - Stridsmotorn (headless) | done |
 | M3 - Strids-UI | todo |
 | M4 - Överkartan | todo |
 | M5 - Kopplingen karta <-> strid | todo |
@@ -18,3 +18,13 @@
 - `/nudge` route works without login (placeholder title screen).
 
 Known issues: none.
+
+## M2 - Stridsmotorn (headless)
+- `nudge/engine/*` complete per plan section 5 (ball/item/run/switch are fully implemented, not stubs).
+- 128 Vitest tests (formulas, type chart incl. dual types and immunities, nature stats, ATB tempo, charge/recharge/priority, move choice
+  distribution and p_final normalisation, nudge curve/budget per trait, obedience, status effects, XP/capture/flee, progression, determinism).
+- `npm run sim` gives sensible numbers; the nudge bot gives a noticeable (~+5-7 pp win rate) but not overwhelming edge.
+- `npm run typecheck` is green (Nudge code only, see DECISIONS.md).
+
+Known issues / open balance questions (for M8): neutral natures make Pokémon use status moves fairly often (e.g. Growl ~35 %), paralysis is
+mild because of the speed offset, equal-level 1v1s favour whoever has the type advantage. 60 moves are inert (listed in DECISIONS.md).
