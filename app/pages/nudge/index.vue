@@ -1,24 +1,167 @@
 <script setup lang="ts">
-// Placeholder title screen - replaced in M7.
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from '#imports'
+import { gameData } from '~~/nudge/data'
+import type { SaveSummary } from '~~/nudge/game/save'
+import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
+import SettingsPanel from '~/components/nudge/menu/SettingsPanel.vue'
+import { useGameStore } from '~/stores/nudge/game'
+import { useSettingsStore } from '~/stores/nudge/settings'
+
+const router = useRouter()
+const game = useGameStore()
+const settings = useSettingsStore()
+
+const summary = ref<SaveSummary | null>(null)
+const showSettings = ref(false)
+const starters = [1, 4, 7].map(id => gameData.species[id])
+
+onMounted(() => {
+  settings.load()
+  refresh()
+})
+
+function refresh() {
+  summary.value = game.savedGame()
+}
+
+function continueGame() {
+  router.push('/nudge/play?continue=1')
+}
+
+function newGame() {
+  if (summary.value && !confirm('Du har en sparad resa. Starta nytt spel? Den gamla sparfilen skrivs över när du sparar nästa gång.')) return
+  router.push('/nudge/play?new=1')
+}
+
+const savedAt = computed(() => (summary.value ? new Date(summary.value.savedAt).toLocaleString('sv-SE') : ''))
+const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species[summary.value.leadSpeciesId].sprites.icon : ''))
 </script>
 
 <template>
-  <main class="nudge-title">
-    <h1>NUDGE</h1>
-    <p>Pokémon-autobattler (prototyp)</p>
-  </main>
+  <NudgeFrame>
+    <main class="title">
+      <div class="sprites" aria-hidden="true">
+        <img v-for="(s, i) in starters" :key="s.id" :src="s.sprites.front" alt="" :style="{ animationDelay: `${i * 0.35}s` }">
+      </div>
+      <h1 class="px-title logo">NUDGE</h1>
+      <p class="sub">Pokémon som slåss av sig själva. Du viskar bara i örat.</p>
+
+      <div class="buttons">
+        <button v-if="summary" type="button" class="px-btn primary" @click="continueGame">Fortsätt</button>
+        <button type="button" class="px-btn" :class="{ primary: !summary }" @click="newGame">Nytt spel</button>
+        <button type="button" class="px-btn" @click="showSettings = !showSettings">Inställningar</button>
+        <NuxtLink to="/nudge/dev/battle" class="px-btn link">Teststrid</NuxtLink>
+      </div>
+
+      <div v-if="summary" class="save px-panel">
+        <img v-if="leadIcon" :src="leadIcon" alt="" class="icon">
+        <div>
+          <strong>{{ summary.leadName ?? 'Ny resa' }}<template v-if="summary.leadLevel"> Lv{{ summary.leadLevel }}</template></strong>
+          <div class="meta">{{ summary.placeName }} &middot; {{ summary.partySize }} Pokémon &middot; {{ summary.badges }} märke(n) &middot; {{ summary.money }} kr</div>
+          <div class="meta">Sparad {{ savedAt }}</div>
+        </div>
+      </div>
+
+      <SettingsPanel v-if="showSettings" allow-delete @deleted="refresh" />
+
+      <p class="controls">
+        Pilar/WASD: gå &middot; Shift: spring &middot; Mellanslag/Z/Enter: prata &middot; Esc/X: meny<br>
+        I strid: klicka en attack (eller 1-4) för att nudga &middot; P: paus &middot; D: debug
+      </p>
+      <p class="credit">Privat prototyp. Pokémon-data och sprites från PokeAPI.</p>
+    </main>
+  </NudgeFrame>
 </template>
 
 <style scoped>
-.nudge-title {
-  position: fixed;
-  inset: 0;
-  background: #101820;
-  color: #f0f0f0;
+.title {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: monospace;
+  gap: 14px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.sprites {
+  display: flex;
+  gap: 28px;
+  height: 120px;
+  align-items: flex-end;
+}
+
+.sprites img {
+  image-rendering: pixelated;
+  transform: scale(1.6);
+  transform-origin: bottom center;
+  animation: bob 1.4s ease-in-out infinite alternate;
+}
+
+.logo {
+  margin: 8px 0 0;
+  font-size: clamp(36px, 9vw, 72px);
+  color: #ffd840;
+  text-shadow: 4px 4px 0 #c8402c, 8px 8px 0 #0a0f16;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  margin: 0;
+  color: #9fb2cc;
+  font-size: 18px;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(280px, 90vw);
+  margin-top: 10px;
+}
+
+.buttons .link {
+  text-decoration: none;
+  text-align: center;
+  color: #eef2f7;
+}
+
+.save {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.save .icon {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.meta {
+  font-size: 14px;
+  color: #9fb2cc;
+}
+
+.controls {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #6f86a8;
+  line-height: 1.6;
+}
+
+.credit {
+  margin: 0;
+  font-size: 12px;
+  color: #4a5c78;
+}
+
+@keyframes bob {
+  from { translate: 0 0; }
+  to { translate: 0 -8px; }
 }
 </style>

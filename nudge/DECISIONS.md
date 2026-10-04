@@ -184,3 +184,20 @@ where the auto-choice is already fine. Balance is revisited in M8.
 - **Trust sources** now all wired: +1 per 100 steps, +3 level up, +2 win (participated and standing), +1 Pokémon Center / Mum, +5 fed berry, +1 (x2 for Proud) for a followed
   nudge in a won battle, -5 for fainting. "Bitter healing items" from the plan were not added.
 - **Habits** are saved in `OwnedPokemon.habits`, grow only in won battles and feed the choice algorithm (tested end to end: win -> habit -> summary "favourite" -> higher p_auto).
+
+## Gym, saving, polish (M7)
+
+- **Save format** (`nudge/game/save.ts`, key `nudge:save:v1`): `{ version, savedAt, player, world }`, validated on load (Pokémon must reference known species/moves/natures,
+  numbers must be numbers, ...). A corrupt or wrong-version save is reported instead of loaded; a save pointing at an unknown map or a solid tile restarts in Hemstad.
+  The storage wrapper (`app/stores/nudge/storage.ts`) falls back to memory when `localStorage` is unavailable.
+- **Autosave** on every map change, after the starter is chosen, and after a battle once its dialogs/choices are done. Manual save in the menu; "Titelskärm" saves first.
+  Nothing is saved before the player owns a Pokémon.
+- **Title screen** (`/nudge`): Fortsätt (when there is a valid save, with a summary: lead Pokémon, place, badges, money, time), Nytt spel (asks before replacing the old
+  save, which is only overwritten at the next save), Inställningar, Teststrid. `/nudge/play` continues a save by default; `?new=1` forces a new game, dev shortcuts imply a new game.
+- **Settings:** default battle speed, debug overlay in battle, delete save. Sound is not part of the prototype (the plan makes it optional).
+- **Automatic playthrough** (`nudge/tests/bot.ts` + `playthrough.test.ts`): a bot drives the real stores and controller from a new game: professor and starter, walks with BFS
+  paths, grinds in the Route 1 grass, fights trainers that spot it, nudges with the "best move" strategy, catches a couple of Pokémon, heals at Mum / the Pokémon Center,
+  shops, learns moves, evolves, and beats the gym. It succeeds for three seeds and three starters in under a second of test time; it is also the source of the pacing
+  numbers used for balancing in M8.
+- **Polish already in place:** flash transition into battles, fades with a map-name banner, "!" and walking trainers, HP bar animation, emotes, floating damage numbers,
+  screen-wide Swedish texts (species and move names stay English because PokeAPI has no Swedish ones).

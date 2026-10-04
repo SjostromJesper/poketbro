@@ -10,6 +10,8 @@ import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/ty
 import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
+import { parseSave, SAVE_KEY, serializeSave, summarizeSave, type SaveSummary } from '~~/nudge/game/save'
+import { readItem, removeItem, writeItem } from './storage'
 import type { NpcAction, TrainerDef, WorldState } from '~~/nudge/game/types'
 import { useBattleStore } from './battle'
 import { usePlayerStore } from './player'
@@ -47,6 +49,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   const overlay = ref<Overlay | null>(null)
   let context: BattleContext | null = null
   let queue: PostStep[] = []
+  let autosaveAfterQueue = false
 
   // ---------------------------------------------------------------------------
   // Starting a game
@@ -58,7 +61,43 @@ export const useGameStore = defineStore('nudgeGame', () => {
       onTrainer: onTrainer,
       onAction: onAction,
       onStepsChanged: () => player.addSteps(1),
+      onMapChanged: () => save(true),
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Saving
+  // ---------------------------------------------------------------------------
+
+  /** Writes the game to localStorage. Returns false when there is nothing to save or storage failed. */
+  function save(silent = false): boolean {
+    const w = world.world
+    if (!w || !player.party.length) return false
+    const ok = writeItem(SAVE_KEY, serializeSave(player.serialize(), JSON.parse(JSON.stringify(w.state))))
+    if (!silent) world.notify(ok ? 'Spelet sparades.' : 'Kunde inte spara (lagringen är full eller avstängd).')
+    return ok
+  }
+
+  function savedGame(): SaveSummary | null {
+    const result = parseSave(readItem(SAVE_KEY))
+    return result.ok ? summarizeSave(result.save) : null
+  }
+
+  function hasSave(): boolean {
+    return parseSave(readItem(SAVE_KEY)).ok
+  }
+
+  /** Loads the saved game. Returns false when there is no valid save. */
+  function loadSave(): boolean {
+    const result = parseSave(readItem(SAVE_KEY))
+    if (!result.ok) return false
+    player.hydrate(result.save.player)
+    resume(result.save.world)
+    return true
+  }
+
+  function deleteSave() {
+    removeItem(SAVE_KEY)
   }
 
   function newGame(state: WorldState = newWorldState()) {
@@ -120,6 +159,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     w.setFlag('starter')
     overlay.value = null
     world.setBusy(false)
+    save(true)
     world.openDialog([
       `Du valde ${displayNameOf(gameData, pokemon)}!`,
       `Professorn gav dig också ${STARTER_BALLS} Poké Balls.`,
@@ -179,6 +219,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     context = null
     queue = []
     if (outcome) buildPostBattle(outcome, ctx)
+    autosaveAfterQueue = true
     runQueue()
   }
 
@@ -262,6 +303,10 @@ export const useGameStore = defineStore('nudgeGame', () => {
     if (!step) {
       world.clearTrainer()
       world.setBusy(false)
+      if (autosaveAfterQueue) {
+        autosaveAfterQueue = false
+        save(true)
+      }
       return
     }
     world.setBusy(true)
@@ -323,6 +368,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, chooseStarter, closeShop, finishBattle, resolveLearn, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, finishBattle, resolveLearn, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

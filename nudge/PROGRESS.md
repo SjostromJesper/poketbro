@@ -8,7 +8,7 @@
 | M4 - Överkartan | done |
 | M5 - Kopplingen karta <-> strid | done |
 | M6 - Lag, items, relation | done |
-| M7 - Gym, sparning, polish | todo |
+| M7 - Gym, sparning, polish | done |
 | M8 - Balans och avslut | todo |
 
 ## M1 - Projekt och data
@@ -66,3 +66,11 @@ Known issues: none. The balance of XP/money/prices is untouched until M8.
 - 17 new tests (190 in total). Headless screenshots of the party and summary screens checked.
 
 Known issues: "Spara", "Inställningar" and "Titelskärm" in the menu do nothing until M7.
+
+## M7 - Gym, sparning, polish
+- Gym (two trainers + leader Granit) with badge and TM reward works end to end; the Granit badge and Rock Tomb TM are given by the leader.
+- Autosave (map change / after battles / after the starter) + manual save, title screen with Fortsätt / Nytt spel / Inställningar, settings panel, save validation.
+- An automatic bot plays the whole game from a new game to the badge for three seeds/starters without crashing (that test covers the full loop).
+- 7 save tests + 3 playthrough tests (200 tests in total).
+
+Known issues: pacing is grindy (the bot needs ~80-100 wild battles to reach level 15) - that is what M8 tunes.

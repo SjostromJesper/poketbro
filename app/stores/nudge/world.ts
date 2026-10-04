@@ -90,6 +90,11 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
     menuBack = handler
   }
 
+  /** Shows a short message in the top-left banner (e.g. "Spelet sparades"). */
+  function notify(text: string, ms = 1800) {
+    banner.value = { text, until: visual.time + ms }
+  }
+
   function start(state: WorldState = newWorldState(), seed = Math.floor(Math.random() * 0xFFFFFFFF)) {
     world.value = new World(state, createRng(seed), BALANCE)
     visual.x = state.x
@@ -420,7 +425,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
 
   return {
     world, mode, dialog, banner, menuOpen, visual,
-    setHooks, setMenuBack, start, keyDown, keyUp, holdDirection, action, cancel, openMenu, closeMenu, openDialog, advanceDialog, update, teleport,
+    setHooks, setMenuBack, notify, start, keyDown, keyUp, holdDirection, action, cancel, openMenu, closeMenu, openDialog, advanceDialog, update, teleport,
     clearTrainer, setBusy, beginApproach,
   }
 })

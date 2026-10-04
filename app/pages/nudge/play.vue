@@ -28,6 +28,8 @@ onMounted(() => {
   const state = newWorldState()
   // Dev shortcuts while the game is being built, e.g.
   //   /nudge/play?map=gruss&x=11&y=13&starter=1&party=charmander:12,pidgey:8&balls=10&money=3000&badges=1&say=Hej&debug=1
+  const devKeys = ['map', 'starter', 'party', 'open', 'encounter', 'menu', 'say', 'balls', 'money', 'badges']
+  const dev = devKeys.some(k => k in q)
   const mapId = typeof q.map === 'string' ? q.map : null
   if (mapId) {
     try {
@@ -40,6 +42,12 @@ onMounted(() => {
     }
   }
   if (q.starter === '1') state.flags.push('starter')
+  // Continue a saved game unless a new one was asked for (or a dev shortcut is used).
+  const wantsContinue = q.continue === '1' || (!dev && q.new !== '1' && game.hasSave())
+  if (wantsContinue && game.loadSave()) {
+    battle.debug = q.debug === '1' || battle.debug
+    return
+  }
   game.newGame(state)
   battle.debug = q.debug === '1'
   if (typeof q.party === 'string') {
