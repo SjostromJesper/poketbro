@@ -341,10 +341,12 @@ export class Bot {
         waited += 16
       }
       this.world.holdDirection(null)
-      for (let t = 0; t < 1200 && (this.world.mode === 'fade' || (this.world.mode === 'walk' && (this.world.visual.walk >= 0 || this.world.visual.x !== world.state.x || this.world.visual.y !== world.state.y))); t += 16) {
+      // The mode changes while updating (fades, trainers), so read it through a function TypeScript cannot narrow.
+      const mode = (): string => this.world.mode
+      for (let t = 0; t < 1200 && (mode() === 'fade' || (mode() === 'walk' && (this.world.visual.walk >= 0 || this.world.visual.x !== world.state.x || this.world.visual.y !== world.state.y))); t += 16) {
         this.world.update(16)
       }
-      if (`${world.state.mapId}:${world.state.x},${world.state.y}` === before && this.world.mode === 'walk') {
+      if (`${world.state.mapId}:${world.state.x},${world.state.y}` === before && mode() === 'walk') {
         throw new Error(`Stuck at ${before} trying to go ${dir}`)
       }
     }
