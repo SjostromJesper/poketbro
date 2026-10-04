@@ -71,11 +71,17 @@ function draw() {
   }
   for (const spot of map.trainers) {
     const def = TRAINERS[spot.id]
+    const moved = v.trainerPos?.id === spot.id ? v.trainerPos : null
+    const tx = moved ? moved.x : spot.x
+    const ty = moved ? moved.y : spot.y
     drawables.push({
-      y: spot.y,
+      y: ty,
       draw: () => {
-        drawCharacter(ctx, LOOKS[def?.look ?? 'boy'], world.facingOf(spot.id, spot.facing), spot.x * TILE - camX, spot.y * TILE - camY, -1)
-        if (v.spotted?.id === spot.id) drawExclamation(ctx, spot.x * TILE - camX, spot.y * TILE - camY)
+        drawCharacter(
+          ctx, LOOKS[def?.look ?? 'boy'], world.facingOf(spot.id, spot.facing), Math.round(tx * TILE - camX), Math.round(ty * TILE - camY),
+          moved?.walking ? (v.time % 300) / 300 : -1,
+        )
+        if (v.spotted?.id === spot.id) drawExclamation(ctx, Math.round(tx * TILE - camX), Math.round(ty * TILE - camY))
       },
     })
   }
@@ -107,7 +113,8 @@ function onKeyDown(event: KeyboardEvent) {
     return
   }
   const target = event.target as HTMLElement | null
-  if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
+  // Let focused form controls and buttons (shop, battle, menus) handle Space/Enter themselves.
+  if (target && ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(target.tagName)) return
   if (HANDLED.has(event.key)) event.preventDefault()
   store.keyDown(event.key)
 }

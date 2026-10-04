@@ -5,6 +5,7 @@ import { createRng } from '~~/nudge/engine/rng'
 import { getMap } from '~~/nudge/game/maps'
 import type { Direction, NpcAction, WorldState } from '~~/nudge/game/types'
 import { newWorldState, World, type Trigger, type WildEncounter } from '~~/nudge/game/world'
+import { DIRECTIONS, OPPOSITE } from '~~/nudge/game/types'
 
 export type WorldMode = 'walk' | 'dialog' | 'fade' | 'menu' | 'busy'
 
@@ -55,7 +56,12 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
   const menuOpen = ref(false)
 
   /** Read by the canvas every frame (plain object on purpose: it changes 60 times per second). */
-  const visual = { x: 0, y: 0, walk: -1, fade: 0, time: 0, spotted: null as null | { id: string, until: number } }
+  const visual = {
+    x: 0, y: 0, walk: -1, fade: 0, time: 0,
+    spotted: null as null | { id: string, until: number },
+    /** A trainer that walked up to the player is drawn here instead of at its spot (until clearTrainer()). */
+    trainerPos: null as null | { id: string, x: number, y: number, walking: boolean },
+  }
 
   let anim: StepAnimation | null = null
   let held: Direction[] = []
@@ -63,6 +69,16 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
   let turnTimer = 0
   let fadePhase: null | { stage: 'out' | 'in', elapsed: number, warp?: Extract<Trigger, { type: 'warp' }>['warp'] } = null
   let hooks: WorldHooks = {}
+  let approach: null | {
+    id: string
+    phase: 'alert' | 'walk'
+    elapsed: number
+    fromX: number
+    fromY: number
+    toX: number
+    toY: number
+    duration: number
+  } = null
 
   function setHooks(next: WorldHooks) {
     hooks = next
@@ -74,6 +90,9 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
     visual.y = state.y
     visual.walk = -1
     visual.fade = 0
+    visual.trainerPos = null
+    visual.spotted = null
+    approach = null
     anim = null
     held = []
     fadePhase = null
@@ -204,6 +223,10 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
       updateFade(dt)
       return
     }
+    if (mode.value === 'busy') {
+      updateApproach(dt)
+      return
+    }
     if (mode.value !== 'walk') return
 
     if (anim) {
@@ -274,13 +297,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
     }
     const sight = finished.triggers.find((t): t is Extract<Trigger, { type: 'trainer-sight' }> => t.type === 'trainer-sight')
     if (sight) {
-      held = []
-      visual.spotted = { id: sight.trainerId, until: visual.time + 900 }
-      mode.value = 'busy'
-      setTimeout(() => {
-        mode.value = 'walk'
-        hooks.onTrainer?.(sight.trainerId, true)
-      }, 900)
+      beginApproach(sight.trainerId)
       return
     }
     if (finished.triggers.some(t => t.type === 'grass')) {
@@ -290,6 +307,54 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
         hooks.onEncounter?.(encounter)
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trainers that spot the player: "!", then they walk up to you
+  // ---------------------------------------------------------------------------
+
+  function beginApproach(trainerId: string) {
+    const w = world.value
+    const spot = w?.map.trainers.find(t => t.id === trainerId)
+    if (!w || !spot) return
+    held = []
+    mode.value = 'busy'
+    const { dx, dy } = DIRECTIONS[spot.facing]
+    // Stand right in front of the player, on the line of sight.
+    const toX = w.state.x - dx
+    const toY = w.state.y - dy
+    const tiles = Math.abs(toX - spot.x) + Math.abs(toY - spot.y)
+    visual.spotted = { id: trainerId, until: visual.time + 800 }
+    w.turn(OPPOSITE[spot.facing])
+    approach = { id: trainerId, phase: 'alert', elapsed: 0, fromX: spot.x, fromY: spot.y, toX, toY, duration: Math.max(0, tiles) * BALANCE.WALK_STEP_MS }
+  }
+
+  function updateApproach(dt: number) {
+    const a = approach
+    if (!a) return
+    a.elapsed += dt
+    if (a.phase === 'alert') {
+      if (a.elapsed < 800) return
+      a.phase = 'walk'
+      a.elapsed = 0
+    }
+    const t = a.duration > 0 ? Math.min(1, a.elapsed / a.duration) : 1
+    visual.trainerPos = { id: a.id, x: a.fromX + (a.toX - a.fromX) * t, y: a.fromY + (a.toY - a.fromY) * t, walking: t < 1 }
+    if (t >= 1) {
+      approach = null
+      hooks.onTrainer?.(a.id, true)
+    }
+  }
+
+  /** Puts the trainer back on its spot (after the fight). */
+  function clearTrainer() {
+    visual.trainerPos = null
+    visual.spotted = null
+  }
+
+  function setBusy(busy: boolean) {
+    held = []
+    mode.value = busy ? 'busy' : 'walk'
   }
 
   // ---------------------------------------------------------------------------
@@ -350,5 +415,6 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
   return {
     world, mode, dialog, banner, menuOpen, visual,
     setHooks, start, keyDown, keyUp, holdDirection, action, cancel, openMenu, closeMenu, openDialog, advanceDialog, update, teleport,
+    clearTrainer, setBusy, beginApproach,
   }
 })

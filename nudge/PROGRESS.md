@@ -6,7 +6,7 @@
 | M2 - Stridsmotorn (headless) | done |
 | M3 - Strids-UI | done |
 | M4 - Överkartan | done |
-| M5 - Kopplingen karta <-> strid | todo |
+| M5 - Kopplingen karta <-> strid | done |
 | M6 - Lag, items, relation | todo |
 | M7 - Gym, sparning, polish | todo |
 | M8 - Balans och avslut | todo |
@@ -49,3 +49,12 @@ Known issues: none. (Visual verification of animations was limited because the a
 - Verified with headless Chrome screenshots of Hemstad, Grusstad, the forest and the lab dialog.
 
 Known issues: none.
+
+## M5 - Kopplingen karta <-> strid
+- Full loop in `/nudge/play`: talk to the professor and choose a starter (+5 balls, gate opens), walk through Väg 1 and the forest, wild encounters in tall
+  grass with a flash transition, trainers that spot you and walk up, catching with Poké Balls, XP and level-ups, move replacement dialog, evolution prompt,
+  blackout, Pokémon Center / Mum healing, Pokémart shop, money and gym badge + TM.
+- 11 integration tests in `gameFlow.test.ts` on top of the earlier ones (173 tests in total).
+- Verified with headless Chrome screenshots (starter choice, wild battle launched from the map, shop).
+
+Known issues: none. The balance of XP/money/prices is untouched until M8.

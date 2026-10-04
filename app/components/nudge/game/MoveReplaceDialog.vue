@@ -1,0 +1,104 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { gameData } from '~~/nudge/data'
+import { displayNameOf } from '~~/nudge/engine/pokemon'
+import { usePlayerStore } from '~/stores/nudge/player'
+import { TYPE_COLORS, TYPE_LABELS } from '../ui'
+
+const props = defineProps<{ uid: string, move: string }>()
+const emit = defineEmits<{ (e: 'resolve', replaceIndex: number | null): void }>()
+
+const player = usePlayerStore()
+const pokemon = computed(() => player.findPokemon(props.uid))
+const newMove = computed(() => gameData.moves[props.move])
+const name = computed(() => (pokemon.value ? displayNameOf(gameData, pokemon.value) : '?'))
+const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({ index, data: gameData.moves[m.move], pp: m.pp, maxPp: m.maxPp })))
+</script>
+
+<template>
+  <div class="modal">
+    <div class="px-panel box">
+      <h2 class="px-title">{{ name }} vill lära sig en ny attack!</h2>
+      <div class="new" :style="{ '--type': TYPE_COLORS[newMove.type] }">
+        <strong>{{ newMove.displayName }}</strong>
+        <span>{{ TYPE_LABELS[newMove.type] }} &middot; Kraft {{ newMove.power ?? '-' }} &middot; Träff {{ newMove.accuracy ?? '-' }} &middot; PP {{ newMove.pp }}</span>
+      </div>
+      <p class="ask">Men {{ name }} kan bara kunna fyra attacker. Vilken ska glömmas?</p>
+      <button v-for="m in current" :key="m.index" type="button" class="px-btn row" :style="{ '--type': TYPE_COLORS[m.data.type] }" @click="emit('resolve', m.index)">
+        <span class="swatch" />
+        <span class="mname">Glöm {{ m.data.displayName }}</span>
+        <span class="mmeta">{{ TYPE_LABELS[m.data.type] }} &middot; Kraft {{ m.data.power ?? '-' }}</span>
+      </button>
+      <button type="button" class="px-btn" @click="emit('resolve', null)">Lär sig inte {{ newMove.displayName }}</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.modal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 30;
+}
+
+.box {
+  width: min(520px, 94%);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+h2 {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.new {
+  padding: 8px 10px;
+  border-left: 8px solid var(--type);
+  background: #1f2d44;
+  display: flex;
+  flex-direction: column;
+}
+
+.new span {
+  font-size: 14px;
+  color: #b8c6dc;
+}
+
+.ask {
+  margin: 0;
+  color: #b8c6dc;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  text-transform: none;
+}
+
+.swatch {
+  width: 10px;
+  height: 18px;
+  background: var(--type);
+}
+
+.mname {
+  flex: 1;
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 15px;
+}
+
+.mmeta {
+  font-family: 'Pixelify Sans', monospace;
+  font-size: 13px;
+  color: #9fb2cc;
+}
+</style>

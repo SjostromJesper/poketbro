@@ -142,3 +142,29 @@ where the auto-choice is already fine. Balance is revisited in M8.
 - **Viewport** is 15x11 tiles (240x176 internal pixels) scaled by CSS with `image-rendering: pixelated`; smaller maps are centred.
 - **Testing the UI.** The in-app browser pane has no animation frames while hidden, so visual checks use headless Chrome screenshots
   (`--screenshot`) with dev shortcuts (`/nudge/play?map=gruss&x=11&y=13&starter=1&say=...`), and behaviour is tested through the Pinia store.
+
+## Map <-> battle (M5)
+
+- **Stores.** `player` (party, box, money, bag, badges, pokedex, step counter; serialisable), `game` (the orchestrator: starter, healing, shop,
+  encounters, trainers, post-battle queue, blackout) next to `world` and `battle`. `GameRoot.vue` composes the overworld, the HUD, the modal screens
+  (starter choice, shop, move replacement, evolution) and the full-screen battle layer.
+- **Encounters** are rolled when a step onto tall grass finishes (`ENCOUNTER_RATE` 10 %); the screen flashes white/black, then the battle layer opens.
+  Without a Pokémon able to fight no encounter starts.
+- **Trainers.** Spotting: "!" for 0.8 s, then the trainer walks up to the tile in front of the player (drawn at an offset, snapped back to its
+  spot after the fight). Talking to a trainer skips the walk. Intro dialog -> battle -> win dialog -> prize money (`TRAINER_MONEY_PER_LEVEL` x highest
+  level in their team) -> trainer marked as beaten. The gym leader additionally gives the badge flag, the badge in `player.badges` and the TM.
+- **After a battle** a queue plays in order: caught-Pokémon message, trainer dialogs and rewards, then for every level-up: "nådde nivå N", moves learned
+  automatically, a replace dialog per move that does not fit (forget which one, or do not learn it) and the evolution prompt (evolve / cancel with X).
+- **Blackout** (all Pokémon fainted): half the money is lost, the player wakes up at the last healed-at place (`lastCenter`, set by the nurse and by Mum),
+  the party is healed (without the Center trust bonus) and the trainer fight is not counted as won.
+- **Heal** (nurse / Mum) heals HP, status and PP and gives +1 trust (the plan says once per visit; the dialog flow makes it once per conversation).
+- **Starter.** The professor's long dialog explains the nudge, then a choice of Bulbasaur / Charmander / Squirtle (level 5, trust 120, loyal-or-random trait)
+  and 5 Poké Balls; the north gate of Hemstad opens (`starter` flag). The professor offers it only once.
+- **Shop** (Pokémart in Grusstad): Poké Ball 100, Potion 150, Antidote 50, Paralyze Heal 100, Oran Berry 100, TM Double Team 600, TM Rest 800;
+  selling pays half. TM Rock Tomb (1000) comes from the gym. Starting money is 500. Prices are balance placeholders (M8).
+- **Items in battle**: the bag comes from the player store; a successful ball throw or potion use emits `item-used`, which removes one from the bag.
+- **Trust from walking**: +1 per 100 steps for every party member (`player.addSteps`).
+- **Dev shortcuts** on `/nudge/play`: `?map=&x=&y=&starter=1&party=charmander:12,pidgey:8&balls=10&money=3000&badges=1&open=starter|shop&encounter=16:3&debug=1&say=...`.
+- **Tests.** `gameFlow.test.ts` drives the real stores in Node with fake timers and a seeded `Math.random`: starter from the professor, healing, shop opening,
+  trust per steps, wild battle and XP, catching (party and box), level-up with the replace dialog, evolution (cancel and accept), a trainer that spots
+  the player and walks up, the gym leader reward and a blackout.
