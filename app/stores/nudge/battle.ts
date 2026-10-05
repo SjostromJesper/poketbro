@@ -148,6 +148,9 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
           if (event.source === 'leftovers' || event.source === 'leech-seed') break
           transient(floaters, { side: event.side, text: `+${event.amount}`, kind: 'heal' } as Omit<Floater, 'id'>, 1100)
           break
+        case 'disobey':
+          if (event.side === 'player') player.unlockNote('obedience')
+          break
         case 'faint':
           fx[event.side].fainted = true
           break

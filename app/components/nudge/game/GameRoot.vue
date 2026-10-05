@@ -15,12 +15,14 @@ import { useWorldStore } from '~/stores/nudge/world'
 import ShopMenu from './ShopMenu.vue'
 import StarterSelect from './StarterSelect.vue'
 import CutsceneScene from '~/components/nudge/cutscene/CutsceneScene.vue'
-import { introSteps } from '~~/nudge/game/text/intro'
+import { introSteps, quickIntroSteps } from '~~/nudge/game/text/intro'
+import { useSettingsStore } from '~/stores/nudge/settings'
 import { PLAYER_LOOKS } from '~~/nudge/game/sprites'
 
 const game = useGameStore()
 const player = usePlayerStore()
 const world = useWorldStore()
+const settings = useSettingsStore()
 const overlay = computed(() => game.overlay)
 const route = useRoute()
 // Dev shortcut: /nudge/play?menu=party|bag|summary opens the menu on that screen (the play page opens the menu itself).
@@ -45,7 +47,11 @@ const initialMenu = computed(() => {
       </template>
     </OverworldScene>
 
-    <CutsceneScene v-if="game.screen === 'intro'" class="intro-layer" :steps="introSteps({ lookCount: PLAYER_LOOKS.length })" @done="game.finishIntro" />
+    <CutsceneScene
+      v-if="game.screen === 'intro'" :key="game.introMode" class="intro-layer" :skippable="game.introMode === 'full' && settings.introSeen"
+      :steps="game.introMode === 'quick' ? quickIntroSteps({ lookCount: PLAYER_LOOKS.length }) : introSteps({ lookCount: PLAYER_LOOKS.length })"
+      @skip="game.skipIntro" @done="game.finishIntro"
+    />
     <div v-if="game.screen === 'transition'" class="flash" />
     <div v-if="game.screen === 'battle'" class="battle-layer">
       <BattleScene :bag="player.bag" :sequence="game.sequence" @item-used="player.removeItem($event)" @ended="game.beginPostBattle($event!)" @finished="game.finishBattle" />

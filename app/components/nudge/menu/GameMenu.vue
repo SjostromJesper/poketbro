@@ -7,10 +7,11 @@ import { useWorldStore } from '~/stores/nudge/world'
 import BagScreen from './BagScreen.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import PartyScreen from './PartyScreen.vue'
+import NotesScreen from './NotesScreen.vue'
 import PokedexScreen from './PokedexScreen.vue'
 import SummaryScreen from './SummaryScreen.vue'
 
-type Screen = 'main' | 'party' | 'summary' | 'bag' | 'settings' | 'pokedex'
+type Screen = 'main' | 'party' | 'summary' | 'bag' | 'settings' | 'pokedex' | 'notes'
 
 const props = withDefaults(defineProps<{
   /** Which screen to open first (dev shortcut). */
@@ -58,6 +59,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
       <button type="button" class="px-btn" @click="screen = 'party'">Lag</button>
       <button type="button" class="px-btn" @click="screen = 'bag'">Väska</button>
       <button v-if="world.world?.hasFlag('pokedex')" type="button" class="px-btn" @click="screen = 'pokedex'">Pokédex</button>
+      <button type="button" class="px-btn" @click="screen = 'notes'">Anteckningar</button>
       <button type="button" class="px-btn" :disabled="!player.party.length" @click="game.save()">Spara</button>
       <button type="button" class="px-btn" @click="screen = 'settings'">Inställningar</button>
       <button type="button" class="px-btn" @click="toTitle">Titelskärm</button>
@@ -68,6 +70,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
       <SummaryScreen v-else-if="screen === 'summary'" :uid="summaryUid" @select="summaryUid = $event" @back="screen = 'party'" />
       <BagScreen v-else-if="screen === 'bag'" @back="screen = 'main'" />
       <PokedexScreen v-else-if="screen === 'pokedex'" @back="screen = 'main'" />
+      <NotesScreen v-else-if="screen === 'notes'" @back="screen = 'main'" />
       <div v-else-if="screen === 'settings'" class="settings-screen">
         <SettingsPanel />
         <button type="button" class="px-btn" @click="screen = 'main'">Tillbaka</button>

@@ -10,6 +10,8 @@ import type { GiveDef, PickupDef } from '~~/nudge/game/types'
 import { createRandomRng } from '~~/nudge/engine/rng'
 import { randomNatureName, randomTrait } from '~~/nudge/engine/formulas'
 import * as TUT from '~~/nudge/game/text/tutorial'
+import { NOTES_BY_ID, type NoteId } from '~~/nudge/game/text/notes'
+import { useSettingsStore } from './settings'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
@@ -50,6 +52,8 @@ interface BattleContext {
   trainer?: TrainerDef
   /** The guided first battle against the rival in the lab. */
   tutorial?: boolean
+  /** The professor's pauses are on (off when the intro was skipped). */
+  guided?: boolean
 }
 
 
@@ -60,6 +64,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   const battle = useBattleStore()
   const audio = useAudioStore()
   const saves = useSavesStore()
+  const settings = useSettingsStore()
   /** When the running session began (for the play time). */
   let sessionStart = Date.now()
   /** Dev shortcut sessions (`?map=...`) never write to a save slot. */
@@ -165,11 +170,26 @@ export const useGameStore = defineStore('nudgeGame', () => {
   /** Where the player wakes up after the intro: their room in Hemstad. */
   const ROOM = { mapId: 'hemhus', x: 6, y: 3 }
 
+  /** 'full' = the whole intro, 'quick' = only the questions (after skipping it). */
+  const introMode = ref<'full' | 'quick'>('full')
+
+  /** Unlocks a note of the professor's notes (and says so when it is the first time). */
+  function unlockNote(id: NoteId, announce = true) {
+    if (player.unlockNote(id) && announce && screen.value === 'overworld') world.notify(`Ny anteckning: ${NOTES_BY_ID[id].title}`)
+  }
+
   /** Starts the intro cutscene of a new game (the scene itself is drawn by GameRoot; it calls `finishIntro` when done). */
   function beginIntro() {
     screen.value = 'intro'
+    introMode.value = 'full'
     world.setBusy(true)
     audio.music(null)
+  }
+
+  /** The intro is skipped (held Esc, only possible when it has been played on this device): the short questions follow and the professor's pauses stay off. */
+  function skipIntro() {
+    if (!settings.introSeen) return
+    introMode.value = 'quick'
   }
 
   /** The intro is over: the chosen names and look are kept and the game goes on in the player's room. */
@@ -178,7 +198,11 @@ export const useGameStore = defineStore('nudgeGame', () => {
     player.rivalName = (vars.rival ?? '').trim() || DEFAULT_RIVAL_NAME
     player.look = vars.playerSprite === 'player2' ? 'player2' : 'player'
     player.introDone = true
+    settings.introSeen = true
     setNames(player.name, player.rivalName)
+    if (introMode.value === 'quick') world.world?.setFlag('tutorial-off')
+    for (const id of ['atb', 'nudge', 'trust'] as const) unlockNote(id, false)
+    if (introMode.value === 'quick') for (const id of ['nature', 'trait', 'capture', 'favorite', 'obedience'] as const) unlockNote(id, false)
     world.teleport(ROOM.mapId, ROOM.x, ROOM.y, 'down')
     world.setBusy(false)
     screen.value = 'overworld'
@@ -361,6 +385,8 @@ export const useGameStore = defineStore('nudgeGame', () => {
     w.setFlag('starter')
     w.setFlag(`starter-${speciesId}`)
     overlay.value = null
+    unlockNote('nature', false)
+    unlockNote('trait', false)
     save(true)
     // The guided first battle follows at once: the professor, then the rival bursts in.
     world.setBusy(true)
@@ -376,7 +402,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     const enemy = trainerTeam(def).map(mon => createTrainerPokemon({
       data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId: mon.speciesId, level: mon.level, moves: mon.moves, trainerName: fillNames(def.name),
     }))
-    begin({ kind: 'trainer', trainer: def, tutorial: true }, enemy)
+    begin({ kind: 'trainer', trainer: def, tutorial: true, guided: !world.world?.hasFlag('tutorial-off') }, enemy)
   }
 
   /** After the guided battle, whatever the result: the professor hands over the Poké Balls and the Pokédex. */
@@ -387,6 +413,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         run: () => {
           player.addItem('poke-ball', STARTER_BALLS)
           world.world?.setFlag('pokedex')
+          unlockNote('capture', false)
           void audio.jingle('item')
         },
       },
@@ -450,7 +477,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     audio.sfx('encounter')
     audio.music(battleMusic(ctx.kind, ctx.trainer))
     setTimeout(() => {
-      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length, theme: themeForMap(world.world?.state.mapId ?? ''), tutorial: ctx.tutorial })
+      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length, theme: themeForMap(world.world?.state.mapId ?? ''), tutorial: ctx.guided })
       screen.value = 'battle'
     }, 900)
   }
@@ -558,6 +585,9 @@ export const useGameStore = defineStore('nudgeGame', () => {
       })
     }
 
+    if (steps.some(s => s.type === 'favorite')) unlockNote('favorite', false)
+    if (outcome.result === 'win' && ctx?.trainer?.gym) unlockNote('obedience', false)
+
     // Evolutions are shown after the scene closes, in their own scene.
     for (const info of application.levelUps) if (info.evolveTo) queue.push({ type: 'evolve', uid: info.uid, to: info.evolveTo })
 
@@ -652,6 +682,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, beginIntro, finishIntro, rollStarters, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, beginIntro, skipIntro, introMode, unlockNote, finishIntro, rollStarters, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

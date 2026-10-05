@@ -108,6 +108,8 @@ export const MIGRATIONS: Record<number, Migration> = {
     // The Pokédex is handed over in the guided first battle's end; games that are further than that have it.
     const flags: string[] = Array.isArray(data.world?.flags) ? data.world.flags : []
     if (flags.includes('starter') && !flags.includes('pokedex')) data.world = { ...data.world, flags: [...flags, 'pokedex'] }
+    // Games that are underway have been through everything the notes explain.
+    data.player = { ...data.player, notes: data.player?.notes ?? ['atb', 'nudge', 'nature', 'trait', 'trust', 'favorite', 'capture', 'obedience'] }
     return data
   },
 }

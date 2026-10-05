@@ -6,6 +6,7 @@ import { displayNameOf, maxHpOf } from '~~/nudge/engine/pokemon'
 import { healPokemon, learnMove } from '~~/nudge/engine/progression'
 import type { OwnedPokemon, StatusId } from '~~/nudge/engine/types'
 import { itemInfo, isTm } from '~~/nudge/game/items'
+import type { NoteId } from '~~/nudge/game/text/notes'
 import { DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME, setNames } from '~~/nudge/game/names'
 
 export const MAX_PARTY = 6
@@ -17,6 +18,8 @@ export interface PlayerSave {
   introDone: boolean
   /** The nature and trait rolled for each starter (shown before choosing). */
   starterRolls?: Record<number, { nature: string, trait: string }>
+  /** Ids of the professor's notes that have been unlocked. */
+  notes?: string[]
   party: OwnedPokemon[]
   box: OwnedPokemon[]
   money: number
@@ -37,6 +40,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   /** The intro has been played (names and look are chosen). */
   const introDone = ref(false)
   const starterRolls = ref<Record<number, { nature: string, trait: string }>>({})
+  const notes = ref<string[]>([])
   const party = ref<OwnedPokemon[]>([])
   const box = ref<OwnedPokemon[]>([])
   const money = ref(BALANCE.STARTING_MONEY)
@@ -63,6 +67,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     look.value = 'player'
     introDone.value = false
     starterRolls.value = {}
+    notes.value = []
     setNames(DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME)
     party.value = []
     box.value = []
@@ -73,6 +78,13 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     pokedexSeen.value = []
     stepRemainder.value = 0
     playTimeMs.value = 0
+  }
+
+  /** Unlocks a note of the professor's notes; returns true the first time. */
+  function unlockNote(id: NoteId): boolean {
+    if (notes.value.includes(id)) return false
+    notes.value.push(id)
+    return true
   }
 
   function count(item: string): number {
@@ -254,7 +266,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
 
   function serialize(): PlayerSave {
     return JSON.parse(JSON.stringify({
-      name: name.value, rivalName: rivalName.value, look: look.value, introDone: introDone.value, starterRolls: starterRolls.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
+      name: name.value, rivalName: rivalName.value, look: look.value, introDone: introDone.value, starterRolls: starterRolls.value, notes: notes.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
       badges: badges.value, pokedex: pokedex.value, pokedexSeen: pokedexSeen.value, stepRemainder: stepRemainder.value, playTimeMs: playTimeMs.value,
     })) as PlayerSave
   }
@@ -265,6 +277,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     look.value = save.look ?? 'player'
     introDone.value = save.introDone ?? true
     starterRolls.value = save.starterRolls ?? {}
+    notes.value = save.notes ?? []
     setNames(name.value, rivalName.value)
     party.value = save.party
     box.value = save.box
@@ -278,7 +291,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   }
 
   return {
-    name, rivalName, look, introDone, starterRolls, party, box, money, bag, badges, pokedex, pokedexSeen, markSeen, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
+    name, rivalName, look, introDone, starterRolls, notes, unlockNote, party, box, money, bag, badges, pokedex, pokedexSeen, markSeen, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
     reset, count, addItem, removeItem, spend, addPokemon, healAll, findPokemon, addSteps, totalHpFraction, serialize, hydrate,
     moveToBox, moveToParty, setNickname, moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
   }

@@ -17,6 +17,8 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
   /** Graphics theme of the overworld (changes immediately, saved with the other settings). */
   const theme = ref<ThemeId>(DEFAULT_THEME)
   const debug = ref(false)
+  /** The intro has been played on this device (later new games may skip it). */
+  const introSeen = ref(false)
 
   function load() {
     try {
@@ -28,6 +30,7 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
       sfxVolume.value = clamp01(saved.sfxVolume, sfxVolume.value)
       if (typeof saved.muted === 'boolean') muted.value = saved.muted
       if (isThemeId(saved.theme)) theme.value = saved.theme
+      if (saved.introSeen === true) introSeen.value = true
     } catch {
       // Ignore corrupt or unavailable storage.
     }
@@ -36,14 +39,14 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        battleSpeed: battleSpeed.value, musicVolume: musicVolume.value, sfxVolume: sfxVolume.value, muted: muted.value, theme: theme.value,
+        battleSpeed: battleSpeed.value, musicVolume: musicVolume.value, sfxVolume: sfxVolume.value, muted: muted.value, theme: theme.value, introSeen: introSeen.value,
       }))
     } catch {
       // Ignore unavailable storage.
     }
   }
 
-  watch([battleSpeed, musicVolume, sfxVolume, muted, theme], save)
+  watch([battleSpeed, musicVolume, sfxVolume, muted, theme, introSeen], save)
 
-  return { battleSpeed, musicVolume, sfxVolume, muted, theme, debug, load, save }
+  return { battleSpeed, musicVolume, sfxVolume, muted, theme, debug, introSeen, load, save }
 })

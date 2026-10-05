@@ -535,3 +535,10 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Kan inte förloras så att spelet stoppas**: vid förlust läks Pokémonen, ingen blackout, inga pengar förloras, rivalen får sin replik; vid vinst får man inga pengar. Båda vägarna fortsätter med professorns scen: 5 Poké Balls, Pokédex (flaggan `pokedex`, menyknappen visas först då) och en kort förklaring av fångst ("ju svagare, desto lättare").
   Poké Balls ges alltså inte längre vid valet. Äldre spel som redan har en starter får Pokédex-flaggan i migreringen.
 - **Boten** läser tutorial-rutorna (nudgar på "prova nu") och håller sig nu i gräset när den tränar (en ändrad slumpföljd visade att den annars kunde pendla utanför gräset).
+
+## P4-M4: hoppa över och anteckningar
+
+- **Hoppa över**: introt kan hoppas över bara när det har spelats förut på enheten (`settings.introSeen`, i webbläsarens inställningar, inte i sparfilen). Håll Esc eller X i en sekund; en liten indikator uppe till höger fyller sig. Då visas en kort version (`quickIntroSteps`: namn, utseende, rival med samma bekräftelser)
+  och flaggan `tutorial-off` sätts, så professorns pauser i första striden hoppas över (striden, rivalen och gåvorna är desamma). Första gången på en enhet visas ingen hoppa över-indikator.
+- **Professorns anteckningar** (`game/text/notes.ts`, menyknappen "Anteckningar"): ATB, nudge, natur, drag, förtroende, favoritattack, fångst, lydnad och märken. Avsnitt låses upp när spelet förklarar dem: ATB/nudge/förtroende i introt, natur/drag när man väljer starter, fångst efter första striden,
+  favorit när första favoritattacken dyker upp, lydnad vid första gymmärket eller första gången en Pokémon ignorerar en. Efter ett hoppat intro är alla läsbara direkt, och spel som redan var igång (migrering 3 -> 4) har alla upplåsta. Låsta avsnitt visas som "???". Ett litet meddelande säger "Ny anteckning: ..." när något låses upp på kartan.

@@ -17,8 +17,10 @@ const props = withDefaults(defineProps<{
   speed?: number
   /** Replaces the default background (a colour or gradient). */
   background?: string
-}>(), { vars: () => ({}), playerSprite: 'player', rivalSprite: 'rival', speed: 1, background: '' })
-const emit = defineEmits<{ (e: 'done', vars: Record<string, string>): void }>()
+  /** Holding Esc or X for a second skips the scene (shown with a small indicator). */
+  skippable?: boolean
+}>(), { vars: () => ({}), playerSprite: 'player', rivalSprite: 'rival', speed: 1, background: '', skippable: false })
+const emit = defineEmits<{ (e: 'done', vars: Record<string, string>): void, (e: 'skip'): void }>()
 
 const audio = useAudioStore()
 const hooks: CutsceneHooks = {
@@ -33,12 +35,24 @@ const inputEl = ref<HTMLInputElement | null>(null)
 let raf = 0
 let last = 0
 let reported = false
+/** When Esc / X went down (0 = not held), for the skip. */
+let skipHeldAt = 0
+const skipProgress = ref(0)
+const SKIP_HOLD_MS = 1000
 
 function frame(now: number) {
   const dt = Math.min(100, now - (last || now))
   last = now
   runner.update(dt)
   triggerRef(view)
+  if (skipHeldAt) {
+    skipProgress.value = Math.min(1, (now - skipHeldAt) / SKIP_HOLD_MS)
+    if (skipProgress.value >= 1 && !reported) {
+      reported = true
+      skipHeldAt = 0
+      emit('skip')
+    }
+  }
   if (runner.finished && !reported) {
     reported = true
     emit('done', { ...runner.vars })
@@ -80,7 +94,15 @@ function spriteStyle(s: (typeof state.value.sprites)[number]) {
   return { left: `${x}%`, transform, opacity }
 }
 
+function onKeyUp(event: KeyboardEvent) {
+  if (event.key === 'Escape' || event.key === 'x' || event.key === 'X') {
+    skipHeldAt = 0
+    skipProgress.value = 0
+  }
+}
+
 function onKeyDown(event: KeyboardEvent) {
+  if (props.skippable && !skipHeldAt && (event.key === 'Escape' || ((event.key === 'x' || event.key === 'X') && !(event.target as HTMLElement | null)?.matches?.('input')))) skipHeldAt = performance.now()
   if (event.repeat) return
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return
@@ -110,6 +132,7 @@ function suggest(name: string) {
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('keyup', onKeyUp)
   runner.start()
   triggerRef(view)
   raf = requestAnimationFrame(frame)
@@ -117,6 +140,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('keyup', onKeyUp)
   cancelAnimationFrame(raf)
 })
 
@@ -176,6 +200,11 @@ defineExpose({ runner })
       </div>
     </div>
 
+    <div v-if="skippable" class="skip-hint">
+      <span>Håll Esc för att hoppa över introt</span>
+      <i class="skip-bar"><b :style="{ width: `${skipProgress * 100}%` }" /></i>
+    </div>
+
     <div class="black" :style="{ opacity: state.blackness }" />
   </div>
 </template>
@@ -203,6 +232,32 @@ defineExpose({ runner })
   height: 150px;
   image-rendering: pixelated;
   display: block;
+}
+
+.skip-hint {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #dcc8a0;
+  text-align: right;
+}
+
+.skip-bar {
+  display: block;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #8a6a44;
+}
+
+.skip-bar b {
+  display: block;
+  height: 100%;
+  background: #ffd840;
 }
 
 .black {

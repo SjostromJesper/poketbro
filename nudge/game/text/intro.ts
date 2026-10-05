@@ -21,6 +21,33 @@ function askName(variable: string, label: string, prompt: string, suggestions: s
   ]
 }
 
+/** The short version for later new games (the intro was skipped): only the questions. Sets the same variables as `introSteps`. */
+export function quickIntroSteps(options: IntroOptions): CutsceneStep[] {
+  const steps: CutsceneStep[] = [
+    { type: 'fade', to: 'black', ms: 0 },
+    { type: 'playMusic', id: 'home' },
+    { type: 'fade', to: 'clear', ms: 600 },
+    { type: 'showSprite', id: 'ek', sprite: { kind: 'character', sprite: 'professor' }, at: 'left', anim: 'none' },
+    say('Välkommen tillbaka! Några snabba frågor först.'),
+    ...askName('player', 'askPlayer', 'Vad heter du?', NAME_SUGGESTIONS, 'Så du heter {player}?'),
+  ]
+  if (options.lookCount >= 2) {
+    steps.push(
+      { type: 'showSprite', id: 'look1', sprite: { kind: 'character', sprite: 'player' }, at: 'center', anim: 'none' },
+      { type: 'showSprite', id: 'look2', sprite: { kind: 'character', sprite: 'player2' }, at: 'right', anim: 'none' },
+      { type: 'choice', name: 'look', prompt: 'Vilken av dem är du?', options: ['Den i mitten', 'Den till höger'] },
+      { type: 'run', fn: (vars) => { vars.playerSprite = vars.lookIndex === '1' ? 'player2' : 'player' } },
+    )
+  } else {
+    steps.push({ type: 'run', fn: (vars) => { vars.playerSprite = 'player' } })
+  }
+  steps.push(
+    ...askName('rival', 'askRival', 'Vad heter rivalen?', RIVAL_SUGGESTIONS, 'Så han heter {rival}?'),
+    { type: 'fade', to: 'black', ms: 500 },
+  )
+  return steps
+}
+
 export interface IntroOptions {
   /** How many player looks the theme has (the look step is skipped with one). */
   lookCount: number
