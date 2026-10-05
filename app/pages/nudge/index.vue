@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from '#imports'
 import { gameData } from '~~/nudge/data'
-import type { SaveSummary } from '~~/nudge/game/save'
+import { SLOTS, type Slot } from '~~/nudge/game/saveSlots'
 import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
 import SettingsPanel from '~/components/nudge/menu/SettingsPanel.vue'
 import { useAudioStore } from '~/stores/nudge/audio'
-import { useGameStore } from '~/stores/nudge/game'
+import { useSavesStore } from '~/stores/nudge/saves'
 import { useSettingsStore } from '~/stores/nudge/settings'
 
 const router = useRouter()
-const game = useGameStore()
 const settings = useSettingsStore()
 const audio = useAudioStore()
+const saves = useSavesStore()
+const supabase = useSupabaseClient()
 
 const audioReady = ref(false)
-const summary = ref<SaveSummary | null>(null)
 const showSettings = ref(false)
 const starters = [1, 4, 7].map(id => gameData.species[id])
 
@@ -28,28 +28,33 @@ function onFirstInput() {
 onMounted(() => {
   settings.load()
   audio.music('title')
-  refresh()
+  saves.init()
+  void saves.connect(supabase)
   window.addEventListener('pointerdown', onFirstInput, true)
   window.addEventListener('keydown', onFirstInput, true)
 })
 
 onBeforeUnmount(onFirstInput)
 
-function refresh() {
-  summary.value = game.savedGame()
+function continueGame(slot: Slot) {
+  saves.setActive(slot)
+  router.push(`/nudge/play?continue=1&slot=${slot}`)
 }
 
-function continueGame() {
-  router.push('/nudge/play?continue=1')
+function newGame(slot: Slot) {
+  if (saves.slots[slot - 1] && !confirm(`Plats ${slot} har en sparad resa. Starta ett nytt spel där? Den gamla sparfilen skrivs över.`)) return
+  saves.setActive(slot)
+  router.push(`/nudge/play?new=1&slot=${slot}`)
 }
 
-function newGame() {
-  if (summary.value && !confirm('Du har en sparad resa. Starta nytt spel? Den gamla sparfilen skrivs över när du sparar nästa gång.')) return
-  router.push('/nudge/play?new=1')
+function deleteSlot(slot: Slot) {
+  if (confirm(`Radera sparplats ${slot}? Det går inte att ångra (och den tas bort från molnet).`)) void saves.remove(slot)
 }
 
-const savedAt = computed(() => (summary.value ? new Date(summary.value.savedAt).toLocaleString('sv-SE') : ''))
-const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species[summary.value.leadSpeciesId].sprites.icon : ''))
+const when = (ms: number) => new Date(ms).toLocaleString('sv-SE')
+const playTime = (ms: number) => `${Math.floor(ms / 3_600_000)} h ${Math.floor((ms % 3_600_000) / 60_000)} min`
+const icon = (speciesId: number) => gameData.species[speciesId]?.sprites.icon ?? ''
+const syncText = (dirty: boolean) => (saves.account.kind === 'unavailable' ? 'bara här' : dirty ? 'ej synkad' : 'synkad')
 </script>
 
 <template>
@@ -62,24 +67,66 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
       <p v-if="!audioReady" class="press">Tryck för att börja</p>
       <p class="sub">Pokémon som slåss av sig själva. Du viskar bara i örat.</p>
 
+      <div class="slots">
+        <div v-for="slot in SLOTS" :key="slot" class="slot px-panel" :class="{ empty: !saves.slots[slot - 1] }">
+          <template v-if="saves.slots[slot - 1]">
+            <div class="head">
+              <strong>Plats {{ slot }}: {{ saves.slots[slot - 1]!.summary.playerName }}</strong>
+              <span class="sync" :class="{ off: saves.slots[slot - 1]!.dirty || saves.account.kind === 'unavailable' }">☁ {{ syncText(saves.slots[slot - 1]!.dirty) }}</span>
+            </div>
+            <div class="party">
+              <img v-for="(id, i) in saves.slots[slot - 1]!.summary.partyIcons" :key="i" :src="icon(id)" alt="">
+            </div>
+            <div class="meta">
+              {{ saves.slots[slot - 1]!.summary.placeName }} &middot; {{ saves.slots[slot - 1]!.summary.badges }} märke(n) &middot;
+              {{ playTime(saves.slots[slot - 1]!.summary.playTimeMs) }} &middot; {{ saves.slots[slot - 1]!.summary.money }} kr
+            </div>
+            <div class="meta">Sparad {{ when(saves.slots[slot - 1]!.summary.savedAt) }}</div>
+            <div class="actions">
+              <button type="button" class="px-btn primary" @click="continueGame(slot)">Fortsätt</button>
+              <button type="button" class="px-btn" @click="newGame(slot)">Nytt spel</button>
+              <button type="button" class="px-btn danger" @click="deleteSlot(slot)">Radera</button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="head"><strong>Plats {{ slot }}</strong><span class="sync off">tom</span></div>
+            <div class="actions">
+              <button type="button" class="px-btn primary" @click="newGame(slot)">Nytt spel</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <div class="buttons">
-        <button v-if="summary" type="button" class="px-btn primary" @click="continueGame">Fortsätt</button>
-        <button type="button" class="px-btn" :class="{ primary: !summary }" @click="newGame">Nytt spel</button>
         <button type="button" class="px-btn" @click="showSettings = !showSettings">Inställningar</button>
         <NuxtLink to="/nudge/credits" class="px-btn link">Tack till</NuxtLink>
         <NuxtLink to="/nudge/dev/battle" class="px-btn link">Teststrid</NuxtLink>
       </div>
 
-      <div v-if="summary" class="save px-panel">
-        <img v-if="leadIcon" :src="leadIcon" alt="" class="icon">
-        <div>
-          <strong>{{ summary.leadName ?? 'Ny resa' }}<template v-if="summary.leadLevel"> Lv{{ summary.leadLevel }}</template></strong>
-          <div class="meta">{{ summary.placeName }} &middot; {{ summary.partySize }} Pokémon &middot; {{ summary.badges }} märke(n) &middot; {{ summary.money }} kr</div>
-          <div class="meta">Sparad {{ savedAt }}</div>
+      <SettingsPanel v-if="showSettings" />
+
+      <div v-if="saves.conflicts.length" class="conflict">
+        <div class="px-panel box">
+          <h2 class="px-title">Olika sparfiler</h2>
+          <p>Plats {{ saves.conflicts[0].slot }} har ändrats både här och i molnet sedan sist. Vilken vill du använda?</p>
+          <div class="choice">
+            <div>
+              <h3>Den här webbläsaren</h3>
+              <p>{{ saves.conflicts[0].local.leadName }} Lv{{ saves.conflicts[0].local.leadLevel }} &middot; {{ saves.conflicts[0].local.badges }} märke(n)</p>
+              <p>{{ saves.conflicts[0].local.placeName }} &middot; {{ playTime(saves.conflicts[0].local.playTimeMs) }}</p>
+              <p>Sparad {{ when(saves.conflicts[0].local.savedAt) }}</p>
+              <button type="button" class="px-btn primary" @click="saves.resolveConflict(saves.conflicts[0].slot, 'local')">Använd den här</button>
+            </div>
+            <div>
+              <h3>Molnet</h3>
+              <p>{{ saves.conflicts[0].cloud.leadName }} Lv{{ saves.conflicts[0].cloud.leadLevel }} &middot; {{ saves.conflicts[0].cloud.badges }} märke(n)</p>
+              <p>{{ saves.conflicts[0].cloud.placeName }} &middot; {{ playTime(saves.conflicts[0].cloud.playTimeMs) }}</p>
+              <p>Sparad {{ when(saves.conflicts[0].cloud.savedAt) }}</p>
+              <button type="button" class="px-btn" @click="saves.resolveConflict(saves.conflicts[0].slot, 'cloud')">Använd molnets</button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <SettingsPanel v-if="showSettings" allow-delete @deleted="refresh" />
 
       <p class="controls">
         Pilar/WASD: gå &middot; Shift: spring &middot; Mellanslag/Z/Enter: prata &middot; Esc/X: meny<br>
@@ -144,18 +191,88 @@ const leadIcon = computed(() => (summary.value?.leadSpeciesId ? gameData.species
   color: #fff4dc;
 }
 
-.save {
+.slots {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
+  width: min(520px, 94vw);
+}
+
+.slot {
   padding: 10px 14px;
   text-align: left;
 }
 
-.save .icon {
-  width: 48px;
-  height: 48px;
+.slot .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sync {
+  font-size: 13px;
+  color: #8ef08e;
+}
+
+.sync.off {
+  color: #ffb84a;
+}
+
+.party {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.party img {
+  width: 40px;
+  height: 40px;
   image-rendering: pixelated;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.conflict {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 40;
+}
+
+.conflict .box {
+  width: min(640px, 94vw);
+  padding: 16px;
+  text-align: left;
+}
+
+.conflict h2 {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.conflict h3 {
+  font-size: 10px;
+  margin: 0 0 6px;
+  color: #ffd840;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.conflict p {
+  margin: 0 0 4px;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .meta {

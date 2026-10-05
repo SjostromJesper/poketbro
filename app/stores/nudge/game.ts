@@ -14,11 +14,12 @@ import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { spriteFor, type SpriteKey } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
-import { parseSave, SAVE_KEY, serializeSave, summarizeSave, type SaveSummary } from '~~/nudge/game/save'
-import { readItem, removeItem, writeItem } from './storage'
+import { SAVE_VERSION, summarizeSave, type SaveData, type SaveSummary } from '~~/nudge/game/save'
+import type { Slot } from '~~/nudge/game/saveSlots'
 import type { NpcAction, TrainerDef, WorldState } from '~~/nudge/game/types'
 import { useAudioStore } from './audio'
 import { useBattleStore } from './battle'
+import { useSavesStore } from './saves'
 import { usePlayerStore } from './player'
 import { useWorldStore } from './world'
 
@@ -49,6 +50,12 @@ export const useGameStore = defineStore('nudgeGame', () => {
   const world = useWorldStore()
   const battle = useBattleStore()
   const audio = useAudioStore()
+  const saves = useSavesStore()
+  /** When the running session began (for the play time). */
+  let sessionStart = Date.now()
+  /** Dev shortcut sessions (`?map=...`) never write to a save slot. */
+  let ephemeral = false
+  function setEphemeral(value: boolean) { ephemeral = value }
 
   const screen = ref<Screen>('overworld')
   const overlay = ref<Overlay | null>(null)
@@ -85,39 +92,50 @@ export const useGameStore = defineStore('nudgeGame', () => {
   // Saving
   // ---------------------------------------------------------------------------
 
-  /** Writes the game to localStorage. Returns false when there is nothing to save or storage failed. */
+  /** Writes the game to the active save slot (the browser at once, the cloud a few seconds later). */
   function save(silent = false): boolean {
     const w = world.world
-    if (!w || !player.party.length) return false
-    const ok = writeItem(SAVE_KEY, serializeSave(player.serialize(), JSON.parse(JSON.stringify(w.state))))
-    if (!silent) world.notify(ok ? 'Spelet sparades.' : 'Kunde inte spara (lagringen är full eller avstängd).')
-    return ok
+    if (!w || !player.party.length || ephemeral) return false
+    const now = Date.now()
+    player.playTimeMs = playTime(now)
+    sessionStart = now
+    const data: SaveData = { version: SAVE_VERSION, savedAt: now, player: player.serialize(), world: JSON.parse(JSON.stringify(w.state)) }
+    saves.write(saves.active, data)
+    if (!silent) world.notify('Spelet sparades.')
+    return true
   }
 
-  function savedGame(): SaveSummary | null {
-    const result = parseSave(readItem(SAVE_KEY))
+  /** Play time so far (ms): earlier sessions plus the running one (idle time included, so approximate). */
+  function playTime(now = Date.now()): number {
+    return player.playTimeMs + (now - sessionStart)
+  }
+
+  function savedGame(slot: Slot = saves.active): SaveSummary | null {
+    const result = saves.read(slot)
     return result.ok ? summarizeSave(result.save) : null
   }
 
-  function hasSave(): boolean {
-    return parseSave(readItem(SAVE_KEY)).ok
+  function hasSave(slot: Slot = saves.active): boolean {
+    return saves.read(slot).ok
   }
 
-  /** Loads the saved game. Returns false when there is no valid save. */
-  function loadSave(): boolean {
-    const result = parseSave(readItem(SAVE_KEY))
+  /** Loads the saved game of a slot and makes it the active one. Returns false when there is no valid save. */
+  function loadSave(slot: Slot = saves.active): boolean {
+    const result = saves.read(slot)
     if (!result.ok) return false
+    saves.setActive(slot)
     player.hydrate(result.save.player)
     resume(result.save.world)
     return true
   }
 
-  function deleteSave() {
-    removeItem(SAVE_KEY)
+  function deleteSave(slot: Slot = saves.active) {
+    void saves.remove(slot)
   }
 
   function newGame(state: WorldState = newWorldState()) {
     player.reset()
+    sessionStart = Date.now()
     world.start(state)
     playMapMusic()
     screen.value = 'overworld'
@@ -129,6 +147,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   /** Resumes with already-loaded player/world state (used by loading a save). */
   function resume(state: WorldState) {
+    sessionStart = Date.now()
     world.start(state)
     playMapMusic()
     screen.value = 'overworld'
@@ -412,6 +431,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

@@ -6,15 +6,20 @@ import { usePlayerStore } from '../../app/stores/nudge/player'
 import { useWorldStore } from '../../app/stores/nudge/world'
 import { readItem, writeItem } from '../../app/stores/nudge/storage'
 import { createRng } from '../engine/rng'
-import { parseSave, SAVE_KEY, SAVE_VERSION, serializeSave, summarizeSave, type PlayerData } from '../game/save'
+import { parseSave, SAVE_VERSION, serializeSave, summarizeSave, type PlayerData } from '../game/save'
 import { newWorldState } from '../game/world'
 import { mon } from './helpers'
 import { finishBattle } from './sequence'
 
+/** The save in slot 1 as the game wrote it. */
+function slotData(slot: 1 | 2 | 3): any {
+  return JSON.parse(readItem(`nudge:slot:${slot}`)!).data
+}
+
 function playerData(): PlayerData {
   return {
     name: 'Du', party: [mon('charmander', 12, { heldItem: 'oran-berry' }), mon('pidgey', 7)], box: [], money: 777,
-    bag: { 'poke-ball': 4, 'potion': 2 }, badges: ['granit'], pokedex: [4, 16], stepRemainder: 42,
+    bag: { 'poke-ball': 4, 'potion': 2 }, badges: ['granit'], pokedex: [4, 16], stepRemainder: 42, playTimeMs: 3_600_000,
   }
 }
 
@@ -54,6 +59,7 @@ describe('save format', () => {
     const parsed = parseSave(serializeSave(playerData(), { ...newWorldState(), mapId: 'gruss', x: 11, y: 14 }, 99))
     if (!parsed.ok) throw new Error('parse failed')
     expect(summarizeSave(parsed.save)).toEqual({
+      playerName: 'Du', partyIcons: [4, 16], playTimeMs: 3_600_000,
       leadName: 'Charmander', leadSpeciesId: 4, leadLevel: 12, partySize: 2, badges: 1, money: 777, placeName: 'Grusstad', savedAt: 99,
     })
   })
@@ -117,7 +123,7 @@ describe('saving and loading through the game store', () => {
     const player = usePlayerStore()
     game.newGame(newWorldState())
     player.addPokemon(mon('charmander', 5))
-    writeItem(SAVE_KEY, '{"version":1,"broken":true}')
+    writeItem('nudge:slot:1', JSON.stringify({ slot: 1, saveVersion: 2, data: { version: 2, broken: true }, summary: {}, updatedAt: 1, cloudUpdatedAt: null, dirty: false }))
     expect(game.hasSave()).toBe(false)
     expect(game.loadSave()).toBe(false)
     expect(player.party).toHaveLength(1)
@@ -140,17 +146,17 @@ describe('saving and loading through the game store', () => {
     world.holdDirection(null)
     expect(world.world!.state.mapId).toBe('hemhus')
     expect(game.hasSave()).toBe(true)
-    expect(JSON.parse(readItem(SAVE_KEY)!).world.mapId).toBe('hemhus')
+    expect(slotData(1).world.mapId).toBe('hemhus')
 
     // After a battle (and its dialogs) the progress is saved again.
     game.startWildBattle({ speciesId: 19, level: 3 })
     vi.advanceTimersByTime(1000)
     battle.setSpeed(3)
     for (let i = 0; i < 60000 && !battle.result; i++) battle.frame(16)
-    const xpBefore = JSON.parse(readItem(SAVE_KEY)!).player.party[0].xp
+    const xpBefore = slotData(1).player.party[0].xp
     finishBattle(game, battle.outcome)
     for (let i = 0; i < 50 && world.dialog; i++) world.advanceDialog()
-    expect(JSON.parse(readItem(SAVE_KEY)!).player.party[0].xp).toBeGreaterThan(xpBefore)
+    expect(slotData(1).player.party[0].xp).toBeGreaterThan(xpBefore)
 
     game.deleteSave()
     expect(game.hasSave()).toBe(false)

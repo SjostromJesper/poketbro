@@ -1,3 +1,12 @@
+> ## ⚠ Supabase: två saker att göra (P3-M3)
+>
+> Spelet fungerar redan med bara lokal sparning, men för molnsparningen behöver du:
+>
+> 1. **Kör SQL:en** i `supabase/migrations/0014_nudge_saves.sql` i Supabase SQL Editor (projektet `xduqbyjrditfzsibcujz`). Den skapar bara en ny tabell, `save_slots`, med RLS-policyer och en trigger. Supabase CLI är inte inloggad/länkad här, så jag kunde inte köra den själv.
+> 2. **Slå på anonym inloggning:** Authentication → Sign In / Providers → "Allow anonymous sign-ins". Idag svarar projektet "Anonymous sign-ins are disabled" (kontrollerat i dev-servern), därför visar inställningarna "Sparar bara i den här webbläsaren".
+>
+> För att kunna koppla e-post och logga in på andra enheter måste dessutom e-postinloggning och en redirect-URL till `/nudge` vara tillåtna (Authentication → URL Configuration).
+
 # PROGRESS
 
 | Milestone | Status |
@@ -105,7 +114,7 @@ Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets
 | P3-M0 - Hämta grafik | done (all packs downloaded; `npm run fetch-assets`) |
 | P3-M1 - Temasystem | done (Tuxemon standard, Ninja Adventure, Pipoya, Kenney; `npm run copy-graphics`) |
 | P3-M2 - Strids-avslut | done |
-| P3-M3 - Supabase | todo |
+| P3-M3 - Supabase | done in code; **two dashboard steps are needed before the cloud works** (see the box at the top of this file) |
 | P3-M4 - Världens system | todo |
 | P3-M5 - Världen del 1 | todo |
 | P3-M6 - Världen del 2 | todo |

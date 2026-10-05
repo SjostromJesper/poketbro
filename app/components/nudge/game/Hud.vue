@@ -2,9 +2,11 @@
 import { gameData } from '~~/nudge/data'
 import { maxHpOf } from '~~/nudge/engine/pokemon'
 import { usePlayerStore } from '~/stores/nudge/player'
+import { useSavesStore } from '~/stores/nudge/saves'
 import { hpColor } from '../ui'
 
 const player = usePlayerStore()
+const saves = useSavesStore()
 </script>
 
 <template>
@@ -12,6 +14,7 @@ const player = usePlayerStore()
     <div class="line">
       <span class="money">{{ player.money }} kr</span>
       <span class="badges" title="Märken">★ {{ player.badges.length }}</span>
+      <span v-if="saves.needsAttention" class="cloud" :title="saves.state === 'conflict' ? 'Olika sparfiler' : 'Ej synkad med molnet (sparat här)'">☁✗</span>
     </div>
     <div v-for="p in player.party" :key="p.uid" class="mon" :class="{ out: p.currentHp <= 0 }">
       <img :src="gameData.species[p.speciesId].sprites.icon" alt="" draggable="false">
@@ -40,6 +43,11 @@ const player = usePlayerStore()
   justify-content: space-between;
   gap: 10px;
   color: #ffd840;
+}
+
+.cloud {
+  color: #ffb84a;
+  font-size: 12px;
 }
 
 .mon {

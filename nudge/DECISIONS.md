@@ -422,3 +422,23 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Evolution scene**: the sprite flickers between the forms (faster and faster) for about five seconds and then evolves; X, B or Esc cancels at any time ("utvecklades inte").
 - **Tests**: `postBattle.test.ts` (level count for big XP, bars, stat changes equal the formula, move at the right level, replacement keeps PP rules and drops the habit, atomic apply) and the game-flow/bot tests now play the sequence through a helper
   (`tests/sequence.ts`).
+
+## P3-M3: saving (slots and Supabase)
+
+- **Existing setup.** The project already uses `@nuxtjs/supabase` (env `SUPABASE_URL`, `SUPABASE_KEY` = anon key, `NUXT_SUPABASE_SECRET_KEY` only for the server routes of the old game) and `supabase/migrations/0001-0013` for the gladiator game. The CLI is installed but not logged in or linked,
+  so the migration `0014_nudge_saves.sql` is only written (instructions at the top of `PROGRESS.md`). It uses the table from the plan plus a trigger that sets `updated_at` on the server (clients never rely on their own clocks) and `with check` on the update policy. Nothing existing is
+  touched. The browser only ever has the anon key.
+- **Data.** Three slots; each slot holds the whole `SaveData` (version 2) as `data`, a `summary` for the menu (player name, party icons, badges, play time, place, money, saved-at). `save_version` is also a column. `migrateSave(data, toVersion)` (in `saveSlots.ts`, tested)
+  upgrades step by step (`MIGRATIONS[n]`: n -> n+1; v1 -> v2 adds `playTimeMs`) and refuses saves from the future. The old single `nudge:save:v1` save is moved to slot 1 on the first start after the update (and removed).
+- **Local.** Each slot is one localStorage value (`nudge:slot:N`: the save, summary, `cloudUpdatedAt` it was last in sync with, a `dirty` flag and a revision counter). Local writes happen at once; localStorage is the reliable copy, the cloud is the extra.
+- **`SaveSync`** (pure, injected cloud/store/timers, tested with fakes): `write` saves locally and schedules one upload after 3 s (debounced per slot); `flush` uploads at once (used on `visibilitychange` -> hidden and `pagehide`, best effort);
+  `sync()` at start compares slot by slot with `decideSync`: one side only -> copy it; same base -> upload if dirty; only the cloud changed -> download; both changed -> **conflict** (unless both describe the same moment). Conflicts are never resolved silently:
+  the title screen shows both summaries and asks. A failed upload keeps the slot dirty, sets state `error` (a small "☁✗" in the HUD; the title screen says "ej synkad") and the next write/flush retries. Deleting also deletes in the cloud; if that fails a tombstone is
+  kept so the slot does not come back. An upload that overlaps a newer local write never marks the newer data clean.
+- **Login.** `saves.connect(client)` (the page passes `useSupabaseClient()` in; composables only work inside components): existing session, else `signInAnonymously()`. If that fails (it is currently disabled in the project) or the table does not exist, the cloud is
+  simply off and the settings say why. Settings -> "Molnsparning": for an anonymous user "Koppla konto" does `auth.updateUser({ email })` (an e-mail link upgrades the anonymous user in place, so the user id and the saves stay) and "Logga in med länk" does `signInWithOtp`
+  for a second device. Both need the project's e-mail/redirect settings (`PROGRESS.md`).
+- **UI.** The title screen lists the three slots (party icons, place, badges, play time, money, saved-at, sync state; Fortsätt / Nytt spel / Radera) and the conflict dialog. `play?slot=N&continue=1|new=1` picks the slot; dev shortcut sessions (`?map=...`) never save.
+  Play time is approximate: earlier sessions plus the running one (idle time counts).
+- **Not verified against a live Supabase** (anonymous sign-ins are off and the table is missing); the cloud adapter (`app/stores/nudge/cloud.ts`) is thin and the sync logic is tested with fakes. Offline behaviour was verified in the browser (it saves and loads locally and
+  migrates the old save).

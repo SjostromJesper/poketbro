@@ -2,9 +2,11 @@
 import { gameData } from '../data'
 import type { OwnedPokemon } from '../engine/types'
 import { MAPS, START_MAP } from './maps'
+import { migrateSave } from './saveSlots'
 import type { WorldState } from './types'
 
-export const SAVE_VERSION = 1
+export const SAVE_VERSION = 2
+/** The key of the single-slot save of earlier versions; it is migrated into slot 1 on first start. */
 export const SAVE_KEY = 'nudge:save:v1'
 
 /** Mirrors `PlayerSave` in the player store (kept here so this module has no Vue dependency). */
@@ -17,6 +19,8 @@ export interface PlayerData {
   badges: string[]
   pokedex: number[]
   stepRemainder: number
+  /** Approximate time played (ms). */
+  playTimeMs: number
 }
 
 export interface SaveData {
@@ -62,8 +66,10 @@ export function parseSave(raw: string | null): ParseResult {
     return { ok: false, reason: 'corrupt' }
   }
   if (!data || typeof data !== 'object') return { ok: false, reason: 'corrupt' }
-  const d = data as Partial<SaveData>
-  if (d.version !== SAVE_VERSION) return { ok: false, reason: typeof d.version === 'number' ? 'version' : 'corrupt' }
+  // Older saves are upgraded step by step; saves from a newer game version are refused.
+  const migrated = migrateSave(data, SAVE_VERSION)
+  if (!migrated) return { ok: false, reason: typeof (data as { version?: unknown }).version === 'number' ? 'version' : 'corrupt' }
+  const d = migrated as Partial<SaveData>
   const { player, world } = d
   if (!player || !world || !isNumber(d.savedAt)) return { ok: false, reason: 'corrupt' }
   const okPlayer = typeof player.name === 'string'
@@ -71,7 +77,7 @@ export function parseSave(raw: string | null): ParseResult {
     && Array.isArray(player.box) && player.box.every(validPokemon)
     && isNumber(player.money)
     && !!player.bag && typeof player.bag === 'object'
-    && Array.isArray(player.badges) && Array.isArray(player.pokedex) && isNumber(player.stepRemainder)
+    && Array.isArray(player.badges) && Array.isArray(player.pokedex) && isNumber(player.stepRemainder) && isNumber(player.playTimeMs)
   const okWorld = typeof world.mapId === 'string' && isNumber(world.x) && isNumber(world.y)
     && Array.isArray(world.flags) && Array.isArray(world.defeatedTrainers) && isNumber(world.steps)
     && !!world.lastCenter && typeof world.lastCenter.mapId === 'string'
@@ -88,6 +94,10 @@ export function parseSave(raw: string | null): ParseResult {
 }
 
 export interface SaveSummary {
+  playerName: string
+  /** Species ids of the party, for the little icons in the load menu. */
+  partyIcons: number[]
+  playTimeMs: number
   leadName: string | null
   leadSpeciesId: number | null
   leadLevel: number | null
@@ -102,6 +112,9 @@ export function summarizeSave(save: SaveData): SaveSummary {
   const lead = save.player.party[0]
   const species = lead ? gameData.species[lead.speciesId] : null
   return {
+    playerName: save.player.name,
+    partyIcons: save.player.party.slice(0, 6).map(p => p.speciesId),
+    playTimeMs: save.player.playTimeMs,
     leadName: lead ? (lead.nickname?.trim() || species!.displayName) : null,
     leadSpeciesId: lead?.speciesId ?? null,
     leadLevel: lead?.level ?? null,

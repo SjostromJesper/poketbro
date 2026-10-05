@@ -18,6 +18,7 @@ export interface PlayerSave {
   badges: string[]
   pokedex: number[]
   stepRemainder: number
+  playTimeMs: number
 }
 
 /** Everything the player owns: Pokémon, money, items and badges. Plain serialisable state (saving is in M7). */
@@ -31,6 +32,8 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   /** Species ids the player has owned. */
   const pokedex = ref<number[]>([])
   const stepRemainder = ref(0)
+  /** Time played in earlier sessions (ms); the game store adds the running session when saving. */
+  const playTimeMs = ref(0)
 
   const ablePokemon = computed(() => party.value.filter(p => p.currentHp > 0))
   const hasAbleParty = computed(() => ablePokemon.value.length > 0)
@@ -44,6 +47,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     badges.value = []
     pokedex.value = []
     stepRemainder.value = 0
+    playTimeMs.value = 0
   }
 
   function count(item: string): number {
@@ -225,7 +229,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   function serialize(): PlayerSave {
     return JSON.parse(JSON.stringify({
       name: name.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
-      badges: badges.value, pokedex: pokedex.value, stepRemainder: stepRemainder.value,
+      badges: badges.value, pokedex: pokedex.value, stepRemainder: stepRemainder.value, playTimeMs: playTimeMs.value,
     })) as PlayerSave
   }
 
@@ -238,10 +242,11 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     badges.value = save.badges
     pokedex.value = save.pokedex
     stepRemainder.value = save.stepRemainder
+    playTimeMs.value = save.playTimeMs ?? 0
   }
 
   return {
-    name, party, box, money, bag, badges, pokedex, stepRemainder, ablePokemon, hasAbleParty,
+    name, party, box, money, bag, badges, pokedex, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
     reset, count, addItem, removeItem, spend, addPokemon, healAll, findPokemon, addSteps, totalHpFraction, serialize, hydrate,
     moveToBox, moveToParty, setNickname, moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
   }
