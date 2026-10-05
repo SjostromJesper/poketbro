@@ -596,7 +596,7 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   Datorn visar överst din egen placering, rating och vinster/förluster/oavgjorda (eller "Inga matcher än."), under den laddern 50 per sida med din rad markerad, och en knapp "Gå till min sida". `rankLadder` i TypeScript är referensen för reglerna och det testerna kontrollerar; SQL-funktionerna är kontrollerade som text men inte körda mot en riktig databas.
 - **Edge Functions** måste deployas om (de delade filerna ändrades): `supabase functions deploy submit-bracket` osv., se rutan överst i `PROGRESS.md`.
 
-## Namnbyte: Viska
+## Namnbyte: Poketbro
 
-Spelet heter **Viska** (förut "Nudge"): titelskärmen, inloggningsskärmen, sidtiteln, krediterna, länken på startsidan och README:n. Själva spelmekaniken heter fortfarande *nudge* (att uppmuntra en Pokémon i strid), och alla interna namn är oförändrade med flit
+Spelet heter **Poketbro** (förut "Nudge", en kort stund "Viska"): titelskärmen, inloggningsskärmen, sidtiteln, krediterna, länken på startsidan och README:n. Själva spelmekaniken heter fortfarande *nudge* (att uppmuntra en Pokémon i strid), och alla interna namn är oförändrade med flit
 (mappen `nudge/`, adresserna `/nudge`, tabellerna `nudge_*`, Edge Functions, localStorage-nycklar), så att redan deployade funktioner, databasen och sparfiler fortsätter fungera.

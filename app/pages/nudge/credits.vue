@@ -7,7 +7,7 @@ import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
   <NudgeFrame>
     <main class="credits">
       <h1 class="px-title">Tack till</h1>
-      <p class="lead">Viska är byggt med fria resurser. Stort tack till alla som gjort dem:</p>
+      <p class="lead">Poketbro är byggt med fria resurser. Stort tack till alla som gjort dem:</p>
       <ul class="list">
         <li v-for="c in CREDITS" :key="c.title" class="px-panel entry">
           <h2>{{ c.title }}</h2>

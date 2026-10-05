@@ -49,7 +49,7 @@ onBeforeUnmount(() => {
 
 // Full-screen pixel-style frame for every Nudge page. Pulls the pixel fonts from Google Fonts (falls back to monospace offline).
 useHead({
-  title: 'Viska',
+  title: 'Poketbro',
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
