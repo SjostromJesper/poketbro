@@ -468,3 +468,13 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **World checks** (`nudge/game/worldCheck.ts`, used by `world.test.ts` and `npm run check-world`): warps (target exists and is walkable, a way back), reachability (a search over maps, tiles, ledges, warps and gate NPCs; whenever a gym leader's map is reached
   the next badge counts as won and the search repeats), nobody on blocked tiles or on top of each other, valid species/moves/items in tables, teams and gifts, and the coverage count (legendaries and Mew/Mewtwo excluded). The required coverage in the test is raised
   at each milestone (12 now, 100 at P3-M6).
+
+## P3-M5: världen del 1
+
+- **Karttyper och storlekar** ligger i `nudge/game/maps/layout.ts` (`SIZES`): alla kartor byggs med `mapBuilder`, och `road()` / `enterable()` / `stairs()` ser till att varp, vägar och interiörer hänger ihop (en väg landar alltid en ruta innanför motsatt kant på målkartan).
+- **De åtta första platserna**: Hemstad (30x24), Väg 1, Skogen, Grusstad (gym 1, Granit), Väg 2, Månberget (3 våningar), Väg 3 (kust, fiske), Hamnstad (gym 2, Kajsa). De gamla handritade kartorna är gjorda om med buildern (inga ASCII-filer kvar för hand).
+  Hamnstads norra väg och vakterna vid den (`requiresBadges` 2) kommer i P3-M6 när Väg 4 finns.
+- **Gamla enhetstester** pekade på gamla koordinater; de är uppdaterade till de nya kartorna (Hemstad start (14,12), hemmet (6,8) -> (3,5), labbet, centret i Grusstad, gymmet) och boten går nu Hemstad -> Väg 1 (gräset vid x 3-6, y 12-16) -> Grusstad.
+- **Teman utan egna bitar** för sand, klippa, avsats, grotta och trappa målar nu enkla färgade ersättare i `describeTile` (inte rutan "saknas") så varje tema kan visa varje karta; temats egna bitar går före.
+  Skyltar i grottor står på grottgolv. Hus utan dörr (kuliss) har en solid vägg där dörren skulle vara.
+- **Månberget våning 1**: Torstens ruta var instängd av en slumpad grottavägg; en liten yta fylld som grotta binder ihop den (hittades av `maps.test.ts`).

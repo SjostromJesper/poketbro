@@ -21,13 +21,13 @@ beforeEach(() => setActivePinia(createPinia()))
 
 describe('overworld controller', () => {
   it('walks one tile per step with smooth interpolation (~150 ms)', () => {
-    const store = startAt('hemstad', 5, 5)
+    const store = startAt('hemstad', 14, 12)
     store.keyDown('ArrowDown')
     run(store, 16) // the player already faces down, so the step starts at once
-    expect(store.world!.state.y).toBe(6) // logical position updates immediately
+    expect(store.world!.state.y).toBe(13) // logical position updates immediately
     run(store, 32) // ...while the picture catches up smoothly
-    expect(store.visual.y).toBeGreaterThan(5)
-    expect(store.visual.y).toBeLessThan(6)
+    expect(store.visual.y).toBeGreaterThan(12)
+    expect(store.visual.y).toBeLessThan(13)
     // While the key stays down the picture moves smoothly and monotonically, never jumping more than a frame's worth.
     let previous = store.visual.y
     for (let t = 0; t < 600; t += 16) {
@@ -36,7 +36,7 @@ describe('overworld controller', () => {
       expect(store.visual.y - previous).toBeLessThanOrEqual(16 / BALANCE.WALK_STEP_MS + 1e-6)
       previous = store.visual.y
     }
-    expect(previous).toBeGreaterThanOrEqual(8) // stops in front of the fence at row 9
+    expect(previous).toBeGreaterThanOrEqual(13) // keeps walking south through the village
     store.keyUp('ArrowDown')
     run(store, 400)
     expect(Number.isInteger(store.visual.y)).toBe(true)
@@ -61,34 +61,34 @@ describe('overworld controller', () => {
   })
 
   it('first turns on the spot when a new direction is tapped, and only walks if the key stays down', () => {
-    const store = startAt('hemstad', 5, 5)
+    const store = startAt('hemstad', 14, 12)
     store.keyDown('ArrowRight')
     run(store, 16)
-    expect(store.world!.state).toMatchObject({ x: 5, y: 5, facing: 'right' })
+    expect(store.world!.state).toMatchObject({ x: 14, y: 12, facing: 'right' })
     store.keyUp('ArrowRight') // a quick tap only turns
     run(store, 300)
-    expect(store.world!.state).toMatchObject({ x: 5, y: 5, facing: 'right' })
+    expect(store.world!.state).toMatchObject({ x: 14, y: 12, facing: 'right' })
     store.keyDown('ArrowLeft')
     run(store, 400) // held long enough: turn, then walk
     store.keyUp('ArrowLeft')
-    expect(store.world!.state.x).toBeLessThan(5)
+    expect(store.world!.state.x).toBeLessThan(14)
   })
 
   it('does not move through walls, water or people', () => {
-    const store = startAt('hemstad', 5, 5)
+    const store = startAt('hemstad', 5, 9)
     store.keyDown('ArrowUp')
     run(store, 600)
     store.keyUp('ArrowUp')
-    expect(store.world!.state.y).toBe(5) // house wall above (4,4)... (5,4) is a wall tile
-    const village = startAt('hemstad', 6, 6)
+    expect(store.world!.state.y).toBe(9) // the house wall is directly above
+    const village = startAt('hemstad', 9, 12)
     village.keyDown('ArrowDown')
     run(village, 600)
     village.keyUp('ArrowDown')
-    expect(village.world!.state.y).toBe(6) // villager at (6,7)
+    expect(village.world!.state.y).toBe(12) // villager at (9,13)
   })
 
   it('supports WASD and ignores input while a dialog is open', () => {
-    const store = startAt('hemstad', 5, 5)
+    const store = startAt('hemstad', 14, 12)
     store.keyDown('d')
     run(store, 300)
     store.keyUp('d')
@@ -103,7 +103,7 @@ describe('overworld controller', () => {
   })
 
   it('opens a dialog when talking to a sign or NPC, with a typewriter that can be skipped', () => {
-    const store = startAt('hemstad', 6, 6)
+    const store = startAt('hemstad', 11, 12)
     store.world!.turn('right')
     store.keyDown(' ')
     expect(store.mode).toBe('dialog')
@@ -123,7 +123,7 @@ describe('overworld controller', () => {
   })
 
   it('calls the action hook after an NPC dialog finishes', () => {
-    const store = startAt('hemhus', 3, 3)
+    const store = startAt('hemhus', 3, 4)
     const calls: string[] = []
     store.setHooks({ onAction: (action, id) => calls.push(`${action}:${id}`) })
     store.world!.turn('up')
@@ -137,7 +137,7 @@ describe('overworld controller', () => {
   })
 
   it('stops at the gate without a starter and explains why', () => {
-    const store = startAt('hemstad', 9, 1)
+    const store = startAt('hemstad', 14, 1)
     store.keyDown('ArrowUp')
     run(store, 200)
     expect(store.mode).toBe('dialog')
@@ -146,7 +146,7 @@ describe('overworld controller', () => {
   })
 
   it('fades through a door, warps and shows the new map name', () => {
-    const store = startAt('hemstad', 3, 5)
+    const store = startAt('hemstad', 6, 9)
     const modes = new Set<string>()
     store.keyDown('ArrowUp')
     for (let t = 0; t < 1200; t += 16) {
@@ -156,19 +156,19 @@ describe('overworld controller', () => {
     }
     expect(modes.has('fade')).toBe(true)
     expect(store.mode).toBe('walk')
-    expect(store.world!.state).toMatchObject({ mapId: 'hemhus', x: 3, y: 4, facing: 'up' })
-    expect(store.visual).toMatchObject({ x: 3, y: 4, fade: 0 })
+    expect(store.world!.state).toMatchObject({ mapId: 'hemhus', x: 3, y: 5, facing: 'up' })
+    expect(store.visual).toMatchObject({ x: 3, y: 5, fade: 0 })
     expect(store.banner?.text).toBe('Ditt hem')
   })
 
   it('opens and closes the menu with Escape, which also blocks walking', () => {
-    const store = startAt('hemstad', 5, 5)
+    const store = startAt('hemstad', 14, 12)
     store.keyDown('Escape')
     expect(store.mode).toBe('menu')
     store.keyDown('ArrowDown')
     run(store, 400)
     store.keyUp('ArrowDown')
-    expect(store.world!.state.y).toBe(5)
+    expect(store.world!.state.y).toBe(12)
     store.keyDown('x')
     expect(store.mode).toBe('walk')
   })
@@ -183,7 +183,7 @@ describe('overworld controller', () => {
     // Breadth-first search over (map, x, y) using the real map data; warp tiles lead to their destination.
     type Node = { mapId: string, x: number, y: number }
     const key = (n: Node) => `${n.mapId}:${n.x},${n.y}`
-    const goal: Node = { mapId: 'gruss', x: 11, y: 12 }
+    const goal: Node = { mapId: 'gruss', x: 17, y: 12 }
     const start: Node = { ...world.state }
     const previous = new Map<string, { from: Node, dir: Direction }>()
     const seen = new Set([key(start)])
@@ -227,7 +227,7 @@ describe('overworld controller', () => {
       if (world.state.mapId !== mapsVisited.at(-1)) mapsVisited.push(world.state.mapId)
     }
     expect(mapsVisited).toEqual(['hemstad', 'route1', 'skogen', 'gruss'])
-    expect(world.state).toMatchObject({ mapId: 'gruss', x: 11, y: 12 })
+    expect(world.state).toMatchObject({ mapId: 'gruss', x: 17, y: 12 })
     expect(world.state.steps).toBeGreaterThan(80)
   })
 })

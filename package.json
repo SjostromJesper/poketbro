@@ -15,7 +15,8 @@
     "fetch-assets": "tsx nudge/scripts/fetch-assets.ts",
     "copy-audio": "tsx nudge/scripts/copy-audio.ts",
     "copy-graphics": "tsx nudge/scripts/copy-graphics.ts",
-    "check-world": "tsx nudge/scripts/check-world.ts"
+    "check-world": "tsx nudge/scripts/check-world.ts",
+    "dump-map": "tsx nudge/scripts/dump-map.ts"
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.10",

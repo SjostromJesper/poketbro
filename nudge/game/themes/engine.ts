@@ -159,13 +159,18 @@ export function describeTile(theme: Pick<ThemeManifest, 'tiles'>, map: MapView, 
       return [groundLayer(t, tx, ty), look[frame % look.length]]
     }
     case 'f': return [groundLayer(t, tx, ty), t.fence]
-    case 's': return t.sand ? [t.sand] : []
-    case '^': return t.rock ? [t.ground[0], t.rock] : []
-    case 'L': return t.ledge ? [t.ground[0], t.ledge] : []
-    case 'c': return t.caveFloor ? [t.caveFloor] : []
-    case 'X': return t.caveWall ? [t.caveWall] : []
-    case 'A': return t.stairs ? [t.stairs] : []
-    case 'S': return [groundLayer(t, tx, ty), t.sign]
+    // Tiles a theme has no pieces for are painted in plain colours, so every theme can show every map.
+    case 's': return t.sand ? [t.sand] : [{ solid: '#e2d09a' }]
+    case '^': return t.rock ? [t.ground[0], t.rock] : [{ solid: '#8c8678' }, { edges: { up: false, down: true, left: false, right: true, color: '#5c564c' } }]
+    case 'L': return t.ledge ? [t.ground[0], t.ledge] : [t.ground[0], { edges: { up: false, down: true, left: false, right: false, color: '#3f5a2c' } }]
+    case 'c': return t.caveFloor ? [t.caveFloor] : [{ solid: '#5c5046' }]
+    case 'X': return t.caveWall ? [t.caveWall] : [{ solid: '#2c2630' }, { edges: { up: false, down: true, left: false, right: false, color: '#463c52' } }]
+    case 'A': return t.stairs ? [t.stairs] : [{ solid: '#3c3230' }, { edges: { up: true, down: true, left: true, right: true, color: '#a89880' } }]
+    case 'S': {
+      // A sign inside a cave stands on the cave floor.
+      const inCave = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => map.tiles[ty + dy]?.[tx + dx] === 'c')
+      return [inCave ? (t.caveFloor ?? { solid: '#5c5046' }) : groundLayer(t, tx, ty), t.sign]
+    }
     case '=': return autotileLayers(t, t.path, map, tx, ty, '=', map.tiles[ty + 1]?.[tx] === 'D')
     case '~': {
       const layers = autotileLayers(t, t.water, map, tx, ty, '~')

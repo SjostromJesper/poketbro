@@ -104,6 +104,9 @@ const COMMON: ShopItem[] = [
 /** The extra items of each town's mart (its own TMs; the harbour town also sells the evolution stones). Keys are map ids. */
 export const SHOP_EXTRAS: Record<string, ShopItem[]> = {
   gruss_mart: always('tm:double-team', 'tm:rest'),
+  hamn_mart: [
+    ...always('fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'tm:bubble-beam', 'tm:swift'),
+  ],
 }
 
 export function shopStock(shopId: string, badges: number): string[] {

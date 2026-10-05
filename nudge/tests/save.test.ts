@@ -49,10 +49,10 @@ describe('save format', () => {
   it('falls back to the start when the saved position is no longer valid', () => {
     const bad = serializeSave(playerData(), { ...newWorldState(), mapId: 'removed-map', x: 3, y: 3 }, 1)
     const parsed = parseSave(bad)
-    expect(parsed.ok && parsed.save.world).toMatchObject({ mapId: 'hemstad', x: 3, y: 5 })
+    expect(parsed.ok && parsed.save.world).toMatchObject({ mapId: 'hemstad', x: 14, y: 12 })
     const inTree = parseSave(serializeSave(playerData(), { ...newWorldState(), mapId: 'hemstad', x: 0, y: 0 }, 1))
     expect(inTree.ok && inTree.save.world.mapId).toBe('hemstad')
-    expect(inTree.ok && inTree.save.world.x).toBe(3)
+    expect(inTree.ok && inTree.save.world.x).toBe(14)
   })
 
   it('summarises a save for the title screen', () => {
@@ -140,7 +140,7 @@ describe('saving and loading through the game store', () => {
     expect(game.hasSave()).toBe(false)
 
     // Walk through the house door: the map change autosaves.
-    world.teleport('hemstad', 3, 5, 'up')
+    world.teleport('hemstad', 6, 9, 'up')
     world.holdDirection('up')
     for (let t = 0; t < 1500; t += 16) world.update(16)
     world.holdDirection(null)

@@ -208,7 +208,7 @@ export class Bot {
 
   private plan() {
     const w = this.world.world!
-    if (!w.hasFlag('starter')) return this.goAndTalk({ mapId: 'proflab', x: 4, y: 3, face: 'up' })
+    if (!w.hasFlag('starter')) return this.goAndTalk({ mapId: 'proflab', x: 5, y: 3, face: 'up' })
 
     const needsHeal = this.partyHealth() < 0.45 || !this.player.hasAbleParty
     if (needsHeal) {
@@ -224,19 +224,19 @@ export class Bot {
     // Journey to Grusstad: heal, shop, then the gym leader.
     if (!w.hasFlag('visited-center')) {
       w.setFlag('visited-center')
-      return this.goAndTalk({ mapId: 'gruss_center', x: 4, y: 4, face: 'up' })
+      return this.goAndTalk({ mapId: 'gruss_center', x: 5, y: 4, face: 'up' })
     }
     if (!w.hasFlag('shopped')) {
       w.setFlag('shopped')
       return this.goAndTalk({ mapId: 'gruss_mart', x: 4, y: 4, face: 'up' })
     }
-    return this.goAndTalk({ mapId: 'gruss_gym', x: 5, y: 3, face: 'up' })
+    return this.goAndTalk({ mapId: 'gruss_gym', x: 6, y: 3, face: 'up' })
   }
 
   private nearestHealSpot(): Goal {
     const w = this.world.world!
-    const candidates: Goal[] = [{ mapId: 'hemhus', x: 3, y: 3, face: 'up' }]
-    if (w.hasFlag('visited-center')) candidates.push({ mapId: 'gruss_center', x: 4, y: 4, face: 'up' })
+    const candidates: Goal[] = [{ mapId: 'hemhus', x: 3, y: 4, face: 'up' }]
+    if (w.hasFlag('visited-center')) candidates.push({ mapId: 'gruss_center', x: 5, y: 4, face: 'up' })
     let best = candidates[0]
     let bestLength = Infinity
     for (const c of candidates) {
@@ -252,10 +252,10 @@ export class Bot {
   /** Walks into the tall grass on Route 1 and paces around in it to trigger encounters (and its trainers on the way). */
   private grind() {
     const w = this.world.world!
-    const target: Goal = { mapId: 'route1', x: 3, y: 26 }
-    if (w.state.mapId !== 'route1' || w.state.x > 4 || w.state.y < 24 || w.state.y > 28) return this.walk(target)
+    const target: Goal = { mapId: 'route1', x: 4, y: 14 }
+    if (w.state.mapId !== 'route1' || w.state.x > 5 || w.state.y < 12 || w.state.y > 16) return this.walk(target)
     // Pace up and down inside the grass patch.
-    const dir: Direction = w.state.y >= 28 ? 'up' : w.state.y <= 24 ? 'down' : (this.report.actions % 2 === 0 ? 'down' : 'up')
+    const dir: Direction = w.state.y >= 16 ? 'up' : w.state.y <= 12 ? 'down' : (this.report.actions % 2 === 0 ? 'down' : 'up')
     this.hold(dir, 180)
   }
 

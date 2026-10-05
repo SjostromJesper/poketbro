@@ -5,7 +5,7 @@ import { createRng, type Rng } from '../engine/rng'
 import type { MusicId } from './audio-manifest'
 import { FOOTPRINT, type BuildingKind } from './buildings'
 import { TILES } from './tiles'
-import type { Direction, MapDef, NpcDef, PickupDef, SignDef, TrainerSpot, WarpDef } from './types'
+import { DIRECTIONS, type Direction, type MapDef, type NpcDef, type PickupDef, type SignDef, type TrainerSpot, type WarpDef } from './types'
 
 /** Names for tile characters, so maps read like text. Single characters can be used directly too. */
 export const TILE_ALIASES: Record<string, string> = {
@@ -22,6 +22,8 @@ export interface MapOptions {
   fishingTable?: string
   indoor?: boolean
   floor?: 'wood' | 'stone'
+  /** The tile a stray obstacle gives way to when something is placed on it (default ground; caves use cave floor). */
+  ground?: string
 }
 
 export interface DoorOptions {
@@ -33,7 +35,7 @@ export interface DoorOptions {
   blockedDialog?: string[]
 }
 
-export type TrainerPlacement = Omit<TrainerSpot, 'sight'> & { sight?: number }
+export type TrainerPlacement = Omit<TrainerSpot, 'sight' | 'facing'> & { sight?: number, facing: Direction | 'auto' }
 
 export class MapBuilder {
   readonly id: string
@@ -44,6 +46,7 @@ export class MapBuilder {
   private readonly warps: WarpDef[] = []
   private readonly npcs: NpcDef[] = []
   private readonly trainers: TrainerSpot[] = []
+  private readonly autoFacing = new Set<string>()
   private readonly signs: SignDef[] = []
   private readonly pickups: PickupDef[] = []
   private readonly buildings: { kind: BuildingKind, x: number, y: number }[] = []
@@ -189,6 +192,13 @@ export class MapBuilder {
     return this
   }
 
+  /** A building you cannot enter (no door): the whole footprint is solid. */
+  scenery(kind: BuildingKind, x: number, y: number): this {
+    for (let dy = 0; dy < FOOTPRINT.h; dy++) for (let dx = 0; dx < FOOTPRINT.w; dx++) this.put(x + dx, y + dy, dy === 0 ? 'R' : 'W')
+    this.buildings.push({ kind, x, y })
+    return this
+  }
+
   warp(x: number, y: number, to: string, toX: number, toY: number, options: Partial<Pick<WarpDef, 'facing' | 'requires' | 'requiresBadges' | 'blockedDialog'>> = {}): this {
     this.warps.push({ x, y, to, toX, toY, ...options })
     return this
@@ -199,13 +209,23 @@ export class MapBuilder {
     return this.warp(x, y, to, toX, toY, options)
   }
 
+  /** Where something is placed: a stray tree or rock from `scatter` gives way (the tile becomes ground), anything else is left as it is (and `build` complains). */
+  private clearForEntity(x: number, y: number): void {
+    const c = this.at(x, y)
+    if (c === '#' || c === '^' || c === 'X') this.put(x, y, this.char(this.options.ground ?? '.'))
+  }
+
   npc(def: NpcDef): this {
+    this.clearForEntity(def.x, def.y)
     this.npcs.push(def)
     return this
   }
 
   trainer(spot: TrainerPlacement): this {
-    this.trainers.push({ sight: 3, ...spot })
+    this.clearForEntity(spot.x, spot.y)
+    // `facing: 'auto'` turns the trainer towards the nearest path tile (decided in build(), when the whole map is drawn).
+    if (spot.facing === 'auto') this.autoFacing.add(spot.id)
+    this.trainers.push({ sight: 3, ...spot, facing: spot.facing === 'auto' ? 'down' : spot.facing })
     return this
   }
 
@@ -216,6 +236,7 @@ export class MapBuilder {
   }
 
   pickup(def: PickupDef): this {
+    this.clearForEntity(def.x, def.y)
     this.pickups.push(def)
     return this
   }
@@ -239,14 +260,38 @@ export class MapBuilder {
       ...(this.buildings.length ? { buildings: this.buildings } : {}),
       ...(this.pickups.length ? { pickups: this.pickups } : {}),
     }
+    for (const t of this.trainers) {
+      if (!this.autoFacing.has(t.id)) continue
+      let best: { dir: Direction, d: number } | null = null
+      for (const dir of ['up', 'down', 'left', 'right'] as Direction[]) {
+        const { dx, dy } = DIRECTIONS[dir]
+        for (let d = 1; d <= 6; d++) {
+          const c = tiles[t.y + dy * d]?.[t.x + dx * d]
+          if (c === undefined || !TILES[c]?.walkable) break
+          if (c === '=') {
+            if (!best || d < best.d) best = { dir, d }
+            break
+          }
+        }
+      }
+      if (best) {
+        t.facing = best.dir
+        t.sight = Math.max(t.sight, best.d)
+      }
+    }
     const walkable = (x: number, y: number) => {
       const c = tiles[y]?.[x]
       return c !== undefined && TILES[c]?.walkable === true
     }
-    for (const n of this.npcs) if (!walkable(n.x, n.y)) this.fail(`NPC ${n.id} stands on a blocked tile at ${n.x},${n.y} (${tiles[n.y]?.[n.x]})`)
-    for (const t of this.trainers) if (!walkable(t.x, t.y)) this.fail(`trainer ${t.id} stands on a blocked tile at ${t.x},${t.y} (${tiles[t.y]?.[t.x]})`)
-    for (const p of this.pickups) if (!walkable(p.x, p.y)) this.fail(`pickup ${p.id} lies on a blocked tile at ${p.x},${p.y}`)
-    for (const w of this.warps) if (tiles[w.y]?.[w.x] === undefined) this.fail(`warp at ${w.x},${w.y} is outside the map`)
+    const problems: string[] = []
+    for (const n of this.npcs) if (!walkable(n.x, n.y)) problems.push(`NPC ${n.id} stands on a blocked tile at ${n.x},${n.y} (${tiles[n.y]?.[n.x]})`)
+    for (const t of this.trainers) if (!walkable(t.x, t.y)) problems.push(`trainer ${t.id} stands on a blocked tile at ${t.x},${t.y} (${tiles[t.y]?.[t.x]})`)
+    for (const p of this.pickups) if (!walkable(p.x, p.y)) problems.push(`pickup ${p.id} lies on a blocked tile at ${p.x},${p.y} (${tiles[p.y]?.[p.x]})`)
+    for (const w of this.warps) {
+      if (tiles[w.y]?.[w.x] === undefined) problems.push(`warp at ${w.x},${w.y} is outside the map`)
+      else if (!TILES[tiles[w.y][w.x]]?.walkable) problems.push(`warp at ${w.x},${w.y} is on a blocked tile (${tiles[w.y][w.x]})`)
+    }
+    if (problems.length) this.fail(problems.join('\n  '))
     return map
   }
 

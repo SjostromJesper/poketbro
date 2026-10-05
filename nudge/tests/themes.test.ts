@@ -177,9 +177,12 @@ describe('buildings on the logical map', () => {
             const y = placement.y + dy
             const char = map.tiles[y]?.[x]
             const label = `${map.id} ${placement.kind} at ${x},${y}`
-            if (x === door.x && y === door.y) {
-              expect(char, label).toBe('D')
+            if (x === door.x && y === door.y && char === 'D') {
               expect(map.warps.some(w => w.x === x && w.y === y), `${label} needs a warp`).toBe(true)
+            } else if (x === door.x && y === door.y) {
+              // Scenery: a house you cannot enter has a solid wall where the door would be.
+              expect('RW', label).toContain(char)
+              expect(map.warps.some(w => w.x === x && w.y === y), `${label} is scenery and must not warp`).toBe(false)
             } else {
               expect('RW', label).toContain(char)
             }

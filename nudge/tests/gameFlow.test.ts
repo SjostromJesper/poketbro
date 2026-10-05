@@ -60,7 +60,7 @@ describe('the first steps: professor, starter, healing', () => {
     const ctx = setup()
     const { game, player, world } = ctx
     world.world!.state.mapId = 'proflab'
-    world.teleport('proflab', 4, 3, 'up')
+    world.teleport('proflab', 5, 3, 'up')
     world.action() // talk to the professor
     expect(world.mode).toBe('dialog')
     talkThrough(ctx)
@@ -90,14 +90,14 @@ describe('the first steps: professor, starter, healing', () => {
     player.party[0].moves[0].pp = 0
     player.party[0].status = 'burn'
     const trust = player.party[0].trust
-    world.teleport('gruss_center', 4, 4, 'up')
+    world.teleport('gruss_center', 5, 4, 'up')
     world.action()
     talkThrough(ctx)
     expect(player.party[0].currentHp).toBeGreaterThan(1)
     expect(player.party[0].status).toBeUndefined()
     expect(player.party[0].moves[0].pp).toBe(player.party[0].moves[0].maxPp)
     expect(player.party[0].trust).toBe(trust + BALANCE.TRUST_CENTER)
-    expect(world.world!.state.lastCenter).toEqual({ mapId: 'gruss', x: 5, y: 7 })
+    expect(world.world!.state.lastCenter).toEqual({ mapId: 'gruss', x: 6, y: 7 })
   })
 
   it('opens the shop when talking to the clerk and closes it again', () => {
@@ -237,27 +237,27 @@ describe('trainers', () => {
     const { game, player, world, battle } = ctx
     player.addPokemon(strong())
     world.world!.setFlag('starter')
-    world.teleport('route1', 3, 20)
+    world.teleport('route1', 9, 12, 'down')
     const money = player.money
-    // Walk right into Kalle's line of sight (he is at 7,20 facing left, sight 3).
-    world.holdDirection('right')
+    // Walk down into Lisa's line of sight (she is at 9,17 facing up, sight 3).
+    world.holdDirection('down')
     for (let t = 0; t < 400; t += 16) world.update(16)
     world.holdDirection(null)
-    expect(world.world!.state.x).toBe(4)
+    expect(world.world!.state.y).toBe(14)
     expect(world.mode).toBe('busy')
-    expect(world.visual.spotted?.id).toBe('r1-kalle')
+    expect(world.visual.spotted?.id).toBe('r1-lisa')
     for (let t = 0; t < 3000 && world.mode === 'busy'; t += 16) world.update(16)
     expect(world.mode).toBe('dialog')
-    expect(world.visual.trainerPos).toMatchObject({ id: 'r1-kalle', x: 5, y: 20 }) // right in front of the player
-    expect(world.dialog!.lines).toEqual(TRAINERS['r1-kalle'].intro)
+    expect(world.visual.trainerPos).toMatchObject({ id: 'r1-lisa', x: 9, y: 15 }) // right in front of the player
+    expect(world.dialog!.lines).toEqual(TRAINERS['r1-lisa'].intro)
     talkThrough(ctx)
     expect(game.screen).toBe('transition')
     playBattle(ctx)
     expect(battle.result).toBe('win')
     finishBattle(game, battle.outcome)
     talkThrough(ctx)
-    expect(world.world!.isDefeated('r1-kalle')).toBe(true)
-    expect(player.money).toBe(money + BALANCE.TRAINER_MONEY_PER_LEVEL * 3)
+    expect(world.world!.isDefeated('r1-lisa')).toBe(true)
+    expect(player.money).toBe(money + BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...TRAINERS['r1-lisa'].team.map(m => m.level)))
     expect(world.visual.trainerPos).toBeNull()
     expect(world.mode).toBe('walk')
     // Beaten trainers do not spot you again.
@@ -268,7 +268,7 @@ describe('trainers', () => {
     const ctx = setup()
     const { game, player, world, battle } = ctx
     player.addPokemon(strong('blastoise', 60))
-    world.teleport('gruss_gym', 5, 3, 'up')
+    world.teleport('gruss_gym', 6, 3, 'up')
     world.world!.markDefeated('gym-tor')
     world.world!.markDefeated('gym-sofia')
     world.action()
@@ -290,8 +290,8 @@ describe('trainers', () => {
     const weak = mon('magikarp', 3, { moves: ['splash'] })
     player.addPokemon(weak)
     player.money = 1000
-    world.world!.state.lastCenter = { mapId: 'gruss', x: 5, y: 7 }
-    world.teleport('gruss_gym', 5, 3, 'up')
+    world.world!.state.lastCenter = { mapId: 'gruss', x: 6, y: 7 }
+    world.teleport('gruss_gym', 6, 3, 'up')
     world.action()
     talkThrough(ctx)
     playBattle(ctx)
@@ -299,8 +299,8 @@ describe('trainers', () => {
     finishBattle(game, battle.outcome)
     talkThrough(ctx)
     expect(player.money).toBe(500)
-    expect(world.world!.state).toMatchObject({ mapId: 'gruss', x: 5, y: 7 })
-    expect(world.visual).toMatchObject({ x: 5, y: 7 })
+    expect(world.world!.state).toMatchObject({ mapId: 'gruss', x: 6, y: 7 })
+    expect(world.visual).toMatchObject({ x: 6, y: 7 })
     expect(player.party[0].currentHp).toBeGreaterThan(0)
     expect(world.world!.isDefeated('gym-granit')).toBe(false)
     expect(world.mode).toBe('walk')

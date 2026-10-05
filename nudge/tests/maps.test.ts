@@ -104,7 +104,7 @@ describe('map data', () => {
 
   it('lets you walk from Hemstad through Route 1 and the forest to Grusstad, reaching every NPC, sign and door on the way', () => {
     // Flood fill over maps: from each map's reachable area, follow every warp to the destination map's arrival tile.
-    const start = { mapId: 'hemstad', x: 3, y: 5 }
+    const start = { mapId: 'hemstad', x: 14, y: 12 }
     const visited = new Map<string, Set<string>>()
     const queue = [start]
     while (queue.length) {

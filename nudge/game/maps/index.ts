@@ -1,16 +1,15 @@
 import type { MapDef } from '../types'
-import { gruss } from './gruss'
-import { grussCenter } from './grussCenter'
-import { grussGym } from './grussGym'
-import { grussMart } from './grussMart'
-import { hemhus } from './hemhus'
-import { hemstad } from './hemstad'
-import { proflab } from './proflab'
+import { grussMaps } from './gruss'
+import { hamnMaps } from './hamn'
+import { hemstadMaps } from './hemstad'
+import { manbergetMaps } from './manberget'
+import { route2 } from './route2'
+import { route3 } from './route3'
 import { route1 } from './route1'
 import { skogen } from './skogen'
 
 export const MAPS: Record<string, MapDef> = Object.fromEntries(
-  [hemstad, hemhus, proflab, route1, skogen, gruss, grussCenter, grussMart, grussGym].map(map => [map.id, map]),
+  [...hemstadMaps, route1, skogen, ...grussMaps, route2, ...manbergetMaps, route3, ...hamnMaps].map(map => [map.id, map]),
 )
 
 export function getMap(id: string): MapDef {
@@ -19,4 +18,4 @@ export function getMap(id: string): MapDef {
   return map
 }
 
-export const START_MAP = { mapId: 'hemstad', x: 3, y: 5 }
+export const START_MAP = { mapId: 'hemstad', x: 14, y: 12 }

@@ -13,7 +13,7 @@ import { data } from './helpers'
  * How many of the 151 species must be obtainable at the end of each milestone: 8 after P3-M5's first part is not meaningful yet,
  * the final target (P3-M6) is 100.
  */
-const REQUIRED_COVERAGE = 12
+const REQUIRED_COVERAGE = 70
 
 describe('the world is consistent', () => {
   it('every warp points to an existing walkable tile and has a way back', () => {
@@ -86,7 +86,7 @@ describe('the map builder', () => {
   })
 
   it('refuses to place someone on a blocked tile', () => {
-    const m = mapBuilder('t-bad', 5, 5, { name: 'x' }).fill(0, 0, 5, 5, 'tree')
+    const m = mapBuilder('t-bad', 5, 5, { name: 'x' }).fill(0, 0, 5, 5, 'water')
     m.npc({ id: 'n', x: 2, y: 2, facing: 'down', look: 'boy', dialog: ['x'] })
     expect(() => m.build()).toThrow(/blocked tile/)
   })
