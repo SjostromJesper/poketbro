@@ -13,7 +13,7 @@ import { data } from './helpers'
  * How many of the 151 species must be obtainable at the end of each milestone: 8 after P3-M5's first part is not meaningful yet,
  * the final target (P3-M6) is 100.
  */
-const REQUIRED_COVERAGE = 70
+const REQUIRED_COVERAGE = 100
 
 describe('the world is consistent', () => {
   it('every warp points to an existing walkable tile and has a way back', () => {
@@ -34,7 +34,7 @@ describe('the world is consistent', () => {
     expect(pokemonProblems(data)).toEqual([])
   })
 
-  it(`at least ${REQUIRED_COVERAGE} species can be obtained (the final goal is 100)`, () => {
+  it(`at least ${REQUIRED_COVERAGE} species can be obtained`, () => {
     const c = coverage(data)
     console.log(`coverage: ${c.count} of ${c.count + c.missing.length} species obtainable`)
     expect(c.count).toBeGreaterThanOrEqual(REQUIRED_COVERAGE)

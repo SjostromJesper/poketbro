@@ -173,22 +173,23 @@ describe('overworld controller', () => {
     expect(store.mode).toBe('walk')
   })
 
-  it('walks the whole way from Hemstad to Grusstad with the real controller (collisions, fades, warps, banners)', () => {
+  /** Walks from the start to `goal` with the real controller, along the shortest route through the real map data; returns the maps visited in order. */
+  function walkTo(goal: { mapId: string, x: number, y: number }, badges: number): { maps: string[], steps: number, length: number } {
     const store = useWorldStore()
     // Every trainer is "beaten" so their sight lines do not interrupt the walk (that is covered elsewhere).
     const defeated = Object.values(MAPS).flatMap(m => m.trainers.map(t => t.id))
     store.start({ ...newWorldState(), flags: ['starter'], defeatedTrainers: defeated }, 11)
     const world = store.world!
+    world.badgeCount = badges
 
     // Breadth-first search over (map, x, y) using the real map data; warp tiles lead to their destination.
     type Node = { mapId: string, x: number, y: number }
     const key = (n: Node) => `${n.mapId}:${n.x},${n.y}`
-    const goal: Node = { mapId: 'gruss', x: 17, y: 12 }
     const start: Node = { ...world.state }
     const previous = new Map<string, { from: Node, dir: Direction }>()
     const seen = new Set([key(start)])
     const queue: Node[] = [start]
-    while (queue.length && !seen.has('goal-found')) {
+    while (queue.length) {
       const node = queue.shift()!
       if (key(node) === key(goal)) break
       const map = MAPS[node.mapId]
@@ -198,6 +199,7 @@ describe('overworld controller', () => {
         const y = node.y + dy
         if (!world.isWalkable(x, y, map)) continue
         const warp = world.warpAt(x, y, map)
+        if (warp?.requiresBadges && badges < warp.requiresBadges) continue
         const next: Node = warp ? { mapId: warp.to, x: warp.toX, y: warp.toY } : { mapId: node.mapId, x, y }
         if (seen.has(key(next))) continue
         seen.add(key(next))
@@ -205,16 +207,15 @@ describe('overworld controller', () => {
         queue.push(next)
       }
     }
-    expect(previous.has(key(goal)), 'a route to Grusstad exists').toBe(true)
+    expect(previous.has(key(goal)), `a route to ${key(goal)} exists`).toBe(true)
     const path: Direction[] = []
     for (let n = goal; key(n) !== key(start);) {
       const step = previous.get(key(n))!
       path.unshift(step.dir)
       n = step.from
     }
-    expect(path.length).toBeGreaterThan(80)
 
-    const mapsVisited: string[] = [store.world!.state.mapId]
+    const mapsVisited: string[] = [world.state.mapId]
     for (const dir of path) {
       store.holdDirection(dir)
       let waited = 0
@@ -226,8 +227,24 @@ describe('overworld controller', () => {
       expect(store.mode, `after moving ${dir} at ${JSON.stringify(world.state)}`).toBe('walk')
       if (world.state.mapId !== mapsVisited.at(-1)) mapsVisited.push(world.state.mapId)
     }
-    expect(mapsVisited).toEqual(['hemstad', 'route1', 'skogen', 'gruss'])
-    expect(world.state).toMatchObject({ mapId: 'gruss', x: 17, y: 12 })
-    expect(world.state.steps).toBeGreaterThan(80)
+    expect(world.state).toMatchObject(goal)
+    return { maps: mapsVisited, steps: world.state.steps, length: path.length }
+  }
+
+  it('walks the whole way from Hemstad to Grusstad with the real controller (collisions, fades, warps, banners)', () => {
+    const walk = walkTo({ mapId: 'gruss', x: 17, y: 12 }, 0)
+    expect(walk.maps).toEqual(['hemstad', 'route1', 'skogen', 'gruss'])
+    expect(walk.length).toBeGreaterThan(80)
+    expect(walk.steps).toBeGreaterThan(80)
+  })
+
+  it('walks from Hemstad to the Wilderness through every town with the real controller (badge gates open with four badges)', () => {
+    const walk = walkTo({ mapId: 'vildmarken', x: 36, y: 28 }, 4)
+    expect(walk.maps).toEqual(['hemstad', 'route1', 'skogen', 'gruss', 'route2', 'manberget_1', 'route3', 'hamn', 'route4', 'gnistby', 'route5', 'route6', 'blomstad', 'vildmarken'])
+    expect(walk.steps).toBeGreaterThan(500)
+  })
+
+  it('cannot get past the first gate without a badge', () => {
+    expect(() => walkTo({ mapId: 'route2', x: 10, y: 34 }, 0)).toThrow(/a route to .* exists/)
   })
 })

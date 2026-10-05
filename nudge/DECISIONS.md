@@ -478,3 +478,16 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Teman utan egna bitar** för sand, klippa, avsats, grotta och trappa målar nu enkla färgade ersättare i `describeTile` (inte rutan "saknas") så varje tema kan visa varje karta; temats egna bitar går före.
   Skyltar i grottor står på grottgolv. Hus utan dörr (kuliss) har en solid vägg där dörren skulle vara.
 - **Månberget våning 1**: Torstens ruta var instängd av en slumpad grottavägg; en liten yta fylld som grotta binder ihop den (hittades av `maps.test.ts`).
+
+## P3-M6: världen del 2
+
+- **Platserna 9-16**: Väg 4 (äng) + Kraftverket (2 våningar, valfritt, med Åskstenen), Gnistby (gym 3, Ture, elektrisk; Karatedojon ger Hitmonlee/Hitmonchan), Väg 5 (bergsväg med avsatser) + Spöktornet (3 våningar, valfritt, toppen ger Superspöet),
+  Väg 6 (sjö + skog, fiske, rival 3), Blomstad (gym 4, Lilja, gräs) och Vildmarken (bara med fyra märken, sällsynta Pokémon och Lapras som present vid sjön). Totalt 41 kartor.
+- **Spärrar**: Hamnstads norra väg kräver 2 märken, Gnistbys norra väg 3, Blomstads östra väg 4 (varje gång både `requiresBadges` på varpen och två vakter som blockerar vägen). Gnistby nås från Väg 4 utan att gå genom Kraftverket.
+- **Gym 3 och 4**: Ture har Voltorb 18, Pikachu 21, Raichu 24 (TM Thunderbolt, Gnistmärket); Lilja har Victreebel 24, Tangela 26, Vileplume 29 (TM Mega Drain, Blommärket). Gymeleverna har lag med 2-3 Pokémon i samma typ. Finjustering i P3-M7.
+- **Rival 3** står på Väg 6 (fyra märken är inte krav, men han kommer efter Gnistby). Laget kommer från `rivalTeam(3, ...)` (Pidgeotto 25, Kadabra 24, Growlithe 25, starterns andra form 29).
+- **Fiske**: egna tabeller för Väg 6 och Vildmarken (`FISHING_TABLES.route6/vildmarken`); Dratini kommer med Superspöet i Vildmarken. Hamnstad använder Väg 3:s tabell.
+- **Pokédex-täckning**: 146 av 146 arter (utan legendariska och Mew/Mewtwo) går att få; kravet i `world.test.ts` är 100. Snorlax, Aerodactyl, Dragonair och Electabuzz är mycket sällsynta (vikt 1-3).
+- **Butiker**: Gnistby säljer Thunder Wave, Light Screen och Agility, Blomstad Sleep Powder, Razor Leaf och Reflect (`SHOP_EXTRAS`); Hamnstad har fortfarande stenarna.
+- **Hjälpfunktioner** i `maps/layout.ts`: `linkStairs` (två trappor som landar under varandra), `fillCenter` och `fillMart`. Tränare placeras aldrig i smala gångar (en besegrad tränare står kvar): `maps.test.ts` går igenom alla kartor med tränare som hinder.
+- **Test**: `worldStore.test.ts` går hela vägen Hemstad -> Vildmarken med riktiga kontrollern (alla grindar öppna) och bekräftar att första grinden är stängd utan märke.

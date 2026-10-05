@@ -73,3 +73,35 @@ export function stairs(m: MapBuilder, x: number, y: number, to: string, landX: n
   m.fill(x, y, 1, 1, 'stairs')
   m.warp(x, y, to, landX, landY, { facing: 'down' })
 }
+
+/** Two staircases that lead to each other (cave floors, tower floors): each one lands the player on the floor tile right below the other's stairs. */
+export function linkStairs(a: MapBuilder, ax: number, ay: number, b: MapBuilder, bx: number, by: number, floor = 'cave'): void {
+  a.fill(ax, ay + 1, 1, 1, floor)
+  b.fill(bx, by + 1, 1, 1, floor)
+  stairs(a, ax, ay, b.id, bx, by + 1)
+  stairs(b, bx, by, a.id, ax, ay + 1)
+}
+
+/** The inside of a Pokémon Center: nurse, the PC and the fast-travel terminal. `prefix` keeps the NPC ids unique. */
+export function fillCenter(c: MapBuilder, prefix: string, town: string): MapBuilder {
+  return c
+    .fill(3, 3, 5, 1, 'counter')
+    .npc({
+      id: `${prefix}-sjukskoterska`, x: 5, y: 2, facing: 'down', look: 'nurse', action: 'heal', name: 'Sjuksköterska',
+      dialog: [`Välkommen till Pokémon Center i ${town}! Ska jag ta hand om dina Pokémon?`, 'Klart! Dina Pokémon är friska igen.'],
+    })
+    .npc({ id: `${prefix}-pc`, x: 8, y: 1, facing: 'down', look: 'pc', action: 'pc', name: 'PC', dialog: ['Du loggade in på Pokémon-lagringen.'] })
+    .npc({
+      id: `${prefix}-resekarta`, x: 2, y: 1, facing: 'down', look: 'pc', action: 'travel', name: 'Resekarta',
+      dialog: ['Snabbresekartan visar alla Pokémon Center du har besökt.'],
+    })
+}
+
+/** The inside of a Pokémart: shelves, a counter and the clerk (the stock comes from `shopStock`, keyed on the mart's map id). */
+export function fillMart(m: MapBuilder, prefix: string, greeting: string): MapBuilder {
+  const mid = Math.floor(m.width / 2)
+  return m
+    .fill(2, 3, m.width - 4, 1, 'counter')
+    .fill(1, 1, m.width - 2, 1, 'shelf')
+    .npc({ id: `${prefix}-expedit`, x: mid, y: 2, facing: 'down', look: 'clerk', action: 'shop', name: 'Expedit', dialog: [greeting] })
+}

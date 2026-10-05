@@ -107,6 +107,8 @@ export const SHOP_EXTRAS: Record<string, ShopItem[]> = {
   hamn_mart: [
     ...always('fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'tm:bubble-beam', 'tm:swift'),
   ],
+  gnistby_mart: always('tm:thunder-wave', 'tm:light-screen', 'tm:agility'),
+  blomstad_mart: always('tm:sleep-powder', 'tm:razor-leaf', 'tm:reflect'),
 }
 
 export function shopStock(shopId: string, badges: number): string[] {

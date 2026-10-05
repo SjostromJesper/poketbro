@@ -18,7 +18,12 @@ m.path([[33, 14], [33, 22]], { width: 2 })
 
 // Streets.
 road(m, 'w', 22, 'route3', 20)
-// The road north (to Route 4, guarded until two badges) is added in P3-M6.
+// The road north to Route 4 is guarded until the player has two badges.
+road(m, 'n', 11, 'route4', 14, {
+  requiresBadges: 2,
+  blockedDialog: ['Vakten står i vägen. "Vägen norrut är för farlig för tränare med färre än två märken!"'],
+})
+m.path([[11, 2], [11, 12]], { width: 2 })
 m.path([[1, 22], [30, 22]], { width: 1 })
 m.path([[2, 12], [28, 12]], { width: 2 })
 m.path([[19, 12], [19, 8]], { width: 2 })
@@ -44,6 +49,12 @@ m.npc({
   id: 'hamn-turist', x: 22, y: 19, facing: 'left', look: 'girl',
   dialog: ['Min pappa är fiskare. Han säger att Superspöet fångar de ovanliga fiskarna!'],
 })
+for (const x of [11, 12]) {
+  m.npc({
+    id: `hamn-vakt-${x}`, x, y: 6, facing: 'up', look: 'old', name: 'Vakt', gate: { badges: 2 },
+    dialog: ['Vägen norrut är stängd för tränare med färre än två märken.', 'Slå gymledaren Kajsa här i staden först!'],
+  })
+}
 m.pickup({ id: 'hamn-ball', x: 26, y: 17, item: 'poke-ball', hidden: true })
 m.pickup({ id: 'hamn-antidote', x: 3, y: 21, item: 'antidote' })
 m.trainer(rivalTrainer('rival-2', 2, { x: 24, y: 20, facing: 'auto', sight: 5 }, {

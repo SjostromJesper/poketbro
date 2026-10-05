@@ -117,5 +117,5 @@ Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets
 | P3-M3 - Supabase | done in code; **two dashboard steps are needed before the cloud works** (see the box at the top of this file) |
 | P3-M4 - Världens system | done (`npm run check-world` skriver ut en rapport) |
 | P3-M5 - Världen del 1 | done (8 platser spelbara från start till märke 2; 21 kartor nåbara, 0 problem i `check-world`) |
-| P3-M6 - Världen del 2 | todo |
+| P3-M6 - Världen del 2 | done (41 kartor, 4 gym, rival 1-3, 146/146 arter nåbara; `check-world` utan problem) |
 | P3-M7 - Balans och genomspelning | todo |
