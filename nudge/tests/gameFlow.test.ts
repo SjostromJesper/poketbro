@@ -11,6 +11,7 @@ import { newWorldState } from '../game/world'
 import { tmId } from '../game/items'
 import { TRAINERS } from '../game/trainers'
 import { data, mon } from './helpers'
+import { finishBattle } from './sequence'
 
 function setup() {
   const game = useGameStore()
@@ -139,7 +140,7 @@ describe('wild battles', () => {
     playBattle(ctx)
     expect(game.screen).toBe('battle')
     expect(battle.result).toBe('win')
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     expect(game.screen).toBe('overworld')
     expect(battle.engine).toBeNull()
     expect(player.party[0].xp).toBeGreaterThan(before)
@@ -174,14 +175,12 @@ describe('wild battles', () => {
     }
     expect(battle.result).toBe('caught')
     expect(player.count('poke-ball')).toBe(30 - thrown)
-    game.finishBattle(battle.outcome)
+    const steps = finishBattle(game, battle.outcome, { nickname: 'Ratte' })
     expect(player.party).toHaveLength(2)
     expect(player.party[1]).toMatchObject({ speciesId: 19, level: 3, originalTrainer: 'Du' })
     expect(player.pokedex).toContain(19)
-    expect(world.dialog!.lines[0]).toContain('lades till i ditt lag')
-    talkThrough(ctx)
-    expect(game.overlay).toMatchObject({ kind: 'nickname' })
-    game.resolveNickname('Ratte')
+    expect(JSON.stringify(steps)).toContain('lades till i ditt lag')
+    expect(steps.some(st => st.type === 'nickname')).toBe(true)
     expect(player.party[1].nickname).toBe('Ratte')
     expect(world.mode).toBe('walk')
 
@@ -202,13 +201,10 @@ describe('wild battles', () => {
     game.startWildBattle({ speciesId: 10, level: 2 })
     playBattle(ctx, 200000)
     expect(battle.result).toBe('win')
-    game.finishBattle(battle.outcome)
-    expect(world.dialog!.lines[0]).toBe('Bulbasaur nådde nivå 10!')
-    talkThrough(ctx)
-    expect(game.overlay).toEqual({ kind: 'learn', uid: bulbasaur.uid, move: 'vine-whip' })
-    game.resolveLearn(3) // forget Splash
+    const steps = finishBattle(game, battle.outcome, { replace: () => 3 }) // forget Splash
+    expect(JSON.stringify(steps)).toContain('Bulbasaur nådde nivå 10!')
+    expect(steps.find(st => st.type === 'moveReplace')).toMatchObject({ uid: bulbasaur.uid, move: 'vine-whip' })
     expect(player.party[0].moves.map(m => m.move)).toEqual(['tackle', 'growl', 'leech-seed', 'vine-whip'])
-    expect(world.dialog!.lines[0]).toContain('glömde Splash')
     talkThrough(ctx)
     expect(world.mode).toBe('walk')
 
@@ -218,7 +214,7 @@ describe('wild battles', () => {
     b.xp = xpForLevel(data.growthRates, 'medium-slow', 16) - 1
     game.startWildBattle({ speciesId: 10, level: 2 })
     playBattle(ctx, 200000)
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     talkThrough(ctx)
     expect(player.party[0].level).toBe(16)
     expect(game.overlay).toEqual({ kind: 'evolve', uid: b.uid, to: 2 })
@@ -258,7 +254,7 @@ describe('trainers', () => {
     expect(game.screen).toBe('transition')
     playBattle(ctx)
     expect(battle.result).toBe('win')
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     talkThrough(ctx)
     expect(world.world!.isDefeated('r1-kalle')).toBe(true)
     expect(player.money).toBe(money + BALANCE.TRAINER_MONEY_PER_LEVEL * 3)
@@ -280,7 +276,7 @@ describe('trainers', () => {
     talkThrough(ctx)
     playBattle(ctx)
     expect(battle.result).toBe('win')
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     talkThrough(ctx)
     expect(player.badges).toContain('granit')
     expect(player.count(tmId('rock-tomb'))).toBe(1)
@@ -300,7 +296,7 @@ describe('trainers', () => {
     talkThrough(ctx)
     playBattle(ctx)
     expect(battle.result).toBe('lose')
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     talkThrough(ctx)
     expect(player.money).toBe(500)
     expect(world.world!.state).toMatchObject({ mapId: 'gruss', x: 5, y: 7 })

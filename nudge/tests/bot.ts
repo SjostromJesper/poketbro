@@ -10,6 +10,7 @@ import { applyNudgeStrategy } from '../engine/headless'
 import { maxHpOf } from '../engine/pokemon'
 import { MAPS } from '../game/maps'
 import { DIRECTIONS, type Direction } from '../game/types'
+import { finishBattle, weakestMove } from './sequence'
 
 export interface BotOptions {
   /** Species id of the starter to pick. */
@@ -120,30 +121,11 @@ export class Bot {
         this.shop()
         this.game.closeShop()
         break
-      case 'learn': {
-        const pokemon = this.player.findPokemon(o.uid)!
-        const newPower = gameData.moves[o.move].power ?? 0
-        // Forget the weakest move if the new one is better.
-        let worst = 0
-        let worstPower = Infinity
-        pokemon.moves.forEach((m, i) => {
-          const power = gameData.moves[m.move].power ?? 0
-          if (power < worstPower) { worstPower = power; worst = i }
-        })
-        this.game.resolveLearn(newPower > worstPower ? worst : null)
-        break
-      }
       case 'evolve':
         this.game.resolveEvolve(true)
         break
-      case 'nickname':
-        this.game.resolveNickname(null)
-        break
       case 'pc':
         this.game.closePc()
-        break
-      case 'favorite':
-        this.game.resolveFavorite()
         break
     }
   }
@@ -208,7 +190,7 @@ export class Bot {
       }
       if (result === 'caught') this.report.caught++
       this.battleStarted = false
-      this.game.finishBattle(battle.outcome)
+      finishBattle(this.game, battle.outcome, { replace: (uid, move) => weakestMove(this.player.findPokemon(uid)!, move) })
     }
   }
 

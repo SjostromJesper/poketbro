@@ -4,6 +4,7 @@ import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { BALLS } from '~~/nudge/game/items'
 import type { BattleOutcome, Side } from '~~/nudge/engine/types'
+import type { SequenceStep } from '~~/nudge/game/postBattle'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import AtbBar from './AtbBar.vue'
@@ -14,19 +15,28 @@ import CaptureAnimation from './CaptureAnimation.vue'
 import DebugOverlay from './DebugOverlay.vue'
 import MoveButton from './MoveButton.vue'
 import NudgePips from './NudgePips.vue'
+import PostBattleSequence from './PostBattleSequence.vue'
 import { hpColor } from '../ui'
 
 const props = defineProps<{
   /** Item counts. `null` = unlimited (dev battles). */
   bag?: Record<string, number> | null
+  /** The steps to play after the battle (the game builds them from the outcome). Without them the plain result panel is shown. */
+  sequence?: SequenceStep[] | null
 }>()
 
 const emit = defineEmits<{
   (e: 'finished', outcome: BattleOutcome | null): void
+  /** The battle is over (the result is known): the parent may build the post-battle sequence. */
+  (e: 'ended', outcome: BattleOutcome | null): void
   (e: 'item-used', item: string): void
 }>()
 
 const store = useBattleStore()
+// Tell the parent as soon as the result is known, so it can build the post-battle sequence.
+watch(() => store.result, (result) => {
+  if (result) emit('ended', store.outcome)
+})
 const audio = useAudioStore()
 const view = computed(() => store.view)
 
@@ -379,7 +389,8 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
     </div>
 
     <!-- Result -->
-    <div v-if="store.result" class="modal result">
+    <PostBattleSequence v-if="store.result && sequence" :steps="sequence" :speed="store.speed" @done="emit('finished', store.outcome)" />
+    <div v-else-if="store.result && !sequence" class="modal result">
       <div class="px-panel menu">
         <h3 class="px-title">{{ RESULT_TEXT[store.result] }}</h3>
         <p v-for="line in xpLines" :key="line" class="xp">{{ line }}</p>

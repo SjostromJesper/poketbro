@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { displayNameOf } from '~~/nudge/engine/pokemon'
 import { usePlayerStore } from '~/stores/nudge/player'
@@ -21,6 +21,35 @@ function choose(index: number) {
   if (move && move === pokemon.value?.favoriteMove) confirming.value = index
   else emit('resolve', index)
 }
+/** Highlighted choice: 0-3 are the known moves, 4 is "do not learn". Arrows and 1-4 select, Space/Enter confirm. */
+const selected = ref(0)
+/** Ignore presses right after the dialog opens, so the key that closed the text before it cannot choose for you. */
+let openedAt = 0
+
+function onKey(event: KeyboardEvent) {
+  if (event.repeat) return
+  const count = current.value.length
+  if (event.key === 'ArrowDown') selected.value = (selected.value + 1) % (count + 1)
+  else if (event.key === 'ArrowUp') selected.value = (selected.value + count) % (count + 1)
+  else if (/^[1-9]$/.test(event.key) && Number(event.key) <= count) selected.value = Number(event.key) - 1
+  else if (event.key === 'Escape' || event.key === 'x' || event.key === 'X') {
+    if (confirming.value !== null) confirming.value = null
+    else emit('resolve', null)
+  } else if (event.key === ' ' || event.key === 'Enter' || event.key === 'z' || event.key === 'Z') {
+    if (Date.now() - openedAt < 300) return
+    if (confirming.value !== null) emit('resolve', confirming.value)
+    else if (selected.value >= count) emit('resolve', null)
+    else choose(selected.value)
+  } else return
+  event.preventDefault()
+}
+
+onMounted(() => {
+  openedAt = Date.now()
+  window.addEventListener('keydown', onKey)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
 const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({ index, id: m.move, data: gameData.moves[m.move], pp: m.pp, maxPp: m.maxPp })))
 </script>
 
@@ -40,12 +69,13 @@ const current = computed(() => (pokemon.value?.moves ?? []).map((m, index) => ({
       </template>
       <template v-else>
       <p class="ask">Men {{ name }} kan bara kunna fyra attacker. Vilken ska glömmas?</p>
-      <button v-for="m in current" :key="m.index" type="button" class="px-btn row" :style="{ '--type': TYPE_COLORS[m.data.type] }" @click="choose(m.index)">
+      <button v-for="m in current" :key="m.index" type="button" class="px-btn row" :class="{ picked: selected === m.index }" :style="{ '--type': TYPE_COLORS[m.data.type] }" @click="choose(m.index)" @mouseenter="selected = m.index">
         <span class="swatch" />
         <span class="mname">Glöm {{ m.data.displayName }}<span v-if="m.id === pokemon?.favoriteMove" class="heart"> ♥</span></span>
-        <span class="mmeta">{{ TYPE_LABELS[m.data.type] }} &middot; Kraft {{ m.data.power ?? '-' }}</span>
+        <span class="mmeta">{{ TYPE_LABELS[m.data.type] }} &middot; Kraft {{ m.data.power ?? '-' }} &middot; PP {{ m.pp }}/{{ m.maxPp }}</span>
       </button>
-      <button type="button" class="px-btn" @click="emit('resolve', null)">Lär sig inte {{ newMove.displayName }}</button>
+      <button type="button" class="px-btn" :class="{ picked: selected === current.length }" @click="emit('resolve', null)" @mouseenter="selected = current.length">Lär sig inte {{ newMove.displayName }}</button>
+      <p class="hint">Piltangenter eller 1-4 väljer, mellanslag bekräftar, X hoppar över.</p>
       </template>
     </div>
   </div>
@@ -126,5 +156,15 @@ h2 {
 
 .heart {
   color: #ff6f8e;
+}
+.px-btn.picked {
+  outline: 3px solid #ffd840;
+  outline-offset: -3px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: #dcc8a0;
 }
 </style>

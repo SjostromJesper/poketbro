@@ -7,12 +7,9 @@ import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import BoxScreen from './BoxScreen.vue'
 import EvolutionScene from './EvolutionScene.vue'
-import FavoriteScene from './FavoriteScene.vue'
-import NicknameDialog from './NicknameDialog.vue'
 import Hud from './Hud.vue'
 import GameMenu from '~/components/nudge/menu/GameMenu.vue'
 import { useWorldStore } from '~/stores/nudge/world'
-import MoveReplaceDialog from './MoveReplaceDialog.vue'
 import ShopMenu from './ShopMenu.vue'
 import StarterSelect from './StarterSelect.vue'
 
@@ -36,17 +33,14 @@ const initialMenu = computed(() => {
         <GameMenu v-if="world.menuOpen" :initial-screen="initialMenu" />
         <StarterSelect v-if="overlay?.kind === 'starter'" @choose="game.chooseStarter" />
         <ShopMenu v-else-if="overlay?.kind === 'shop'" :shop-id="overlay.shopId" @close="game.closeShop" />
-        <MoveReplaceDialog v-else-if="overlay?.kind === 'learn'" :uid="overlay.uid" :move="overlay.move" @resolve="game.resolveLearn" />
         <BoxScreen v-else-if="overlay?.kind === 'pc'" @close="game.closePc" />
-        <NicknameDialog v-else-if="overlay?.kind === 'nickname'" :uid="overlay.uid" @resolve="game.resolveNickname" />
-        <FavoriteScene v-else-if="overlay?.kind === 'favorite'" :uid="overlay.uid" :move="overlay.move" :previous="overlay.previous" @resolve="game.resolveFavorite" />
         <EvolutionScene v-else-if="overlay?.kind === 'evolve'" :uid="overlay.uid" :to="overlay.to" @resolve="game.resolveEvolve" />
       </template>
     </OverworldScene>
 
     <div v-if="game.screen === 'transition'" class="flash" />
     <div v-if="game.screen === 'battle'" class="battle-layer">
-      <BattleScene :bag="player.bag" @item-used="player.removeItem($event)" @finished="game.finishBattle" />
+      <BattleScene :bag="player.bag" :sequence="game.sequence" @item-used="player.removeItem($event)" @ended="game.beginPostBattle($event!)" @finished="game.finishBattle" />
     </div>
   </div>
 </template>

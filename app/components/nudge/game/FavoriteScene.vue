@@ -17,6 +17,7 @@ const text = computed(() => (props.previous
   : `${name.value} verkar verkligen gilla ${moveName(props.move)}!`))
 
 function onKey(event: KeyboardEvent) {
+  if (event.repeat) return
   if (event.key === 'Enter' || event.key === ' ' || event.key === 'z' || event.key === 'Z' || event.key === 'Escape') {
     event.preventDefault()
     emit('resolve')

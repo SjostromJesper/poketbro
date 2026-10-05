@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { createTrainerPokemon, createWildPokemon } from '~~/nudge/engine/ai'
 import { createPokemon, displayNameOf } from '~~/nudge/engine/pokemon'
-import { applyBattleOutcome, evolvePokemon, learnMove, type LevelUpInfo } from '~~/nudge/engine/progression'
+import { evolvePokemon, learnMove } from '~~/nudge/engine/progression'
 import { createRandomRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
+import { applyAndNarrate, type SequenceStep } from '~~/nudge/game/postBattle'
 import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { spriteFor, type SpriteKey } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
@@ -26,19 +27,13 @@ export type Screen = 'overworld' | 'transition' | 'battle'
 export type Overlay =
   | { kind: 'starter' }
   | { kind: 'shop', shopId: string }
-  | { kind: 'learn', uid: string, move: string }
   | { kind: 'evolve', uid: string, to: number }
   | { kind: 'pc' }
-  | { kind: 'nickname', uid: string }
-  | { kind: 'favorite', uid: string, move: string, previous?: string }
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
   | { type: 'dialog', lines: string[], speaker?: string, portrait?: SpriteKey }
-  | { type: 'learn', uid: string, move: string }
   | { type: 'evolve', uid: string, to: number }
-  | { type: 'nickname', uid: string }
-  | { type: 'favorite', uid: string, move: string, previous?: string }
   | { type: 'run', run: () => void }
 
 interface BattleContext {
@@ -57,6 +52,8 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   const screen = ref<Screen>('overworld')
   const overlay = ref<Overlay | null>(null)
+  /** The steps of the battle scene after a battle (null while no battle has ended). */
+  const sequence = shallowRef<SequenceStep[] | null>(null)
   let context: BattleContext | null = null
   let queue: PostStep[] = []
   let autosaveAfterQueue = false
@@ -205,13 +202,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
     save(true)
   }
 
-  /** `null` skips the nickname. */
-  function resolveNickname(nickname: string | null) {
-    const o = overlay.value
-    overlay.value = null
-    if (o?.kind === 'nickname' && nickname) player.setNickname(o.uid, nickname)
-    runQueue()
-  }
 
   // ---------------------------------------------------------------------------
   // Battles
@@ -254,15 +244,13 @@ export const useGameStore = defineStore('nudgeGame', () => {
     }, 900)
   }
 
-  /** The player pressed "Fortsätt" on the battle result screen. */
-  function finishBattle(outcome: BattleOutcome | null) {
+  /** The battle scene is done (the post-battle sequence has been played, or there was none): back to the map. */
+  function finishBattle(_outcome?: BattleOutcome | null) {
     battle.end()
+    sequence.value = null
     screen.value = 'overworld'
-    const ctx = context
     context = null
-    queue = []
     playMapMusic()
-    if (outcome) buildPostBattle(outcome, ctx)
     autosaveAfterQueue = true
     runQueue()
   }
@@ -272,12 +260,21 @@ export const useGameStore = defineStore('nudgeGame', () => {
     return p ? displayNameOf(gameData, p) : 'Pokémonen'
   }
 
-  function buildPostBattle(outcome: BattleOutcome, ctx: BattleContext | null) {
-    const result = applyBattleOutcome(gameData, BALANCE, player.party, outcome)
+  /**
+   * The battle has ended: applies it to the game at once and builds the steps the battle scene plays (PLAN-3 2):
+   * the faint, the trainer's words and prize, XP per Pokémon, level-ups with stats, new moves, trust and favorites.
+   * Evolutions and a blackout come after the scene closes (the overworld queue).
+   */
+  function beginPostBattle(outcome: BattleOutcome) {
+    const ctx = context
     const w = world.world
+    const steps: SequenceStep[] = []
+    queue = []
+
+    const { steps: xpSteps, application } = applyAndNarrate(gameData, BALANCE, player.party, outcome)
 
     if (outcome.result === 'lose') {
-      queue.push({ type: 'dialog', lines: ['Du har inga Pokémon kvar som kan slåss...', 'Allt blev svart!'] })
+      steps.push({ type: 'message', lines: ['Du har inga Pokémon kvar som kan slåss...', 'Allt blev svart!'] })
       queue.push({
         type: 'run',
         run: () => {
@@ -291,63 +288,78 @@ export const useGameStore = defineStore('nudgeGame', () => {
           queue.unshift({ type: 'dialog', lines: [`Du tappade ${lost} kr på vägen.`, 'Du vaknar upp igen, och dina Pokémon har blivit läkta.'] })
         },
       })
+      sequence.value = steps
       return
+    }
+
+    if (outcome.result === 'win') {
+      const last = outcome.defeated[outcome.defeated.length - 1]
+      const foe = last ? (gameData.species[last.speciesId]?.displayName ?? 'Pokémonen') : 'Pokémonen'
+      if (ctx?.trainer) {
+        const def = ctx.trainer
+        const speaker = `${def.title} ${def.name}`
+        const portrait = spriteFor(def) ?? undefined
+        const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...def.team.map(m => m.level))
+        w?.markDefeated(def.id)
+        player.money += prize
+        steps.push({ type: 'message', lines: [`${foe} svimmade!`, `Du besegrade ${speaker}!`] })
+        steps.push({ type: 'message', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker, portrait })
+      } else {
+        steps.push({ type: 'message', lines: [`Vilda ${foe} svimmade!`] })
+      }
     }
 
     if (outcome.result === 'caught' && outcome.caught) {
       const caught: OwnedPokemon = { ...outcome.caught, originalTrainer: player.name, caughtAt: Date.now() }
       const where = player.addPokemon(caught)
       const name = displayNameOf(gameData, caught)
-      queue.push({
-        type: 'dialog',
+      steps.push({
+        type: 'message',
         lines: [where === 'party' ? `${name} lades till i ditt lag!` : `${name} skickades till boxen eftersom ditt lag är fullt.`],
       })
-      queue.push({ type: 'nickname', uid: caught.uid })
+      steps.push({ type: 'nickname', uid: caught.uid })
     }
 
-    if (outcome.result === 'win' && ctx?.trainer) {
+    steps.push(...xpSteps)
+
+    // The gym leader's reward comes after the XP. Everything is applied now; the scene only tells it.
+    if (outcome.result === 'win' && ctx?.trainer?.gym) {
       const def = ctx.trainer
-      const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...def.team.map(m => m.level))
-      queue.push({
-        type: 'run',
-        run: () => {
-          w?.markDefeated(def.id)
-          player.money += prize
-          audio.sfx('coin')
-        },
+      const gym = def.gym!
+      if (!player.badges.includes(gym.badge)) player.badges.push(gym.badge)
+      w?.setFlag(`badge-${gym.badge}`)
+      player.addItem(tmId(gym.tm))
+      steps.push({
+        type: 'message',
+        lines: [...gym.rewardDialog, `Du fick ${gym.badgeName}!`],
+        speaker: `${def.title} ${def.name}`,
+        portrait: spriteFor(def) ?? undefined,
+        jingle: 'badge',
       })
-      queue.push({ type: 'dialog', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker: `${def.title} ${def.name}`, portrait: spriteFor(def) ?? undefined })
-      if (def.gym) {
-        const gym = def.gym
-        queue.push({
-          type: 'run',
-          run: () => {
-            if (!player.badges.includes(gym.badge)) player.badges.push(gym.badge)
-            void audio.jingle('badge')
-            w?.setFlag(`badge-${gym.badge}`)
-            player.addItem(tmId(gym.tm))
-          },
-        })
-        queue.push({ type: 'dialog', lines: [...gym.rewardDialog, `Du fick ${gym.badgeName}!`], speaker: `${def.title} ${def.name}`, portrait: spriteFor(def) ?? undefined })
-      }
     }
 
-    // Level-ups, new moves and evolutions, in the order they happened.
-    for (const info of result.levelUps) queueLevelUp(info)
+    // Evolutions are shown after the scene closes, in their own scene.
+    for (const info of application.levelUps) if (info.evolveTo) queue.push({ type: 'evolve', uid: info.uid, to: info.evolveTo })
 
-    // A favorite move forming (or changing) is shown after the level-ups.
-    for (const fav of result.favorites) queue.push({ type: 'favorite', uid: fav.uid, move: fav.move, previous: fav.previous })
+    sequence.value = steps
   }
 
-  function queueLevelUp(info: LevelUpInfo) {
-    const name = nameOf(info.uid)
-    queue.push({ type: 'run', run: () => { void audio.jingle('levelUp') } })
-    queue.push({ type: 'dialog', lines: [`${name} nådde nivå ${info.to}!`] })
-    for (const move of info.learned) {
-      queue.push({ type: 'dialog', lines: [`${name} lärde sig ${gameData.moves[move]?.displayName ?? move}!`] })
-    }
-    for (const move of info.pendingMoves) queue.push({ type: 'learn', uid: info.uid, move })
-    if (info.evolveTo) queue.push({ type: 'evolve', uid: info.uid, to: info.evolveTo })
+  /** The player chose which move to forget (or none) while learning `move`. Returns the lines to show. */
+  function learnChoice(uid: string, move: string, replaceIndex: number | null): string[] {
+    const pokemon = player.findPokemon(uid)
+    if (!pokemon) return []
+    const name = displayNameOf(gameData, pokemon)
+    const moveName = gameData.moves[move]?.displayName ?? move
+    if (replaceIndex === null) return [`${name} lärde sig inte ${moveName}.`]
+    const forgotten = pokemon.moves[replaceIndex]?.move
+    const lostFavorite = learnMove(gameData, pokemon, move, replaceIndex, BALANCE)
+    const lines = [`${name} glömde ${gameData.moves[forgotten ?? '']?.displayName ?? 'en attack'} och lärde sig ${moveName}!`]
+    if (lostFavorite) lines.push(`${name} verkar ledsen över att ha glömt sin favorit.`)
+    return lines
+  }
+
+  function giveNickname(uid: string, nickname: string | null) {
+    if (nickname) player.setNickname(uid, nickname)
   }
 
   function runQueue() {
@@ -370,45 +382,13 @@ export const useGameStore = defineStore('nudgeGame', () => {
         step.run()
         runQueue()
         break
-      case 'learn':
-        overlay.value = { kind: 'learn', uid: step.uid, move: step.move }
-        break
       case 'evolve':
         overlay.value = { kind: 'evolve', uid: step.uid, to: step.to }
         break
-      case 'nickname':
-        overlay.value = { kind: 'nickname', uid: step.uid }
-        break
-      case 'favorite':
-        void audio.jingle('favorite')
-        overlay.value = { kind: 'favorite', uid: step.uid, move: step.move, previous: step.previous }
-        break
     }
   }
 
-  /** `replaceIndex` = which of the four moves to forget, or null to skip learning the new one. */
-  function resolveLearn(replaceIndex: number | null) {
-    const o = overlay.value
-    overlay.value = null
-    if (o?.kind !== 'learn') return runQueue()
-    const pokemon = player.findPokemon(o.uid)
-    const moveName = gameData.moves[o.move]?.displayName ?? o.move
-    if (pokemon && replaceIndex !== null) {
-      const forgotten = pokemon.moves[replaceIndex]?.move
-      const lostFavorite = learnMove(gameData, pokemon, o.move, replaceIndex, BALANCE)
-      const lines = [`${displayNameOf(gameData, pokemon)} glömde ${gameData.moves[forgotten ?? '']?.displayName ?? 'en attack'} och lärde sig ${moveName}!`]
-      if (lostFavorite) lines.push(`${displayNameOf(gameData, pokemon)} verkar ledsen över att ha glömt sin favorit.`)
-      queue.unshift({ type: 'dialog', lines })
-    } else if (pokemon) {
-      queue.unshift({ type: 'dialog', lines: [`${displayNameOf(gameData, pokemon)} lärde sig inte ${moveName}.`] })
-    }
-    runQueue()
-  }
 
-  function resolveFavorite() {
-    if (overlay.value?.kind === 'favorite') overlay.value = null
-    runQueue()
-  }
 
   function resolveEvolve(accept: boolean) {
     const o = overlay.value
@@ -432,6 +412,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, resolveNickname, finishBattle, resolveLearn, resolveEvolve, resolveFavorite, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

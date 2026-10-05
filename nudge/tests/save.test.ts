@@ -9,6 +9,7 @@ import { createRng } from '../engine/rng'
 import { parseSave, SAVE_KEY, SAVE_VERSION, serializeSave, summarizeSave, type PlayerData } from '../game/save'
 import { newWorldState } from '../game/world'
 import { mon } from './helpers'
+import { finishBattle } from './sequence'
 
 function playerData(): PlayerData {
   return {
@@ -147,7 +148,7 @@ describe('saving and loading through the game store', () => {
     battle.setSpeed(3)
     for (let i = 0; i < 60000 && !battle.result; i++) battle.frame(16)
     const xpBefore = JSON.parse(readItem(SAVE_KEY)!).player.party[0].xp
-    game.finishBattle(battle.outcome)
+    finishBattle(game, battle.outcome)
     for (let i = 0; i < 50 && world.dialog; i++) world.advanceDialog()
     expect(JSON.parse(readItem(SAVE_KEY)!).player.party[0].xp).toBeGreaterThan(xpBefore)
 

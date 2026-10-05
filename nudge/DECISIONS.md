@@ -404,3 +404,21 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Credits** are generated from the themes (`credits.ts` = every theme's `credits` + audio + PokéAPI); Tuxemon's entry is marked as needing attribution and links the copied `ATTRIBUTIONS.md` (`/assets/themes/tuxemon/ATTRIBUTIONS.md`).
 - **Tests** (`themes.test.ts`): autotile pieces, tree pairing, rims, and for every theme: sheets exist with the declared size, every piece drawn for every tile of every map in every frame is inside its sheet, all outdoor tiles have something to draw, building sprites fit the footprint,
   all 23 looks have sheets with valid frames and a walk cycle, credits.
+
+## P3-M2: the end of a battle
+
+- **Stays in the battle scene.** When the engine reports the result, `BattleScene` emits `ended`; the game store (`beginPostBattle`) builds `game.sequence` and `PostBattleSequence.vue` plays it over the scene (900 ms after the result, so the faint
+  and the capture animations finish). The scene closes after the last step (`finishBattle`) and the map comes back. The dev battle page still shows the old result panel (it passes no sequence).
+- **Pure builder** (`nudge/game/postBattle.ts`, tested): `applyAndNarrate` applies the outcome to the party and returns steps: `message` (lines, optional speaker + face, jingle, XP bar), `xpBar` (a bar that fills on its own after a level-up), `levelUp` (per level:
+  stat gains, then totals), `moveReplace`, `favorite`, `nickname`. Order: the foe's faint, the trainer's words and prize, then per participating Pokémon: "X fick N XP!" with the bar filling, for every level reached "nådde nivå N!" + jingle +
+  the stat panel + learned moves (free slot: "lärde sig X!"; full: "vill lära sig X, men kan bara ha 4 moves." + the forget dialog) + the bar restarting at 0, then trust ("litar mer på dig nu!" when a heart is gained) and favorite scenes. The gym reward comes
+  after the XP. Evolutions come after the scene closes, in their own scene.
+- **State is applied atomically** when the sequence is built (XP, levels, trust, habits, favorites, money, badge, TM, defeated flags), so closing the tab halfway never leaves a half-applied battle; the open choices (which move to forget, nickname) are applied
+  when confirmed (`learnChoice`, `giveNickname`). If the page is closed during a forget dialog, the move is simply not learned (it is not offered again).
+- **Capture gives no XP** (only Pokémon that fainted earlier in the battle count); a caught Pokémon gets "X lades till i laget!" and the nickname question inside the scene. Losing: "Du har inga Pokémon kvar..." in the scene, the blackout (money, healing, teleport)
+  after it closes. Fleeing closes the scene at once.
+- **Input.** Space, Enter, Z or a click advance. The first press while text is typed shows the whole line, the next advances. Key repeats are ignored and each step locks for 260 ms, so holding the key never skips a level-up or a move choice. The
+  move dialog uses arrows/1-4 to select and Space/Enter to confirm (X skips; favorites ask "är du säker" first; it also ignores presses in its first 300 ms); the speed setting only changes animation and typing speed.
+- **Evolution scene**: the sprite flickers between the forms (faster and faster) for about five seconds and then evolves; X, B or Esc cancels at any time ("utvecklades inte").
+- **Tests**: `postBattle.test.ts` (level count for big XP, bars, stat changes equal the formula, move at the right level, replacement keeps PP rules and drops the habit, atomic apply) and the game-flow/bot tests now play the sequence through a helper
+  (`tests/sequence.ts`).
