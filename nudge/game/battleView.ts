@@ -71,7 +71,7 @@ export interface TeamMemberView {
 }
 
 export interface BattleView {
-  kind: 'wild' | 'trainer'
+  kind: 'wild' | 'trainer' | 'pvp'
   player: BattlerView
   enemy: BattlerView
   team: TeamMemberView[]
