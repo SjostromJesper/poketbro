@@ -42,7 +42,7 @@ m.trainer(trainer('r1-lisa', 'Lisa', 'lass', { x: 9, y: 17, facing: 'auto', sigh
 }))
 m.trainer(trainer('r1-nils', 'Nils', 'youngster', { x: 11, y: 36, facing: 'auto', sight: 3 }, [[19, 4], [21, 3]]))
 m.trainer(rivalTrainer('rival-1', 1, { x: 9, y: 5, facing: 'auto', sight: 4 }, {
-  intro: ['Där är du! Jag har väntat på dig!', 'Jag fick en Pokémon av professorn jag också. Låt oss se vem som är bäst!'],
+  intro: ['Där är du, {player}! Jag har väntat på dig!', 'Jag fick en Pokémon av professorn jag också. Låt oss se vem som är bäst!'],
   defeated: ['Va?! Jag förlorade?!', 'Du har tur den här gången. Nästa gång krossar jag dig!', 'Jag drar vidare till Grusstad. Ses där!'],
 }))
 

@@ -10,7 +10,9 @@ const house = (paint: HousePaint, badge?: 'cross' | 'bag' | 'dojo'): BuildingSpr
 
 /** 32x32 frames: rows down, left, right, up; three frames across with the standing one in the middle. */
 const LAYOUT: CharacterLayout = { fw: 32, fh: 32, dir: 'rows', index: { down: 0, left: 1, right: 2, up: 3 }, stand: 1, cycle: [0, 1, 2, 1] }
-const character = (key: SpriteKey): CharacterDef => ({ sheet: `/assets/themes/pipoya/characters/${key}.png`, layout: LAYOUT })
+/** The second player look uses the sheet of the girl (there are no extra files for it). */
+const SHEET_OF: Partial<Record<SpriteKey, string>> = { player2: 'girl' }
+const character = (key: SpriteKey): CharacterDef => ({ sheet: `/assets/themes/pipoya/characters/${SHEET_OF[key] ?? key}.png`, layout: LAYOUT })
 
 export const pipoya: ThemeManifest = {
   id: 'pipoya',
@@ -51,7 +53,7 @@ export const pipoya: ThemeManifest = {
       gym: house({ roof: '#4a4a58', wall: '#8a8a98', trim: '#2a2a34' }, 'dojo'),
     },
   },
-  characters: Object.fromEntries((['player', 'rival', 'professor', 'nurse', 'clerk', 'mum', 'old', 'boy', 'girl', 'youngster', 'lass', 'bugcatcher', 'hiker', 'fisher', 'sailor', 'picnicker', 'scientist', 'karate', 'psychic', 'leader1', 'leader2', 'leader3', 'leader4'] as const).map(key => [key, character(key)])) as Record<SpriteKey, CharacterDef>,
+  characters: Object.fromEntries((['player', 'player2', 'rival', 'professor', 'nurse', 'clerk', 'mum', 'old', 'boy', 'girl', 'youngster', 'lass', 'bugcatcher', 'hiker', 'fisher', 'sailor', 'picnicker', 'scientist', 'karate', 'psychic', 'leader1', 'leader2', 'leader3', 'leader4'] as const).map(key => [key, character(key)])) as Record<SpriteKey, CharacterDef>,
   credits: [
     {
       title: 'Pipoya FREE RPG Tileset 32x32 och Character Sprites 32x32',

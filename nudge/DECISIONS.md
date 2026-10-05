@@ -515,3 +515,13 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   Tryck besvarar aldrig en fråga (namn och val kräver ett riktigt svar). Motorn räknar sin egen tid (`update(ms)`), så testerna körs utan klocka.
 - `CutsceneScene.vue` ritar scenen (scen med upp till tre platser, textruta, små illustrationer för ATB-bar, move-knapp, hjärta och prickar, namnfält med förslagsknappar, valknappar, svart täckskikt) och skickar vidare tryck. Karaktärer ritas ur det aktiva temat (`StageCharacter.vue`), Pokémon som bilder.
   Dev-sida: `/nudge/dev/cutscene`.
+
+## P4-M2: introt
+
+- **Flödet** (`nudge/game/text/intro.ts`, alla texter där): svart skärm -> Professor Ek glider in -> Eevee dyker upp med rop och jingle -> fem rutor om det som är annorlunda (med små illustrationer: ATB-bar, blinkande move-knapp, nudge-prickar, hjärta) -> namn (max 10 tecken, tre förslag, "Så du heter X? Ja/Nej",
+  "Nej" frågar igen) -> utseende (två spelar-sprites bredvid varandra, hoppas över om temat bara har ett) -> rivalen med namnförslag och bekräftelse -> avslutning, spelaren krymper, svart skärm och spelet fortsätter i spelarens rum (`hemhus`).
+  Introt startas av `play.vue` för varje nytt spel som inte startas med dev-genvägar (`?map=...` osv.).
+- **Namn och val sparas**: `player.name`, `player.rivalName`, `player.look` (`player`/`player2`) och `player.introDone` ligger i sparfilen, som nu är version 4. Migreringen 3 -> 4 ger gamla spel rivalen "Elias", första utseendet och `introDone = true` (de hoppar över introt).
+  Sparning är nu tillåten så fort introt är klart (inte först när man fått en Pokémon), så namnen överlever om man stänger spelet före starter-valet.
+- **Namn i all text**: text kan innehålla `{player}` och `{rival}` (`nudge/game/names.ts`, `fillNames`); de fylls i när en dialogruta öppnas, i tränarnas namn och i strids-avslutets texter. Rivalen heter `{rival}` i tränardatan (`RIVAL_NAME`).
+- **Andra utseendet**: ny sprite-nyckel `player2` i alla fyra teman (Tuxemon "heroine", Ninja Adventure "Princess", Kenney en annan karaktär, Pipoya återanvänder `girl`); det är det enda som behövdes för att temat ska kunna visa det.

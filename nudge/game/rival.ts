@@ -17,7 +17,8 @@ export function rivalStarter(playerStarter: number): number {
 /** The starter's evolution stage: 0 = first form, 1 = second form (Ivysaur/Charmeleon/Wartortle). */
 const stage = (starter: number, n: 0 | 1) => starter + n
 
-export const RIVAL_NAME = 'Elias'
+/** The rival's name in text written before the player picked one; shown as the chosen name (see names.ts). */
+export const RIVAL_NAME = '{rival}'
 
 /** The team of rival battle `round` (1: after Route 1, 2: in the harbour town, 3: before the flower town). */
 export function rivalTeam(round: 1 | 2 | 3, playerStarter: number): TrainerMon[] {

@@ -62,6 +62,7 @@ export const kenney: ThemeManifest = {
   },
   characters: {
     player: character(1, 7),
+    player2: character(1, 9),
     rival: character(3, 7),
     professor: character(0, 7),
     nurse: character(3, 8),

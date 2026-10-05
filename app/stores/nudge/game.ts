@@ -11,6 +11,7 @@ import { createRandomRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
+import { DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME, fillNames, setNames } from '~~/nudge/game/names'
 import { rivalTeam } from '~~/nudge/game/rival'
 import { applyAndNarrate, type SequenceStep } from '~~/nudge/game/postBattle'
 import { itemInfo, STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
@@ -26,7 +27,7 @@ import { useSavesStore } from './saves'
 import { usePlayerStore } from './player'
 import { useWorldStore } from './world'
 
-export type Screen = 'overworld' | 'transition' | 'battle'
+export type Screen = 'overworld' | 'transition' | 'battle' | 'intro'
 
 export type Overlay =
   | { kind: 'starter' }
@@ -107,7 +108,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   /** Writes the game to the active save slot (the browser at once, the cloud a few seconds later). */
   function save(silent = false): boolean {
     const w = world.world
-    if (!w || !player.party.length || ephemeral) return false
+    if (!w || !(player.party.length || player.introDone) || ephemeral) return false
     const now = Date.now()
     player.playTimeMs = playTime(now)
     sessionStart = now
@@ -155,6 +156,30 @@ export const useGameStore = defineStore('nudgeGame', () => {
     queue = []
     context = null
     install()
+  }
+
+  /** Where the player wakes up after the intro: their room in Hemstad. */
+  const ROOM = { mapId: 'hemhus', x: 6, y: 3 }
+
+  /** Starts the intro cutscene of a new game (the scene itself is drawn by GameRoot; it calls `finishIntro` when done). */
+  function beginIntro() {
+    screen.value = 'intro'
+    world.setBusy(true)
+    audio.music(null)
+  }
+
+  /** The intro is over: the chosen names and look are kept and the game goes on in the player's room. */
+  function finishIntro(vars: Record<string, string>) {
+    player.name = (vars.player ?? '').trim() || DEFAULT_PLAYER_NAME
+    player.rivalName = (vars.rival ?? '').trim() || DEFAULT_RIVAL_NAME
+    player.look = vars.playerSprite === 'player2' ? 'player2' : 'player'
+    player.introDone = true
+    setNames(player.name, player.rivalName)
+    world.teleport(ROOM.mapId, ROOM.x, ROOM.y, 'down')
+    world.setBusy(false)
+    screen.value = 'overworld'
+    playMapMusic()
+    save(true)
   }
 
   /** Resumes with already-loaded player/world state (used by loading a save). */
@@ -370,11 +395,11 @@ export const useGameStore = defineStore('nudgeGame', () => {
       return
     }
     world.setBusy(true)
-    world.openDialog(def.intro, `${def.title} ${def.name}`, () => {
+    world.openDialog(def.intro, fillNames(`${def.title} ${def.name}`), () => {
       world.setBusy(true)
       const enemy = trainerTeam(def).map(mon => createTrainerPokemon({
         data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId: mon.speciesId, level: mon.level,
-        moves: mon.moves, heldItem: mon.heldItem, trainerName: def.name,
+        moves: mon.moves, heldItem: mon.heldItem, trainerName: fillNames(def.name),
       }))
       begin({ kind: 'trainer', trainer: def }, enemy)
     }, spriteFor(def) ?? undefined)
@@ -444,7 +469,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
       const foe = last ? (gameData.species[last.speciesId]?.displayName ?? 'Pokémonen') : 'Pokémonen'
       if (ctx?.trainer) {
         const def = ctx.trainer
-        const speaker = `${def.title} ${def.name}`
+        const speaker = fillNames(`${def.title} ${def.name}`)
         const portrait = spriteFor(def) ?? undefined
         const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...trainerTeam(def).map(m => m.level))
         w?.markDefeated(def.id)
@@ -480,7 +505,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
       steps.push({
         type: 'message',
         lines: [...gym.rewardDialog, `Du fick ${gym.badgeName}!`],
-        speaker: `${def.title} ${def.name}`,
+        speaker: fillNames(`${def.title} ${def.name}`),
         portrait: spriteFor(def) ?? undefined,
         jingle: 'badge',
       })
@@ -578,6 +603,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, beginIntro, finishIntro, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

@@ -16,7 +16,7 @@ export type ThemeId = 'tuxemon' | 'ninja' | 'pipoya' | 'kenney'
 
 /** Names of the character looks the game asks for. Each theme maps every one of them to one of its sprite sheets. */
 export const SPRITE_KEYS = [
-  'player', 'rival', 'professor', 'nurse', 'clerk', 'mum', 'old', 'boy', 'girl', 'youngster', 'lass', 'bugcatcher', 'hiker', 'fisher',
+  'player', 'player2', 'rival', 'professor', 'nurse', 'clerk', 'mum', 'old', 'boy', 'girl', 'youngster', 'lass', 'bugcatcher', 'hiker', 'fisher',
   'sailor', 'picnicker', 'scientist', 'karate', 'psychic', 'leader1', 'leader2', 'leader3', 'leader4',
 ] as const
 export type SpriteKey = (typeof SPRITE_KEYS)[number]

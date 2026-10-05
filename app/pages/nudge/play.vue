@@ -79,6 +79,8 @@ onMounted(() => {
   }
   game.newGame(state)
   battle.debug = q.debug === '1'
+  // A new game starts with the intro (dev shortcuts skip it).
+  if (!dev) game.beginIntro()
   if (typeof q.party === 'string') {
     for (const part of q.party.split(',')) {
       const [name, level] = part.split(':')

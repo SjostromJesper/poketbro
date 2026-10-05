@@ -53,7 +53,7 @@ const prompt = computed(() => state.value.prompt)
 
 function characterFor(sprite: StageSprite): SpriteKey | null {
   if (sprite.kind === 'character') return sprite.sprite
-  if (sprite.kind === 'player') return props.playerSprite
+  if (sprite.kind === 'player') return (runner.vars.playerSprite as SpriteKey | undefined) ?? props.playerSprite
   if (sprite.kind === 'rival') return props.rivalSprite
   return null
 }

@@ -14,6 +14,9 @@ import GameMenu from '~/components/nudge/menu/GameMenu.vue'
 import { useWorldStore } from '~/stores/nudge/world'
 import ShopMenu from './ShopMenu.vue'
 import StarterSelect from './StarterSelect.vue'
+import CutsceneScene from '~/components/nudge/cutscene/CutsceneScene.vue'
+import { introSteps } from '~~/nudge/game/text/intro'
+import { PLAYER_LOOKS } from '~~/nudge/game/sprites'
 
 const game = useGameStore()
 const player = usePlayerStore()
@@ -42,6 +45,7 @@ const initialMenu = computed(() => {
       </template>
     </OverworldScene>
 
+    <CutsceneScene v-if="game.screen === 'intro'" class="intro-layer" :steps="introSteps({ lookCount: PLAYER_LOOKS.length })" @done="game.finishIntro" />
     <div v-if="game.screen === 'transition'" class="flash" />
     <div v-if="game.screen === 'battle'" class="battle-layer">
       <BattleScene :bag="player.bag" :sequence="game.sequence" @item-used="player.removeItem($event)" @ended="game.beginPostBattle($event!)" @finished="game.finishBattle" />
@@ -53,6 +57,12 @@ const initialMenu = computed(() => {
 .game-root {
   position: absolute;
   inset: 0;
+}
+
+.intro-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
 }
 
 .flash {

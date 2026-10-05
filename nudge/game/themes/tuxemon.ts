@@ -52,6 +52,7 @@ export const tuxemon: ThemeManifest = {
   },
   characters: {
     player: character('adventurer'),
+    player2: character('heroine'),
     rival: character('cooldude'),
     professor: character('scientist'),
     nurse: character('nurse'),

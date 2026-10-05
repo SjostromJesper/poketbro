@@ -4,6 +4,7 @@ import { DIRECTIONS, type Direction } from '~~/nudge/game/types'
 import { PLAYER_SPRITE, spriteFor } from '~~/nudge/game/sprites'
 import { useSettingsStore } from '~/stores/nudge/settings'
 import { TRAINERS } from '~~/nudge/game/trainers'
+import { usePlayerStore } from '~/stores/nudge/player'
 import { useWorldStore } from '~/stores/nudge/world'
 import DialogBox from './DialogBox.vue'
 import type { ThemeId } from '~~/nudge/game/themes/types'
@@ -13,6 +14,7 @@ import { createPlaceholderRenderer, drawCharacter, drawExclamation, LOOKS, TILE,
 
 const store = useWorldStore()
 const settings = useSettingsStore()
+const playerStore = usePlayerStore()
 const canvas = ref<HTMLCanvasElement | null>(null)
 
 const VIEW_W = 15
@@ -121,7 +123,7 @@ function draw() {
   }
   drawables.push({
     y: v.y,
-    draw: () => actor(PLAYER_SPRITE, LOOKS.player, world.state.facing, Math.round(v.x * TILE - camX), Math.round(v.y * TILE - camY), v.walk),
+    draw: () => actor(playerStore.look === 'player2' ? 'player2' : PLAYER_SPRITE, LOOKS.player, world.state.facing, Math.round(v.x * TILE - camX), Math.round(v.y * TILE - camY), v.walk),
   })
   drawables.sort((a, b) => a.y - b.y).forEach(d => d.draw())
 

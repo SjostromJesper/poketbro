@@ -6,6 +6,7 @@ import { getMap } from '~~/nudge/game/maps'
 import type { Direction, NpcAction, PickupDef, WorldState } from '~~/nudge/game/types'
 import { newWorldState, World, type Trigger, type WildEncounter } from '~~/nudge/game/world'
 import type { SpriteKey } from '~~/nudge/game/sprites'
+import { fillNames } from '~~/nudge/game/names'
 import { DIRECTIONS, OPPOSITE } from '~~/nudge/game/types'
 import { useAudioStore } from './audio'
 
@@ -200,7 +201,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
 
   function openDialog(lines: string[], speaker?: string, onDone?: () => void, portrait?: SpriteKey) {
     held = []
-    dialog.value = { speaker, portrait, lines, index: 0, revealed: 0, onDone }
+    dialog.value = { speaker: speaker ? fillNames(speaker) : speaker, portrait, lines: lines.map(fillNames), index: 0, revealed: 0, onDone }
     mode.value = 'dialog'
   }
 

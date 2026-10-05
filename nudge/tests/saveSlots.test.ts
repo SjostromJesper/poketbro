@@ -53,7 +53,7 @@ function fakeTimers() {
   }
 }
 
-const player: PlayerData = { name: 'Du', party: [mon('charmander', 5)], box: [], money: 10, bag: {}, badges: [], pokedex: [4], pokedexSeen: [4], stepRemainder: 0, playTimeMs: 5 }
+const player: PlayerData = { name: 'Du', rivalName: 'Elias', look: 'player', introDone: true, party: [mon('charmander', 5)], box: [], money: 10, bag: {}, badges: [], pokedex: [4], pokedexSeen: [4], stepRemainder: 0, playTimeMs: 5 }
 
 describe('migrating saves', () => {
   it('upgrades a version 1 save (no play time) and refuses unknown versions', () => {
@@ -224,5 +224,18 @@ describe('the sync engine', () => {
     expect(cloud.rows.has(3)).toBe(false)
     expect(store.get(3)).toBeNull()
     expect(store.deleted).toEqual([])
+  })
+})
+
+describe('migrating saves from before the intro (v3 -> v4)', () => {
+  it('gives old games the old rival name, the first look and counts the intro as seen', () => {
+    const v3 = JSON.parse(serializeSave(player, newWorldState(), 1))
+    v3.version = 3
+    delete v3.player.rivalName
+    delete v3.player.look
+    delete v3.player.introDone
+    const migrated = migrateSave(v3, SAVE_VERSION)!
+    expect(migrated.player).toMatchObject({ rivalName: 'Elias', look: 'player', introDone: true })
+    expect(parseSave(JSON.stringify(v3)).ok).toBe(true)
   })
 })

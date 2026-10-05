@@ -6,11 +6,15 @@ import { displayNameOf, maxHpOf } from '~~/nudge/engine/pokemon'
 import { healPokemon, learnMove } from '~~/nudge/engine/progression'
 import type { OwnedPokemon, StatusId } from '~~/nudge/engine/types'
 import { itemInfo, isTm } from '~~/nudge/game/items'
+import { DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME, setNames } from '~~/nudge/game/names'
 
 export const MAX_PARTY = 6
 
 export interface PlayerSave {
   name: string
+  rivalName: string
+  look: string
+  introDone: boolean
   party: OwnedPokemon[]
   box: OwnedPokemon[]
   money: number
@@ -24,7 +28,12 @@ export interface PlayerSave {
 
 /** Everything the player owns: Pokémon, money, items and badges. Plain serialisable state (saving is in M7). */
 export const usePlayerStore = defineStore('nudgePlayer', () => {
-  const name = ref('Du')
+  const name = ref(DEFAULT_PLAYER_NAME)
+  const rivalName = ref(DEFAULT_RIVAL_NAME)
+  /** `player` or `player2`: which look the intro gave the player. */
+  const look = ref<string>('player')
+  /** The intro has been played (names and look are chosen). */
+  const introDone = ref(false)
   const party = ref<OwnedPokemon[]>([])
   const box = ref<OwnedPokemon[]>([])
   const money = ref(BALANCE.STARTING_MONEY)
@@ -46,7 +55,11 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   }
 
   function reset() {
-    name.value = 'Du'
+    name.value = DEFAULT_PLAYER_NAME
+    rivalName.value = DEFAULT_RIVAL_NAME
+    look.value = 'player'
+    introDone.value = false
+    setNames(DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME)
     party.value = []
     box.value = []
     money.value = BALANCE.STARTING_MONEY
@@ -237,13 +250,17 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
 
   function serialize(): PlayerSave {
     return JSON.parse(JSON.stringify({
-      name: name.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
+      name: name.value, rivalName: rivalName.value, look: look.value, introDone: introDone.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
       badges: badges.value, pokedex: pokedex.value, pokedexSeen: pokedexSeen.value, stepRemainder: stepRemainder.value, playTimeMs: playTimeMs.value,
     })) as PlayerSave
   }
 
   function hydrate(save: PlayerSave) {
     name.value = save.name
+    rivalName.value = save.rivalName ?? DEFAULT_RIVAL_NAME
+    look.value = save.look ?? 'player'
+    introDone.value = save.introDone ?? true
+    setNames(name.value, rivalName.value)
     party.value = save.party
     box.value = save.box
     money.value = save.money
@@ -256,7 +273,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   }
 
   return {
-    name, party, box, money, bag, badges, pokedex, pokedexSeen, markSeen, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
+    name, rivalName, look, introDone, party, box, money, bag, badges, pokedex, pokedexSeen, markSeen, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
     reset, count, addItem, removeItem, spend, addPokemon, healAll, findPokemon, addSteps, totalHpFraction, serialize, hydrate,
     moveToBox, moveToParty, setNickname, moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
   }

@@ -40,7 +40,7 @@ home
   .fill(5, 3, 1, 1, 'counter')
   .npc({
     id: 'hem-mamma', x: 3, y: 3, facing: 'down', look: 'mum', action: 'heal',
-    dialog: ['Hej, min vän! Du ser trött ut. Vila lite!', 'Där! Dina Pokémon mår som nya.'],
+    dialog: ['Hej, {player}! Du ser trött ut. Vila lite!', 'Där! Dina Pokémon mår som nya.'],
   })
 
 lab

@@ -57,6 +57,7 @@ export const ninja: ThemeManifest = {
   },
   characters: {
     player: character('Boy'),
+    player2: character('Princess'),
     rival: character('Inspector'),
     professor: character('Master'),
     nurse: character('Princess'),

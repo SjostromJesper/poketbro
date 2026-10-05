@@ -5,13 +5,19 @@ import { MAPS, START_MAP } from './maps'
 import { migrateSave } from './saveSlots'
 import type { WorldState } from './types'
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 /** The key of the single-slot save of earlier versions; it is migrated into slot 1 on first start. */
 export const SAVE_KEY = 'nudge:save:v1'
 
 /** Mirrors `PlayerSave` in the player store (kept here so this module has no Vue dependency). */
 export interface PlayerData {
   name: string
+  /** The rival's name (picked in the intro). */
+  rivalName: string
+  /** Which of the two player looks (`player` or `player2`). */
+  look: string
+  /** The intro (name, look, rival) has been played. */
+  introDone: boolean
   party: OwnedPokemon[]
   box: OwnedPokemon[]
   money: number
@@ -74,7 +80,7 @@ export function parseSave(raw: string | null): ParseResult {
   const d = migrated as Partial<SaveData>
   const { player, world } = d
   if (!player || !world || !isNumber(d.savedAt)) return { ok: false, reason: 'corrupt' }
-  const okPlayer = typeof player.name === 'string'
+  const okPlayer = typeof player.name === 'string' && typeof player.rivalName === 'string' && typeof player.look === 'string' && typeof player.introDone === 'boolean'
     && Array.isArray(player.party) && player.party.every(validPokemon)
     && Array.isArray(player.box) && player.box.every(validPokemon)
     && isNumber(player.money)

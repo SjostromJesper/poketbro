@@ -3,6 +3,7 @@
 // the move-forgetting dialog, favorite and nickname scenes. One press advances one step; the first press while text is being typed
 // shows the whole line. Holding the key down never skips anything (key repeats are ignored and steps have a short lock).
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { fillNames } from '~~/nudge/game/names'
 import type { SequenceStep, XpBar } from '~~/nudge/game/postBattle'
 import FacePortrait from '~/components/nudge/overworld/FacePortrait.vue'
 import FavoriteScene from '~/components/nudge/game/FavoriteScene.vue'
@@ -36,7 +37,7 @@ let started = false
 
 const step = computed(() => steps.value[index.value] ?? null)
 const message = computed(() => (step.value?.type === 'message' ? step.value : null))
-const line = computed(() => message.value?.lines[lineIndex.value] ?? '')
+const line = computed(() => fillNames(message.value?.lines[lineIndex.value] ?? ''))
 const typed = computed(() => line.value.slice(0, Math.floor(revealed.value)))
 const lineDone = computed(() => revealed.value >= line.value.length)
 

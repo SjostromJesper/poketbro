@@ -102,6 +102,11 @@ export const MIGRATIONS: Record<number, Migration> = {
     data.world = { ...data.world, visitedCenters: data.world?.visitedCenters ?? (center && center.mapId !== 'hemstad' ? [center] : []) }
     return data
   },
+  // v3 -> v4: the intro's names and look. Games from before the intro have the old rival and count as having seen it.
+  3: (data) => {
+    data.player = { ...data.player, rivalName: data.player?.rivalName ?? 'Elias', look: data.player?.look ?? 'player', introDone: data.player?.introDone ?? true }
+    return data
+  },
 }
 
 /** Brings a parsed save of any older version up to `toVersion`. Returns null for saves from the future or without a usable version. */
