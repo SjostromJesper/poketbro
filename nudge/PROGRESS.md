@@ -152,7 +152,7 @@ inte för känslan av balans).
 |---|---|
 | P4-M1 - Cutscene-motorn | done (`game/cutscene.ts`, `CutsceneScene.vue`, dev-sida `/nudge/dev/cutscene`) |
 | P4-M2 - Introt | done (`game/text/intro.ts`, namn och utseende i sparfilen v4) |
-| P4-M3 - Starter och tutorial-strid | todo |
+| P4-M3 - Starter och tutorial-strid | IN PROGRESS: tutorial-kontrollern (`game/tutorial.ts`, testad) och hooken i battle-storen är klara; kvar: UI-overlay i BattleScene, starter-valet med natur/drag, rival-0-striden i labbet utan blackout, Poké Balls + Pokédex efteråt |
 | P4-M4 - Hoppa över och anteckningar | todo |
 | P4-M5 - Konton och spelar-ID | todo |
 | P4-M6 - Servern: lag, simulering och matcher | todo |

@@ -8,6 +8,7 @@ import { describeEvent } from '~~/nudge/engine/messages'
 import { createRng } from '~~/nudge/engine/rng'
 import type { ActionResult, BattleEvent, BattleKind, BattleOutcome, BattleResult, OwnedPokemon, PlayerAction, Side } from '~~/nudge/engine/types'
 import type { BattleTheme } from '~~/nudge/game/battleThemes'
+import { Tutorial, type TutorialPrompt } from '~~/nudge/game/tutorial'
 import { useAudioStore } from './audio'
 import { usePlayerStore } from './player'
 import { useSettingsStore } from './settings'
@@ -52,6 +53,8 @@ export interface StartOptions {
   seed?: number
   /** Backdrop of the battle (defaults to the meadow). */
   theme?: BattleTheme
+  /** The guided first battle: the battle stops at a few moments and the professor explains (PLAN-4 1.3). */
+  tutorial?: boolean
 }
 
 /** The running battle: owns the engine, drives it from the UI frame loop and turns events into log lines and animations. */
@@ -77,6 +80,9 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
   /** The catch animation currently playing (null otherwise). */
   const capturing = ref<CaptureAnim | null>(null)
   const outcome = ref<BattleOutcome | null>(null)
+  /** The guided first battle (null in every other battle) and what it says right now. */
+  let tutorial: Tutorial | null = null
+  const tutorialPrompt = ref<TutorialPrompt | null>(null)
   const active = computed(() => engine.value !== null)
   let nextId = 1
 
@@ -175,6 +181,8 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     capturing.value = null
     outcome.value = null
     paused.value = false
+    tutorial = options.tutorial ? new Tutorial() : null
+    tutorialPrompt.value = null
     theme.value = options.theme ?? 'meadow'
     speed.value = settings.battleSpeed
     const seed = options.seed ?? Math.floor(Math.random() * 0xFFFFFFFF)
@@ -195,9 +203,16 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
   function frame(realDtMs: number) {
     const eng = engine.value
     if (!eng) return
-    if (!paused.value && !eng.finished) {
+    let events: BattleEvent[] = []
+    if (!paused.value && !eng.finished && !tutorial?.blocking) {
       // Cap the step so a background tab does not fast-forward the battle.
-      handleEvents(eng.tick(Math.min(realDtMs, 100) * speed.value))
+      events = eng.tick(Math.min(realDtMs, 100) * speed.value)
+      handleEvents(events)
+    }
+    if (tutorial && !tutorial.finished && !eng.finished) {
+      const me = eng.active('player')
+      tutorial.update({ timeMs: eng.state.timeMs, atb: me.atb / BALANCE.ATB_MAX, nudgesUsed: me.nudgesUsed, ready: !me.fainted && !eng.active('enemy').fainted }, events, Math.min(realDtMs, 100))
+      if (tutorialPrompt.value !== tutorial.prompt) tutorialPrompt.value = tutorial.prompt
     }
     sync()
   }
@@ -217,6 +232,10 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     if (!eng) return
     const out = eng.nudge(moveIndex)
     handleEvents(out.events)
+    if (tutorial) {
+      tutorial.noteNudges(eng.active('player').nudgesUsed)
+      tutorialPrompt.value = tutorial.prompt
+    }
     sync()
   }
 
@@ -238,10 +257,26 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
     sync()
   }
 
+  /** A press on the professor's text box during the guided battle. */
+  function dismissTutorial(): boolean {
+    if (!tutorial) return false
+    const done = tutorial.dismiss()
+    tutorialPrompt.value = tutorial.prompt
+    return done
+  }
+
+  /** Turns the explanations off for the rest of the battle. */
+  function skipTutorial() {
+    tutorial?.skip()
+    tutorialPrompt.value = null
+  }
+
   function end() {
+    tutorial = null
+    tutorialPrompt.value = null
     engine.value = null
     view.value = null
   }
 
-  return { engine, view, log, fx, floaters, emotes, theme, speed, paused, debug, result, capturing, outcome, active, start, frame, setSpeed, togglePause, nudge, act, resolveCapture, end, sync }
+  return { engine, view, log, fx, floaters, emotes, theme, speed, paused, debug, result, capturing, outcome, active, tutorialPrompt, dismissTutorial, skipTutorial, start, frame, setSpeed, togglePause, nudge, act, resolveCapture, end, sync }
 })
