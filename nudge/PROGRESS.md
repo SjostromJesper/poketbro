@@ -144,3 +144,18 @@ kraschade vid hot reload; över- och underbalanserade tränare på Väg 5/6 och 
 
 **Inte testat / att göra själv:** molnsparningen mot riktiga Supabase (rutan överst i den här filen: kör migrationen och slå på anonym inloggning), Pipoya-temat visas bara om du har filerna lokalt (de checkas aldrig in), och en handspelad genomgång i webbläsaren (boten ersätter den
 inte för känslan av balans).
+
+
+## PLAN-4
+
+| Milestone | Status |
+|---|---|
+| P4-M1 - Cutscene-motorn | done (`game/cutscene.ts`, `CutsceneScene.vue`, dev-sida `/nudge/dev/cutscene`) |
+| P4-M2 - Introt | todo |
+| P4-M3 - Starter och tutorial-strid | todo |
+| P4-M4 - Hoppa över och anteckningar | todo |
+| P4-M5 - Konton och spelar-ID | todo |
+| P4-M6 - Servern: lag, simulering och matcher | todo |
+| P4-M7 - Datorn i Pokémon Center | todo |
+| P4-M8 - Repriser | todo |
+| P4-M9 - ELO och topplistor | todo |

@@ -506,3 +506,12 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   före gym 2-4 byts laget mot det förväntade laget för gymmet, eftersom boten bara tränar en enda Pokémon. Gym 1 spelas utan genväg.
 - **Fynd under vägen**: en instängd tränare i Månberget, en tränare som stod i en smal gång i Kraftverket (en besegrad tränare står kvar och blockerar), boten besökte aldrig Center/Mart (flaggan sattes innan den kommit fram),
   och `registerTrainer` kastade fel vid hot reload i dev-servern (nu tillåtet där, aldrig i test/build).
+
+## P4-M1: cutscene-motorn
+
+- `nudge/game/cutscene.ts` är en ren TypeScript-motor (`CutsceneRunner`): en lista steg (`text`, `showSprite`, `hideSprite`, `playCry`, `playMusic`, `jingle`, `input`, `choice`, `fade`, `wait`, `highlight`) plus `label`/`jump` (för "Så du heter X? Nej -> fråga igen"),
+  `run` (kod som kan sätta variabler eller hoppa) och variabler som skrivs in i texten (`{player}`). Tysta steg körs rakt igenom, motorn stannar vid text, frågor, väntan och toningar. Allt utanför (rop, musik, jinglar) går via `hooks`.
+- **Inmatningsregler** som i strids-avslutet: ett tryck avslutar skrivandet av raden, nästa tryck går till nästa rad/steg; 260 ms spärr efter ett tryck som går vidare (120 ms efter ett som bara visar hela raden), så en nedhållen tangent eller ett dubbeltryck kan inte hoppa över något.
+  Tryck besvarar aldrig en fråga (namn och val kräver ett riktigt svar). Motorn räknar sin egen tid (`update(ms)`), så testerna körs utan klocka.
+- `CutsceneScene.vue` ritar scenen (scen med upp till tre platser, textruta, små illustrationer för ATB-bar, move-knapp, hjärta och prickar, namnfält med förslagsknappar, valknappar, svart täckskikt) och skickar vidare tryck. Karaktärer ritas ur det aktiva temat (`StageCharacter.vue`), Pokémon som bilder.
+  Dev-sida: `/nudge/dev/cutscene`.
