@@ -5,7 +5,7 @@ import BattleScene from '~/components/nudge/battle/BattleScene.vue'
 import OverworldScene from '~/components/nudge/overworld/OverworldScene.vue'
 import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
-import BoxScreen from './BoxScreen.vue'
+import PcScreen from './PcScreen.vue'
 import EvolutionScene from './EvolutionScene.vue'
 import GiftSelect from './GiftSelect.vue'
 import TravelMenu from './TravelMenu.vue'
@@ -42,7 +42,7 @@ const initialMenu = computed(() => {
         <ShopMenu v-else-if="overlay?.kind === 'shop'" :shop-id="overlay.shopId" @close="game.closeShop" />
         <GiftSelect v-else-if="overlay?.kind === 'gift'" :options="overlay.options" @choose="game.chooseGift" />
         <TravelMenu v-else-if="overlay?.kind === 'travel'" @travel="game.travelTo" @close="game.closeOverlay" />
-        <BoxScreen v-else-if="overlay?.kind === 'pc'" @close="game.closePc" />
+        <PcScreen v-else-if="overlay?.kind === 'pc'" @close="game.closePc" />
         <EvolutionScene v-else-if="overlay?.kind === 'evolve'" :uid="overlay.uid" :to="overlay.to" @resolve="game.resolveEvolve" />
       </template>
     </OverworldScene>

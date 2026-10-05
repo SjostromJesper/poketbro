@@ -2,11 +2,13 @@
 import { gameData } from '~~/nudge/data'
 import { maxHpOf } from '~~/nudge/engine/pokemon'
 import { usePlayerStore } from '~/stores/nudge/player'
+import { useNetworkStore } from '~/stores/nudge/network'
 import { useSavesStore } from '~/stores/nudge/saves'
 import { hpColor } from '../ui'
 
 const player = usePlayerStore()
 const saves = useSavesStore()
+const network = useNetworkStore()
 </script>
 
 <template>
@@ -14,6 +16,7 @@ const saves = useSavesStore()
     <div class="line">
       <span class="money">{{ player.money }} kr</span>
       <span class="badges" title="Märken">★ {{ player.badges.length }}</span>
+      <span v-if="network.unseen" class="mail" title="Nya utmaningar eller resultat: gå till datorn i ett Pokémon Center">✉ {{ network.unseen }}</span>
       <span v-if="saves.needsAttention" class="cloud" :title="saves.state === 'conflict' ? 'Olika sparfiler' : 'Ej synkad med molnet (sparat här)'">☁✗</span>
     </div>
     <div v-for="p in player.party" :key="p.uid" class="mon" :class="{ out: p.currentHp <= 0 }">
@@ -43,6 +46,11 @@ const saves = useSavesStore()
   justify-content: space-between;
   gap: 10px;
   color: #ffd840;
+}
+
+.mail {
+  color: #8ef08e;
+  font-size: 13px;
 }
 
 .cloud {

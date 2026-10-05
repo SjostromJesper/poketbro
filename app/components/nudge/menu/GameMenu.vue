@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from '#imports'
 import { useAccountStore } from '~/stores/nudge/account'
+import { useNetworkStore } from '~/stores/nudge/network'
 import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import { useWorldStore } from '~/stores/nudge/world'
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<{
 
 const world = useWorldStore()
 const account = useAccountStore()
+const network = useNetworkStore()
 const player = usePlayerStore()
 const game = useGameStore()
 const router = useRouter()
@@ -59,6 +61,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
     <div v-if="screen === 'main'" class="main px-panel">
       <h3 class="px-title">Meny</h3>
       <p v-if="account.label" class="id">{{ account.label }}</p>
+      <p v-if="network.unseen" class="news">✉ {{ network.unseen }} nytt på datorn</p>
       <button type="button" class="px-btn" @click="screen = 'party'">Lag</button>
       <button type="button" class="px-btn" @click="screen = 'bag'">Väska</button>
       <button v-if="world.world?.hasFlag('pokedex')" type="button" class="px-btn" @click="screen = 'pokedex'">Pokédex</button>
@@ -103,6 +106,13 @@ onBeforeUnmount(() => world.setMenuBack(null))
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.main .news {
+  margin: 0;
+  font-size: 13px;
+  color: #8ef08e;
+  text-align: center;
 }
 
 .main .id {

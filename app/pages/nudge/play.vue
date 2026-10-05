@@ -16,6 +16,7 @@ import { isSlot } from '~~/nudge/game/saveSlots'
 import { useSavesStore } from '~/stores/nudge/saves'
 import { useSettingsStore } from '~/stores/nudge/settings'
 import { useAccountStore } from '~/stores/nudge/account'
+import { useNetworkStore } from '~/stores/nudge/network'
 import { useWorldStore } from '~/stores/nudge/world'
 
 const route = useRoute()
@@ -28,6 +29,8 @@ const saves = useSavesStore()
 const supabase = useSupabaseClient()
 const account = useAccountStore()
 const router = useRouter()
+const network = useNetworkStore()
+let inboxTimer: ReturnType<typeof setInterval> | null = null
 
 /** Saves when the page is hidden or closed (the cloud upload is best effort, the browser copy is what counts). */
 function onHide() {
@@ -43,6 +46,7 @@ function onPageHide() {
 }
 
 onBeforeUnmount(() => {
+  if (inboxTimer) clearInterval(inboxTimer)
   document.removeEventListener('visibilitychange', onHide)
   window.removeEventListener('pagehide', onPageHide)
 })
@@ -59,6 +63,10 @@ onMounted(async () => {
     return
   }
   saves.init()
+  // The inbox (challenges, match results) is read now and every 90 seconds, for the little mail icon.
+  network.connect(supabase)
+  void network.refresh()
+  inboxTimer = setInterval(() => void network.refresh(), 90_000)
   document.addEventListener('visibilitychange', onHide)
   window.addEventListener('pagehide', onPageHide)
   void saves.connect(supabase)

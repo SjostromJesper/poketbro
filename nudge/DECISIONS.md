@@ -567,3 +567,13 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   Matchen sparas med `nudge_record_match` (en transaktion: match, rating för båda och den antagna utmaningen). Ratinguträkningen (ELO) kommer i P4-M9; tills dess är betygsförändringen `null`.
 - **Händelseloggens storlek**: en typisk match är 5-11 kB (40-95 händelser), även nivå 100 ligger under 10 kB, så loggen ligger inline som `jsonb` i `matches.events` (`events_path` finns kvar för framtida stora loggar).
 - **Databasen** (`0016_nudge_matches.sql`): som planen, med RLS (betyg läsbara för alla inloggade, matcher för de två spelarna, utmaningar för avsändare och mottagare, eget lag i bracketen) och inga skrivrättigheter för webbläsaren.
+
+## P4-M7: datorn i Pokémon Center
+
+- **Datorn** (`PcScreen.vue`) har nu en huvudmeny: Pokémon-box (som förut), Nätverk och Logga ut, och visar spelarens ID (`Namn #1452`). Alla fyra Pokémon Center (Grusstad, Hamnstad, Gnistby, Blomstad) har en dator; ett test kräver det för varje Pokémon Center.
+- **Nätverk** (`NetworkScreen.vue`, `TeamPicker.vue`): *Bracket* (välj nivågräns, bara de med minst 3 passande Pokémon går att välja, välj 3 ur laget och boxen, ordna lagordningen med pilar, skicka in, visa resultat), *Utmana* (skriv ID, "Utmana Anna #1452?", bracket eller Fri, välj lag, skicka) och *Inkorg*
+  (väntande utmaningar att anta, med egna 3 Pokémon i samma bracket, eller avböja; avböjda utmaningar och de senaste 100 matcherna). Pokémon som inte passar visas gråade med anledning ("För låg nivå (kräver 20-29)"). Reprislistan och standings kommer i P4-M8/M9.
+- **Fel och offline**: servern svarar med tydliga svenska meddelanden (ogiltigt lag med varje orsak, "Ingen spelare har ID #9999.", rate limit), allt visas i datorn. Utan nätverk, utan konto eller när Edge Functions inte svarar står det "Datorn får ingen kontakt med nätverket."
+- **Nätverksstoren** (`stores/nudge/network.ts`) anropar bara funktionerna (`submit-bracket`, `send-challenge`, `respond-challenge`) och *läser* tabellerna (profiler, utmaningar, matcher; RLS ser till att man bara ser sitt eget). Inkorgen läses när spelet startar och var 90:e sekund; en liten ✉-ikon med antal visas i HUD:en och i menyn när
+  det finns väntande utmaningar eller resultat efter senaste besöket i inkorgen (`nudge:inbox:seen`).
+- **Logiken** (`nudge/game/network.ts`, testad): vem som får vara med i ett lag, lagordningen, texterna för resultat och fel, vad som är nytt. Hela flödet till servern är provat i webbläsaren fram till anropet (som svarar offline eftersom funktionerna inte är deployade här).
