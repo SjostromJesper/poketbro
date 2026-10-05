@@ -1,0 +1,53 @@
+// ELO rating for the bracket matches (PLAN-4 2.9). One rating per player and bracket, starting at 1000. Pure TypeScript, shared by the game and the Edge Functions.
+// All the constants are here in one config.
+export const ELO = {
+  START: 1000,
+  /** K factor for the first `NEW_GAMES` matches in a bracket, and after that. */
+  K_NEW: 32,
+  K_ESTABLISHED: 20,
+  NEW_GAMES: 10,
+  /** The player whose team was used as the opponent (not the one who sent a team in) gets this share of K. */
+  OPPONENT_K_SHARE: 0.5,
+  /** Players need this many matches in a bracket to be placed on the ladder. */
+  MIN_GAMES_FOR_PLACING: 3,
+} as const
+
+export type MatchScore = 1 | 0.5 | 0
+
+/** The chance (0-1) that a player with `own` rating beats one with `opponent`. */
+export function expectedScore(own: number, opponent: number): number {
+  return 1 / (1 + 10 ** ((opponent - own) / 400))
+}
+
+/** K for a player who has played `games` matches in the bracket so far (before this one). */
+export function kFactor(games: number): number {
+  return games < ELO.NEW_GAMES ? ELO.K_NEW : ELO.K_ESTABLISHED
+}
+
+export interface EloPlayer {
+  rating: number
+  /** Matches played in the bracket before this one. */
+  games: number
+}
+
+export interface EloResult {
+  ratingA: number
+  ratingB: number
+  /** Whole-point changes (new - old). */
+  changeA: number
+  changeB: number
+}
+
+/**
+ * The new ratings after a match. A is the player who sent a team in (full K), B the one whose team was used as the opponent (half K).
+ * `scoreA`: 1 = A won, 0.5 = draw, 0 = A lost. New = old + K * (score - expected), rounded to whole points.
+ */
+export function eloUpdate(a: EloPlayer, b: EloPlayer, scoreA: MatchScore): EloResult {
+  const expectedA = expectedScore(a.rating, b.rating)
+  const expectedB = expectedScore(b.rating, a.rating)
+  const ratingA = Math.round(a.rating + kFactor(a.games) * (scoreA - expectedA))
+  const ratingB = Math.round(b.rating + kFactor(b.games) * ELO.OPPONENT_K_SHARE * (1 - scoreA - expectedB))
+  return { ratingA, ratingB, changeA: ratingA - a.rating, changeB: ratingB - b.rating }
+}
+
+export const scoreOf = (winner: 'a' | 'b' | 'draw'): MatchScore => (winner === 'a' ? 1 : winner === 'b' ? 0 : 0.5)

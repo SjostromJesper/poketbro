@@ -6,6 +6,7 @@ export class MemoryDb implements Db {
   profiles: PublicProfile[] = []
   entries = new Map<string, { userId: string, bracket: string, team: PokemonSnapshot[] }>()
   ratings = new Map<string, number>()
+  games = new Map<string, number>()
   matches: (MatchRecord & { id: string, createdAt: number })[] = []
   challenges: ChallengeRow[] = []
   /** The clock used for `createdAt` of matches (set by the test). */
@@ -20,9 +21,9 @@ export class MemoryDb implements Db {
   async countRecentBracketMatches(userId: string, sinceMs: number) { return this.matches.filter(m => m.kind === 'bracket' && m.playerA === userId && m.createdAt >= sinceMs).length }
   async countRecentChallenges(userId: string, sinceMs: number) { return this.challenges.filter(c => c.fromUser === userId && c.createdAt >= sinceMs).length }
   async countPendingOutgoing(userId: string, nowMs: number) { return this.challenges.filter(c => c.fromUser === userId && c.status === 'pending' && c.expiresAt > nowMs).length }
-  async ratingOf(userId: string, bracket: string) { return this.ratings.get(`${userId}:${bracket}`) ?? 1000 }
+  async ratingStatsOf(userId: string, bracket: string) { return { rating: this.ratings.get(`${userId}:${bracket}`) ?? 1000, games: this.games.get(`${userId}:${bracket}`) ?? 0 } }
   async entriesInBracket(bracket: string, exceptUserId: string): Promise<EntryRow[]> {
-    return [...this.entries.values()].filter(e => e.bracket === bracket && e.userId !== exceptUserId).map(e => ({ userId: e.userId, team: e.team, rating: this.ratings.get(`${e.userId}:${bracket}`) ?? 1000 }))
+    return [...this.entries.values()].filter(e => e.bracket === bracket && e.userId !== exceptUserId).map(e => ({ userId: e.userId, team: e.team, rating: this.ratings.get(`${e.userId}:${bracket}`) ?? 1000, games: this.games.get(`${e.userId}:${bracket}`) ?? 0 }))
   }
   async recentOpponents(userId: string, bracket: string, count: number) {
     return this.matches.filter(m => m.kind === 'bracket' && m.bracket === bracket && (m.playerA === userId || m.playerB === userId))
@@ -32,6 +33,12 @@ export class MemoryDb implements Db {
   async recordMatch(match: MatchRecord, options?: { challengeId?: string }) {
     const id = `match-${this.matches.length + 1}`
     this.matches.push({ ...match, id, createdAt: this.now })
+    if (match.kind === 'bracket') {
+      for (const [user, rating] of [[match.playerA, match.ratingA], [match.playerB, match.ratingB]] as const) {
+        if (rating != null) this.ratings.set(`${user}:${match.bracket}`, rating)
+        this.games.set(`${user}:${match.bracket}`, (this.games.get(`${user}:${match.bracket}`) ?? 0) + 1)
+      }
+    }
     if (options?.challengeId) {
       const c = this.challenges.find(x => x.id === options.challengeId)!
       c.status = 'accepted'

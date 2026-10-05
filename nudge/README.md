@@ -34,6 +34,12 @@ An account is needed to play (e-mail + password, or a sign-in link). It uses the
 Players are shown as `Name #1452` (the name is the trainer name from the intro). Saves are written to the browser at once (`nudge:slot:1..3`) and to the cloud a few seconds later; when a slot changed both here and in the cloud, a dialog lets you pick which one to keep.
 For development without an account, add `?noauth=1` to `/nudge` or `/nudge/play` (ignored in production builds).
 
+## Online matches
+
+The computer in every Pokémon Center has a **Nätverk** menu: *Bracket* (send in a team of exactly 3 Pokémon within a level bracket 1-9 ... 90-99, 100; you are matched asynchronously against another player's current team with a near rating), *Utmana* (challenge a player by their id `#1452`, bracket or free),
+*Inkorg*, *Repriser* (watch saved matches, pause/1x/2x/4x/skip) and *Standings* (your place and the whole ladder per bracket, ELO). Matches are played on autopilot (no nudges) on the **server**: the Edge Functions `submit-bracket`, `send-challenge` and `respond-challenge` validate the teams, run the same battle engine and save the result
+and the event log. The code they share with the game is copied by `npm run sync-functions` to `supabase/functions/_shared/nudge/` (a test fails when the copy is out of date). Setup: run migrations `0014`-`0017` and deploy the three functions (see the box at the top of `PROGRESS.md`).
+
 ## Graphics themes
 
 Settings -> Grafiktema switches theme live: **Tuxemon** (default), **Ninja Adventure**, **Pipoya** (32x32) and **Kenney**. A theme is plain data (`nudge/game/themes/<id>.ts`: which piece of which sheet is grass, path, water, trees, houses,
@@ -99,6 +105,7 @@ npm run sim -- --battles 1500 --player charmander:12 --enemy bulbasaur:12   # he
 npm run sim-gyms         # win rates of the expected team against each gym leader, without and with a simple nudge strategy
 npm run check-world      # world report (reachability, warps, coverage)
 npm run dump-map -- <id> # a map as text
+npm run sync-functions   # copy the engine, data and server code to the Edge Functions' shared folder
 npm run build            # production build (the whole project)
 BENCH=1 XP_MULTS=1.5 npx vitest run nudge/tests/bench.test.ts               # pacing benchmark with the playthrough bot
 ```

@@ -586,3 +586,12 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   ("Anna #1452s Charizard använde ..."; `describeEvent` fick ett `names`-val). ATB-baren är bara en bild (loggen har inga ATB-värden): den fylls igen efter varje handling. Dev-sida: `/nudge/dev/replay` (spelar en lokalt simulerad match).
 - **Reprislistan** på datorn (Nätverk -> Repriser): de 100 senaste matcherna, sida för sida (10 per sida), med typ, bracket, motståndare, resultat och ratingförändring, senaste först. "Se repris" finns också i inkorgen och direkt efter en spelad match. Alla matcher ligger kvar i databasen.
 - **Lagring**: loggen ligger inline som `jsonb` (se P4-M6: 5-11 kB per match), ingen Storage behövs.
+
+## P4-M9: ELO och topplistor
+
+- **ELO** (`nudge/server/elo.ts`, alla konstanter i `ELO`): en rating per spelare och bracket, start 1000, `expected = 1 / (1 + 10^((motståndare - egen) / 400))`, `ny = gammal + K * (resultat - expected)` avrundat till heltal. K = 32 för spelarens första 10 matcher i en bracket (matcher spelade *före* den här), sedan 20.
+  Den som skickade in laget får full K, den vars lag användes som motståndare halv K (`OPPONENT_K_SHARE`). Utmaningar ändrar aldrig rating. Beräkningen görs på servern i `submit-bracket` och skrivs i samma transaktion som matchen (`nudge_record_match`: match, båda ratingarna, antal matcher/vinster/förluster/oavgjorda).
+- **Matchningen** använder nu ratingen och antalet matcher från databasen (`ratingStatsOf`, `EntryRow.games`).
+- **Standings** (`0017_nudge_standings.sql`, `nudge/game/standings.ts`): `nudge_standings(bracket, limit, offset)` och `nudge_my_standing(bracket)` räknar placeringen på servern över hela ladern. Spelare med minst 3 matcher placeras efter rating (`rank()`: lika rating delar plats), övriga kommer efter och visas som "Ej placerad".
+  Datorn visar överst din egen placering, rating och vinster/förluster/oavgjorda (eller "Inga matcher än."), under den laddern 50 per sida med din rad markerad, och en knapp "Gå till min sida". `rankLadder` i TypeScript är referensen för reglerna och det testerna kontrollerar; SQL-funktionerna är kontrollerade som text men inte körda mot en riktig databas.
+- **Edge Functions** måste deployas om (de delade filerna ändrades): `supabase functions deploy submit-bracket` osv., se rutan överst i `PROGRESS.md`.

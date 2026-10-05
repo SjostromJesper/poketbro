@@ -3,6 +3,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { BattleEvent } from '~~/nudge/engine/types'
+import { LADDER_PAGE_SIZE, type LadderRow } from '~~/nudge/game/standings'
 import { OFFLINE_MESSAGE, outcomeFor, unseenCount, type InboxChallenge, type InboxMatch, type OpponentLike, type ServerError } from '~~/nudge/game/network'
 import type { ChallengeResult, PublicProfile, RespondResult, SubmitResult } from '~~/nudge/server/handlers'
 import type { PokemonSnapshot } from '~~/nudge/server/snapshot'
@@ -12,6 +13,7 @@ import { useAccountStore } from './account'
 /** The part of the Supabase client used here. */
 interface Client {
   from: (table: string) => any
+  rpc: (...args: any[]) => any
   functions: { invoke: (...args: any[]) => Promise<{ data: any, error: any }> }
   auth: any
 }
@@ -144,5 +146,27 @@ export const useNetworkStore = defineStore('nudgeNetwork', () => {
     }
   }
 
-  return { challenges, matches, declined, loaded, online, unseen, connect, call, submitBracket, sendChallenge, respond, findPlayer, loadReplay, refresh, markSeen }
+  const toRow = (r: any): LadderRow => ({
+    userId: r.user_id, displayName: r.display_name, tag: r.tag, rating: r.rating, games: r.games, wins: r.wins, losses: r.losses, draws: r.draws,
+    rank: r.rank === null || r.rank === undefined ? null : Number(r.rank), position: Number(r.position),
+  })
+
+  /** One page of a bracket's ladder (the server counts the places over the whole ladder). Null when the network cannot be reached. */
+  async function loadLadder(bracket: string, page: number): Promise<LadderRow[] | null> {
+    if (!online.value || !client) return null
+    const { data, error } = await client.rpc('nudge_standings', { p_bracket: bracket, p_limit: LADDER_PAGE_SIZE, p_offset: page * LADDER_PAGE_SIZE })
+    if (error) return null
+    return (data as any[]).map(toRow)
+  }
+
+  /** The player's own row on a bracket's ladder: null row = no matches yet. `placed` is how many players are placed. Undefined when offline. */
+  async function loadMyStanding(bracket: string): Promise<{ row: LadderRow | null, placed: number, total: number } | undefined> {
+    if (!online.value || !client) return undefined
+    const { data, error } = await client.rpc('nudge_my_standing', { p_bracket: bracket })
+    if (error) return undefined
+    const first = (data as any[])[0]
+    return first ? { row: toRow(first), placed: Number(first.placed_players), total: Number(first.total_players) } : { row: null, placed: 0, total: 0 }
+  }
+
+  return { challenges, matches, loadLadder, loadMyStanding, declined, loaded, online, unseen, connect, call, submitBracket, sendChallenge, respond, findPlayer, loadReplay, refresh, markSeen }
 })

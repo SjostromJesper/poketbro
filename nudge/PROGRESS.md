@@ -6,7 +6,8 @@
 > 2. `supabase/migrations/0015_nudge_profiles.sql`: tabellen `profiles` (visningsnamn + unikt spelar-ID `#1452`) och funktionerna `ensure_profile` / `pick_free_tag`. Bara nya objekt.
 >
 > 3. `supabase/migrations/0016_nudge_matches.sql` (P4-M6): tabellerna `bracket_ratings`, `bracket_entries`, `matches`, `challenges` (inga skrivningar från webbläsaren) och funktionen `nudge_record_match` (bara service role).
-> 4. **Edge Functions** (Supabase CLI är inte länkad, så de är inte deployade). Efter `supabase login` och `supabase link --project-ref xduqbyjrditfzsibcujz`:
+> 4. `supabase/migrations/0017_nudge_standings.sql` (P4-M9): två läsfunktioner för topplistorna, `nudge_standings` och `nudge_my_standing`.
+> 5. **Edge Functions** (Supabase CLI är inte länkad, så de är inte deployade). Efter `supabase login` och `supabase link --project-ref xduqbyjrditfzsibcujz`:
 >    `supabase functions deploy submit-bracket && supabase functions deploy send-challenge && supabase functions deploy respond-challenge`
 >    (de använder `SUPABASE_URL`, `SUPABASE_ANON_KEY` och `SUPABASE_SERVICE_ROLE_KEY` som Supabase sätter själv). Koden de delar med spelet kopieras med `npm run sync-functions`.
 >
@@ -164,4 +165,4 @@ inte för känslan av balans).
 | P4-M6 - Servern: lag, simulering och matcher | done i koden (kör `0016_nudge_matches.sql` och deploya funktionerna, se rutan överst; inte provat mot riktiga Supabase/Deno) |
 | P4-M7 - Datorn i Pokémon Center | done (flödena provade i webbläsaren till anropet; svaret från riktiga funktioner är inte provat) |
 | P4-M8 - Repriser | done (uppspelning provad med en lokalt simulerad match på `/nudge/dev/replay`) |
-| P4-M9 - ELO och topplistor | todo |
+| P4-M9 - ELO och topplistor | done i koden (kör `0017_nudge_standings.sql`; ELO och ladder-reglerna är testade, SQL-funktionerna är inte körda mot en riktig databas) |

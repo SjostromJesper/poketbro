@@ -76,16 +76,16 @@ function supabaseDb(db: any): Db {
       if (r.error) throw new Error(r.error.message)
       return r.count ?? 0
     },
-    async ratingOf(userId, bracket) {
-      const row = must(await db.from('bracket_ratings').select('rating').eq('user_id', userId).eq('bracket', bracket).maybeSingle()) as { rating: number } | null
-      return row?.rating ?? 1000
+    async ratingStatsOf(userId, bracket) {
+      const row = must(await db.from('bracket_ratings').select('rating, games').eq('user_id', userId).eq('bracket', bracket).maybeSingle()) as { rating: number, games: number } | null
+      return { rating: row?.rating ?? 1000, games: row?.games ?? 0 }
     },
     async entriesInBracket(bracket, exceptUserId): Promise<EntryRow[]> {
       const rows = must(await db.from('bracket_entries').select('user_id, team').eq('bracket', bracket).neq('user_id', exceptUserId)) as { user_id: string, team: EntryRow['team'] }[]
       if (rows.length === 0) return []
-      const ratings = must(await db.from('bracket_ratings').select('user_id, rating').eq('bracket', bracket).in('user_id', rows.map(r => r.user_id))) as { user_id: string, rating: number }[]
-      const byUser = new Map(ratings.map(r => [r.user_id, r.rating]))
-      return rows.map(r => ({ userId: r.user_id, team: r.team, rating: byUser.get(r.user_id) ?? 1000 }))
+      const ratings = must(await db.from('bracket_ratings').select('user_id, rating, games').eq('bracket', bracket).in('user_id', rows.map(r => r.user_id))) as { user_id: string, rating: number, games: number }[]
+      const byUser = new Map(ratings.map(r => [r.user_id, r]))
+      return rows.map(r => ({ userId: r.user_id, team: r.team, rating: byUser.get(r.user_id)?.rating ?? 1000, games: byUser.get(r.user_id)?.games ?? 0 }))
     },
     async recentOpponents(userId, bracket, count) {
       const rows = must(await db.from('matches').select('player_a, player_b').eq('kind', 'bracket').eq('bracket', bracket)

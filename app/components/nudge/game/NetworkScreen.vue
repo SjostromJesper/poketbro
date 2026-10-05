@@ -4,6 +4,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { formatPlayer, parseTag } from '~~/nudge/game/account'
 import { BRACKET_IDS, bracketLabel, FREE_BRACKET } from '~~/nudge/server/brackets'
+import { describeMine, ladderLine, LADDER_PAGE_SIZE, pageOfPosition, rankLabel, type LadderRow } from '~~/nudge/game/standings'
 import { challengeSentLines, describeInboxChallenge, describeInboxMatch, eligibleCount, errorLines, OFFLINE_MESSAGE, respondLines, submitLines, type ServerError } from '~~/nudge/game/network'
 import { snapshotOf, type PokemonSnapshot } from '~~/nudge/server/snapshot'
 import type { PublicProfile } from '~~/nudge/server/handlers'
@@ -17,7 +18,7 @@ const emit = defineEmits<{ (e: 'back'): void }>()
 const network = useNetworkStore()
 const player = usePlayerStore()
 
-type View = 'menu' | 'replays' | 'bracket' | 'team' | 'result' | 'id' | 'confirm' | 'challenge-bracket' | 'inbox' | 'answer'
+type View = 'menu' | 'standings' | 'ladder' | 'replays' | 'bracket' | 'team' | 'result' | 'id' | 'confirm' | 'challenge-bracket' | 'inbox' | 'answer'
 const view = ref<View>('menu')
 /** What the team picker is for. */
 const purpose = ref<{ kind: 'bracket' | 'challenge' | 'answer', bracket: string, target?: PublicProfile, challengeId?: string }>({ kind: 'bracket', bracket: '' })
@@ -26,6 +27,10 @@ const found = ref<PublicProfile | null>(null)
 const lines = ref<string[]>([])
 const busy = ref(false)
 const replay = ref<ReplayData | null>(null)
+const ladderBracket = ref('')
+const ladder = ref<LadderRow[]>([])
+const ladderPage = ref(0)
+const mine = ref<{ row: LadderRow | null, placed: number, total: number } | null>(null)
 const lastMatchId = ref<string | null>(null)
 const page = ref(0)
 const PAGE_SIZE = 10
@@ -49,6 +54,39 @@ async function watch(matchId: string) {
   busy.value = false
   if (!data) return show(['Reprisen kunde inte hämtas.'])
   replay.value = data
+}
+
+async function openLadder(bracket: string, page?: number) {
+  ladderBracket.value = bracket
+  view.value = 'ladder'
+  busy.value = true
+  const standing = await network.loadMyStanding(bracket)
+  if (standing === undefined) {
+    busy.value = false
+    return show([OFFLINE_MESSAGE])
+  }
+  mine.value = standing
+  ladderPage.value = page ?? (standing.row ? pageOfPosition(standing.row.position) : 0)
+  await loadLadderPage()
+}
+
+async function loadLadderPage() {
+  busy.value = true
+  const rows = await network.loadLadder(ladderBracket.value, ladderPage.value)
+  busy.value = false
+  if (rows === null) return show([OFFLINE_MESSAGE])
+  ladder.value = rows
+}
+
+async function turnLadder(step: number) {
+  ladderPage.value = Math.max(0, ladderPage.value + step)
+  await loadLadderPage()
+}
+
+async function jumpToMe() {
+  if (!mine.value?.row) return
+  ladderPage.value = pageOfPosition(mine.value.row.position)
+  await loadLadderPage()
 }
 
 function openReplays() {
@@ -133,6 +171,7 @@ const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: '
         <button type="button" class="px-btn" @click="idText = ''; view = 'id'">Utmana</button>
         <button type="button" class="px-btn" @click="openInbox">Inkorg<span v-if="network.unseen" class="dot">{{ network.unseen }}</span></button>
         <button type="button" class="px-btn" @click="openReplays">Repriser</button>
+        <button type="button" class="px-btn" @click="view = 'standings'">Standings</button>
       </div>
     </template>
 
@@ -185,6 +224,37 @@ const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: '
       <div class="menu">
         <button v-if="lastMatchId" type="button" class="px-btn primary" :disabled="busy" @click="watch(lastMatchId)">Se repris</button>
         <button type="button" class="px-btn" :class="{ primary: !lastMatchId }" @click="view = 'menu'">Tillbaka</button>
+      </div>
+    </template>
+
+    <template v-else-if="view === 'standings'">
+      <p class="hint">Välj nivågräns för att se din placering och hela laddern.</p>
+      <div class="brackets">
+        <button v-for="b in BRACKET_IDS" :key="b" type="button" class="px-btn" @click="openLadder(b)">{{ bracketLabel(b) }}</button>
+      </div>
+      <button type="button" class="px-btn" @click="view = 'menu'">Tillbaka</button>
+    </template>
+
+    <template v-else-if="view === 'ladder'">
+      <h3 class="px-title">{{ bracketLabel(ladderBracket) }}</h3>
+      <div v-if="mine" class="card mine">
+        <span><template v-for="line in describeMine(mine.row, mine.placed)" :key="line">{{ line }}<br></template></span>
+        <button v-if="mine.row" type="button" class="px-btn small" :disabled="busy" @click="jumpToMe">Gå till min sida</button>
+      </div>
+      <p v-if="!busy && ladder.length === 0" class="hint">Ingen har spelat i den här nivågränsen än.</p>
+      <table v-if="ladder.length" class="ladder">
+        <thead><tr><th>Plats</th><th>Spelare</th><th>Rating</th><th>Matcher</th></tr></thead>
+        <tbody>
+          <tr v-for="r in ladder" :key="r.userId" :class="{ me: r.userId === mine?.row?.userId, unplaced: r.rank === null }">
+            <td>{{ rankLabel(r) }}</td><td>{{ formatPlayer(r) }}</td><td>{{ r.rating }}</td><td>{{ r.games }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="menu">
+        <button type="button" class="px-btn small" :disabled="ladderPage === 0 || busy" @click="turnLadder(-1)">◀</button>
+        <span class="hint">Sida {{ ladderPage + 1 }}<template v-if="mine && mine.total"> av {{ Math.max(1, Math.ceil(mine.total / LADDER_PAGE_SIZE)) }}</template></span>
+        <button type="button" class="px-btn small" :disabled="ladder.length < LADDER_PAGE_SIZE || busy" @click="turnLadder(1)">▶</button>
+        <button type="button" class="px-btn" @click="view = 'standings'">Tillbaka</button>
       </div>
     </template>
 
@@ -243,6 +313,12 @@ h3 { margin: 6px 0 0; font-size: 10px; color: #ffb84a; }
 .card { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(0, 0, 0, 0.25); border-left: 4px solid #8a6a44; }
 .card span { flex: 1; font-size: 15px; }
 .card small { display: block; font-size: 12px; color: #b8a07c; }
+.card.mine { border-left-color: #ffd840; }
+.ladder { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ladder th { text-align: left; color: #ffb84a; font-weight: normal; font-size: 13px; }
+.ladder td, .ladder th { padding: 2px 6px; }
+.ladder tr.me { background: rgba(255, 216, 64, 0.2); }
+.ladder tr.unplaced { color: #b8a07c; }
 .card.win { border-left-color: #4ad04a; }
 .card.loss { border-left-color: #c8402c; }
 </style>

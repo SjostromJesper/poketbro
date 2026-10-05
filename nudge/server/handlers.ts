@@ -3,6 +3,7 @@
 import type { GameData } from '../data/types'
 import type { Balance } from '../engine/balance'
 import { createRng, type Rng } from '../engine/rng'
+import { eloUpdate, scoreOf } from './elo'
 import { simulatePvp, type MatchWinner, type PvpResult } from './autopilot'
 import { isBracket, isRatedBracket } from './brackets'
 import { pickOpponent } from './matchmaking'
@@ -27,6 +28,8 @@ export interface PublicProfile {
 export interface EntryRow {
   userId: string
   rating: number
+  /** Matches played in the bracket so far. */
+  games: number
   team: PokemonSnapshot[]
 }
 
@@ -68,7 +71,8 @@ export interface Db {
   countRecentBracketMatches(userId: string, sinceMs: number): Promise<number>
   countRecentChallenges(userId: string, sinceMs: number): Promise<number>
   countPendingOutgoing(userId: string, nowMs: number): Promise<number>
-  ratingOf(userId: string, bracket: string): Promise<number>
+  /** The player's rating and number of matches in the bracket (1000 and 0 before the first one). */
+  ratingStatsOf(userId: string, bracket: string): Promise<{ rating: number, games: number }>
   /** Everybody else's current team in the bracket with their ratings. */
   entriesInBracket(bracket: string, exceptUserId: string): Promise<EntryRow[]>
   recentOpponents(userId: string, bracket: string, count: number): Promise<string[]>
@@ -119,19 +123,21 @@ export async function submitBracket(db: Db, ctx: Context, input: { bracket?: unk
   await db.saveEntry(ctx.userId, bracket, checked.team)
   const candidates = await db.entriesInBracket(bracket, ctx.userId)
   const recent = await db.recentOpponents(ctx.userId, bracket, RECENT_OPPONENTS)
-  const own = await db.ratingOf(ctx.userId, bracket)
-  const opponent = pickOpponent(candidates, ctx.userId, own, recent, ctx.rng)
+  const own = await db.ratingStatsOf(ctx.userId, bracket)
+  const opponent = pickOpponent(candidates, ctx.userId, own.rating, recent, ctx.rng)
   if (!opponent) return { ok: true, status: 'waiting', message: 'Ingen motståndare än, ditt lag väntar. Matchen spelas automatiskt när nästa spelare skickar in ett lag.' }
 
   const seed = seedOf(ctx.rng)
   const result = simulatePvp({ data: ctx.data, balance: ctx.balance, teamA: checked.team, teamB: opponent.team, seed })
+  // The sender gets the full K, the one whose team was used the half (ELO, rated bracket matches only).
+  const elo = eloUpdate(own, { rating: opponent.rating, games: opponent.games }, scoreOf(result.winner))
   const matchId = await db.recordMatch({
     kind: 'bracket', bracket, playerA: ctx.userId, playerB: opponent.userId, teamA: checked.team, teamB: opponent.team, seed,
-    engineVersion: result.engineVersion, result: result.winner, events: result.events, ratingChangeA: null, ratingChangeB: null,
+    engineVersion: result.engineVersion, result: result.winner, events: result.events, ratingChangeA: elo.changeA, ratingChangeB: elo.changeB, ratingA: elo.ratingA, ratingB: elo.ratingB,
   })
   const opponentProfile = (await db.profileOf(opponent.userId)) ?? { userId: opponent.userId, displayName: '?', tag: 0 }
   return {
-    ok: true, status: 'played', matchId, opponent: opponentProfile, reason: result.reason, ratingChange: null,
+    ok: true, status: 'played', matchId, opponent: opponentProfile, reason: result.reason, ratingChange: elo.changeA,
     winner: result.winner === 'a' ? 'you' : result.winner === 'b' ? 'opponent' : 'draw',
   }
 }
