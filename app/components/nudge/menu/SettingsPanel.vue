@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { BALANCE } from '~~/nudge/engine/balance'
+import { THEME_IDS, THEMES } from '~~/nudge/game/themes'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { useBattleStore } from '~/stores/nudge/battle'
 import { useGameStore } from '~/stores/nudge/game'
@@ -37,6 +38,18 @@ function deleteSave() {
           {{ s }}x
         </button>
       </div>
+    </div>
+    <div class="themes">
+      <span>Grafiktema</span>
+      <div class="theme-list">
+        <button
+          v-for="t in THEME_IDS" :key="t" type="button" class="px-btn small" :class="{ primary: settings.theme === t }" :title="THEMES[t].description"
+          @click="settings.theme = t"
+        >
+          {{ THEMES[t].name }}
+        </button>
+      </div>
+      <small class="note">{{ THEMES[settings.theme].description }}</small>
     </div>
     <label class="row check">
       <input v-model="battle.debug" type="checkbox">
@@ -82,6 +95,18 @@ h3 {
 .check {
   justify-content: flex-start;
   cursor: pointer;
+}
+
+.themes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .slider input {

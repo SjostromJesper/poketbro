@@ -1,7 +1,7 @@
 // Types for the overworld: maps, entities and the world state. Pure TypeScript.
 import type { MusicId } from './audio-manifest'
-import type { SpriteId } from './sprites'
-import type { BuildingPlacement } from './tileset-manifest'
+import type { SpriteKey } from './sprites'
+import type { BuildingPlacement } from './buildings'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
@@ -41,7 +41,7 @@ export interface NpcDef {
   facing: Direction
   look: NpcLook
   /** Explicit character sprite; defaults to the one that goes with `look` (see sprites.ts). */
-  sprite?: SpriteId
+  sprite?: SpriteKey
   name?: string
   dialog: string[]
   action?: NpcAction
@@ -98,7 +98,7 @@ export interface TrainerDef {
   title: string
   look: NpcLook
   /** Explicit character sprite; defaults to the one that goes with `look`. */
-  sprite?: SpriteId
+  sprite?: SpriteKey
   team: TrainerMon[]
   intro: string[]
   defeated: string[]

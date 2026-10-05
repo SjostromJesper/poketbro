@@ -11,8 +11,9 @@ describe('credits', () => {
     expect(text).toContain('PokéAPI')
   })
 
-  it('does not credit assets that are not used (Kenney Tiny Town was downloaded but is not in the game)', () => {
-    expect(text).not.toContain('Kenney')
+  it('credits Tuxemon with its attribution notice', () => {
+    expect(text).toContain('Tuxemon')
+    expect(CREDITS.find(c => c.title === 'Tuxemon')?.attribution).toBe(true)
   })
 
   it('gives every entry a link and a licence line', () => {

@@ -13,6 +13,7 @@ import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
           <h2>{{ c.title }}</h2>
           <p class="by">av {{ c.by }}</p>
           <p>{{ c.what }}</p>
+          <p v-if="c.attribution" class="attribution">Kräver attribution (CC-BY-SA / CC-BY). Se <a href="/assets/themes/tuxemon/ATTRIBUTIONS.md" target="_blank" rel="noopener">hela attributionslistan</a>.</p>
           <p class="meta">{{ c.license }} &middot; <a :href="c.url" target="_blank" rel="noopener">{{ c.url.replace('https://', '') }}</a></p>
         </li>
       </ul>
@@ -74,6 +75,11 @@ h2 {
 
 .entry p {
   margin: 0 0 4px;
+}
+
+.attribution {
+  font-size: 14px;
+  color: #ffd070;
 }
 
 .meta {

@@ -5,7 +5,7 @@ import { createRng } from '~~/nudge/engine/rng'
 import { getMap } from '~~/nudge/game/maps'
 import type { Direction, NpcAction, WorldState } from '~~/nudge/game/types'
 import { newWorldState, World, type Trigger, type WildEncounter } from '~~/nudge/game/world'
-import type { SpriteId } from '~~/nudge/game/sprites'
+import type { SpriteKey } from '~~/nudge/game/sprites'
 import { DIRECTIONS, OPPOSITE } from '~~/nudge/game/types'
 import { useAudioStore } from './audio'
 
@@ -14,7 +14,7 @@ export type WorldMode = 'walk' | 'dialog' | 'fade' | 'menu' | 'busy'
 export interface DialogState {
   speaker?: string
   /** Face portrait shown next to the text. */
-  portrait?: SpriteId
+  portrait?: SpriteKey
   lines: string[]
   index: number
   /** Number of characters of the current line that are visible (typewriter). */
@@ -191,7 +191,7 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
   // Dialog
   // ---------------------------------------------------------------------------
 
-  function openDialog(lines: string[], speaker?: string, onDone?: () => void, portrait?: SpriteId) {
+  function openDialog(lines: string[], speaker?: string, onDone?: () => void, portrait?: SpriteKey) {
     held = []
     dialog.value = { speaker, portrait, lines, index: 0, revealed: 0, onDone }
     mode.value = 'dialog'

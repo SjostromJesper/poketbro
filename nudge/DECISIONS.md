@@ -379,3 +379,28 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Licences.** Tuxemon is mostly CC-BY-SA 4.0 / CC-BY (attribution needed; the credits screen will be generated from each theme's `credits.ts`, and 371 attribution entries are in `ATTRIBUTIONS.md`). Pipoya
   may not be redistributed: `assets-raw/` was already gitignored and `public/assets/themes/pipoya/` is now too (the repository has no remote, but the rule is kept in case it gets one).
 - The scripts use npm (the project has `package-lock.json`); PLAN-3 says pnpm, the commands are the same under npm.
+
+## P3-M1: theme system
+
+- **Themes are data** (`nudge/game/themes/<id>.ts`, type `ThemeManifest` in `themes/types.ts`); one generic engine (`themes/engine.ts`, pure) turns a logical map tile into a stack of layers: `describeTile(theme, map, tx, ty, {frame})`. Layers
+  are sheet pieces (`Ref`: sheet, tile coordinates, size in tiles), plain colours, rims for fill tiles, canvas-painted houses and the small badges (red cross, M, GYM, door mat). The logical map (collision, grass, warps, ASCII) is identical
+  in all themes. `themeRuntime.ts` (app) loads a theme's images once and draws tiles, characters and portraits; a missing sheet or character warns once and falls back to the placeholder tile/figure.
+- **Tile size.** Sheets declare their own tile size; the canvas is drawn at `tileSize / 16` times the logical size (`ctx.setTransform`), so a 32x32 theme (Pipoya) keeps its detail and one logical tile always takes the same room on screen.
+- **Changing theme** is `settings.theme` (saved in the settings, default `tuxemon`): the overworld, the dialog portraits and the battle backdrops all watch it and switch without a reload. The settings panel lists the themes.
+- **Autotiling.** Four forms: `Autotile` with strips (Ninja's 4x4 layout), block-only autotiles (3x3, transparent corners over ground), `Fill` (a plain tile with a procedurally painted rim where the neighbour differs; used by Tuxemon, Pipoya
+  and Kenney because their sheets are RPG-Maker style terrain sets with inner corners) and a single `Ref`. No inner corners anywhere. Trees are `2x2`, `1x2` or `1x1` with bushes for unpaired tiles.
+- **Buildings have one logical footprint in every theme: 5 x 4 tiles with the door in the middle of the bottom row** (`nudge/game/buildings.ts`; the old per-theme sizes (4x3/3x3) were replaced and the maps' ASCII widened). A theme draws a sprite of up
+  to that size, aligned to the door and the bottom; the rest of the footprint gets the theme's hedge tile, so solid tiles never look empty. Sprites are a sheet rectangle (Ninja, Tuxemon), a grid of modular tiles (Kenney) or a house painted with
+  canvas (Pipoya, whose tileset has no small houses). A test checks that every sprite fits and its door lines up. Kind ids are generic (`houseA`..`houseD`, `lab`, `center`, `mart`, `gym`).
+- **Characters** are theme independent looks (`SpriteKey`: 23 of them: player, rival, professor, nurse, clerk, mum, old, boy, girl, youngster, lass, bugcatcher, hiker, fisher, sailor, picnicker, scientist, karate, psychic, leader1-4) that each theme maps to its
+  sheets (`CharacterLayout` describes rows/columns for directions, the walk cycle, 16x16/16x32/32x32 frames, and single-pose sheets that mirror and bob). NPC and trainer `sprite` fields now use these keys. Face portraits: Ninja has real ones; the other
+  themes show the head of the standing sprite, enlarged.
+- **Themes and assets.** Tuxemon (default, GBA look): ground/tall grass/path from `outdoor.png`, water and fences from Basic Buch, trees from George's vegetation sheet, buildings (Pokémon Center with red cross, Mart with blue roof, the dark gym, houses and
+  lab) and flowers from the Kelvin Shadewing city sheet, floors from George's interior floors, 23 overworld character sheets (16x32, three frames, four directions). Ninja Adventure: as before, migrated to the new system. Kenney: Tiny Town tiles with
+  modular houses, Tiny Dungeon characters. Pipoya: grass, long grass, dirt, water and trees from its autotile files and BaseChip sheet, painted houses, 23 character sheets.
+  Interior walls and the door mat stay canvas drawings in every theme (the sheets only have ring-shaped room frames). Files live in `public/assets/themes/<theme>/` (copied by `npm run copy-graphics`); **Pipoya's directory is gitignored** (not redistributable), the tests
+  skip its file checks when the files are missing.
+- **Battle backdrops** are now small tile maps (`backdropMap` in `battleThemes.ts`: tree line, houses, indoor walls) drawn with the active theme.
+- **Credits** are generated from the themes (`credits.ts` = every theme's `credits` + audio + PokéAPI); Tuxemon's entry is marked as needing attribution and links the copied `ATTRIBUTIONS.md` (`/assets/themes/tuxemon/ATTRIBUTIONS.md`).
+- **Tests** (`themes.test.ts`): autotile pieces, tree pairing, rims, and for every theme: sheets exist with the declared size, every piece drawn for every tile of every map in every frame is inside its sheet, all outdoor tiles have something to draw, building sprites fit the footprint,
+  all 23 looks have sheets with valid frames and a walk cycle, credits.

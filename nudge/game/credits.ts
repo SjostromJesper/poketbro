@@ -1,20 +1,12 @@
 // What the Credits screen lists (pure data, so a test can check that everything the game uses is credited).
-export interface CreditEntry {
-  title: string
-  by: string
-  what: string
-  license: string
-  url: string
-}
+// The graphics packs come from the themes (each theme lists its own credits).
+import { THEMES } from './themes'
+import type { CreditEntry } from './themes/types'
 
-export const CREDITS: CreditEntry[] = [
-  {
-    title: 'Ninja Adventure Asset Pack',
-    by: 'pixel-boy och AAA',
-    what: 'Kartgrafik (marker, träd, hus, vatten, golv), karaktärerna och deras ansiktsporträtt, några ljudeffekter, jinglar och en del av musiken.',
-    license: 'CC0',
-    url: 'https://pixel-boy.itch.io/ninja-adventure-asset-pack',
-  },
+export type { CreditEntry }
+
+/** Packs used by the game apart from the themes: music, sound effects and Pokémon data. */
+export const BASE_CREDITS: CreditEntry[] = [
   {
     title: 'JRPG Pack 1, 2, 4 och 5 (Exploration, Towns, Calm, Action)',
     by: 'Juhani Junkala',
@@ -37,3 +29,6 @@ export const CREDITS: CreditEntry[] = [
     url: 'https://pokeapi.co',
   },
 ]
+
+/** Every pack: the themes' graphics first, then the audio and data. All themes are listed, also the ones not in use right now. */
+export const CREDITS: CreditEntry[] = [...Object.values(THEMES).flatMap(theme => theme.credits), ...BASE_CREDITS]

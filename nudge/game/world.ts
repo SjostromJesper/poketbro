@@ -4,7 +4,7 @@ import type { Balance } from '../engine/balance'
 import { pickWeightedIndex, randInt, type Rng } from '../engine/rng'
 import { ENCOUNTER_TABLES } from './encounters'
 import { getMap, START_MAP } from './maps'
-import { spriteFor, type SpriteId } from './sprites'
+import { spriteFor, type SpriteKey } from './sprites'
 import { tileInfo, type TileInfo } from './tiles'
 import { TRAINERS } from './trainers'
 import {
@@ -40,7 +40,7 @@ export type StepResult =
   | { kind: 'moved', from: { x: number, y: number }, to: { x: number, y: number }, triggers: Trigger[] }
 
 export type InteractResult =
-  | { type: 'dialog', lines: string[], speaker?: string, /** Face shown next to the text. */ portrait?: SpriteId, npcId?: string, action?: NpcAction }
+  | { type: 'dialog', lines: string[], speaker?: string, /** Face shown next to the text. */ portrait?: SpriteKey, npcId?: string, action?: NpcAction }
   | { type: 'trainer', trainerId: string }
   | null
 

@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { DEFAULT_AUDIO_SETTINGS } from '~~/nudge/game/audio'
+import { DEFAULT_THEME, isThemeId } from '~~/nudge/game/themes'
+import type { ThemeId } from '~~/nudge/game/themes/types'
 
 const STORAGE_KEY = 'nudge:settings:v2'
 
@@ -12,6 +14,8 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
   const musicVolume = ref(DEFAULT_AUDIO_SETTINGS.musicVolume)
   const sfxVolume = ref(DEFAULT_AUDIO_SETTINGS.sfxVolume)
   const muted = ref(DEFAULT_AUDIO_SETTINGS.muted)
+  /** Graphics theme of the overworld (changes immediately, saved with the other settings). */
+  const theme = ref<ThemeId>(DEFAULT_THEME)
   const debug = ref(false)
 
   function load() {
@@ -23,6 +27,7 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
       musicVolume.value = clamp01(saved.musicVolume, musicVolume.value)
       sfxVolume.value = clamp01(saved.sfxVolume, sfxVolume.value)
       if (typeof saved.muted === 'boolean') muted.value = saved.muted
+      if (isThemeId(saved.theme)) theme.value = saved.theme
     } catch {
       // Ignore corrupt or unavailable storage.
     }
@@ -31,14 +36,14 @@ export const useSettingsStore = defineStore('nudgeSettings', () => {
   function save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        battleSpeed: battleSpeed.value, musicVolume: musicVolume.value, sfxVolume: sfxVolume.value, muted: muted.value,
+        battleSpeed: battleSpeed.value, musicVolume: musicVolume.value, sfxVolume: sfxVolume.value, muted: muted.value, theme: theme.value,
       }))
     } catch {
       // Ignore unavailable storage.
     }
   }
 
-  watch([battleSpeed, musicVolume, sfxVolume, muted], save)
+  watch([battleSpeed, musicVolume, sfxVolume, muted, theme], save)
 
-  return { battleSpeed, musicVolume, sfxVolume, muted, debug, load, save }
+  return { battleSpeed, musicVolume, sfxVolume, muted, theme, debug, load, save }
 })

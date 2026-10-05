@@ -103,7 +103,7 @@ Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets
 | Milestone | Status |
 |---|---|
 | P3-M0 - Hämta grafik | done (all packs downloaded; `npm run fetch-assets`) |
-| P3-M1 - Temasystem | todo |
+| P3-M1 - Temasystem | done (Tuxemon standard, Ninja Adventure, Pipoya, Kenney; `npm run copy-graphics`) |
 | P3-M2 - Strids-avslut | todo |
 | P3-M3 - Supabase | todo |
 | P3-M4 - Världens system | todo |

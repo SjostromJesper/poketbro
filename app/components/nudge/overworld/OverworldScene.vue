@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { DIRECTIONS, type Direction } from '~~/nudge/game/types'
 import { PLAYER_SPRITE, spriteFor } from '~~/nudge/game/sprites'
+import { useSettingsStore } from '~/stores/nudge/settings'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { useWorldStore } from '~/stores/nudge/world'
 import DialogBox from './DialogBox.vue'
-import { drawSprite, preloadCharacters } from './characterRenderer'
-import { createNinjaRenderer } from './ninjaRenderer'
+import type { ThemeId } from '~~/nudge/game/themes/types'
+import { loadTheme, type LoadedTheme } from './themeRuntime'
 import { createPlaceholderRenderer, drawCharacter, drawExclamation, LOOKS, TILE, type TileRenderer } from './render'
 
-const props = defineProps<{
-  /** Optional tileset renderer; the built-in placeholder graphics are used when omitted. */
-  renderer?: TileRenderer
-}>()
 
 const store = useWorldStore()
+const settings = useSettingsStore()
 const canvas = ref<HTMLCanvasElement | null>(null)
 
 const VIEW_W = 15
@@ -22,7 +20,10 @@ const VIEW_H = 11
 const WIDTH = VIEW_W * TILE
 const HEIGHT = VIEW_H * TILE
 
-let renderer: TileRenderer | null = null
+let renderer: TileRenderer = createPlaceholderRenderer()
+/** The active graphics theme once its sheets have loaded (until then the placeholder tiles and figures are drawn). */
+let theme: LoadedTheme | null = null
+const scale = ref(1)
 let raf = 0
 let last = 0
 
@@ -32,15 +33,26 @@ const bannerText = computed(() => store.banner?.text ?? '')
 /** Draws a character from its sprite sheet, or the placeholder figure while the sheet is loading (and for objects like the PC). */
 function actor(sprite: ReturnType<typeof spriteFor>, look: (typeof LOOKS)[keyof typeof LOOKS], facing: Direction, x: number, y: number, walk: number) {
   const ctx = canvas.value!.getContext('2d')!
-  if (sprite && drawSprite(ctx, sprite, facing, x, y, walk)) return
+  if (sprite && theme?.drawCharacter(ctx, sprite, facing, x, y, walk)) return
   drawCharacter(ctx, look, facing, x, y, walk)
+}
+
+async function applyTheme(id: ThemeId) {
+  const loaded = await loadTheme(id)
+  // A later switch may have overtaken this one.
+  if (settings.theme !== id) return
+  theme = loaded
+  renderer = loaded.tiles
+  scale.value = loaded.scale
 }
 
 function draw() {
   const el = canvas.value
   const world = store.world
-  if (!el || !world || !renderer) return
+  if (!el || !world) return
   const ctx = el.getContext('2d')!
+  // Art with 32x32 tiles is drawn at twice the resolution; everything below uses 16-pixel logical tiles.
+  ctx.setTransform(scale.value, 0, 0, scale.value, 0, 0)
   ctx.imageSmoothingEnabled = false
   const v = store.visual
   const map = world.map
@@ -133,15 +145,11 @@ function onBlur() {
   store.keyUp('Shift')
 }
 
+watch(() => settings.theme, id => void applyTheme(id))
+
 onMounted(() => {
-  renderer = props.renderer ?? createPlaceholderRenderer()
-  preloadCharacters()
-  // The sprite tiles load in the background; until they are there (or if a sheet is missing) the placeholder tiles are shown.
-  if (!props.renderer) {
-    void createNinjaRenderer().then((loaded) => {
-      if (loaded) renderer = loaded
-    })
-  }
+  // The theme's sheets load in the background; until they are there (or if a sheet is missing) placeholders are drawn.
+  void applyTheme(settings.theme)
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('blur', onBlur)
@@ -161,7 +169,7 @@ defineExpose({ draw, directions: DIRECTIONS })
 <template>
   <div class="overworld">
     <div class="viewport">
-      <canvas ref="canvas" :width="WIDTH" :height="HEIGHT" class="canvas" aria-label="Spelplan" />
+      <canvas ref="canvas" :width="WIDTH * scale" :height="HEIGHT * scale" class="canvas" aria-label="Spelplan" />
       <Transition name="banner">
         <div v-if="bannerText" class="banner px-title">{{ bannerText }}</div>
       </Transition>

@@ -10,7 +10,7 @@ import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/ty
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
 import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
-import { spriteFor, type SpriteId } from '~~/nudge/game/sprites'
+import { spriteFor, type SpriteKey } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
 import { parseSave, SAVE_KEY, serializeSave, summarizeSave, type SaveSummary } from '~~/nudge/game/save'
@@ -34,7 +34,7 @@ export type Overlay =
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
-  | { type: 'dialog', lines: string[], speaker?: string, portrait?: SpriteId }
+  | { type: 'dialog', lines: string[], speaker?: string, portrait?: SpriteKey }
   | { type: 'learn', uid: string, move: string }
   | { type: 'evolve', uid: string, to: number }
   | { type: 'nickname', uid: string }

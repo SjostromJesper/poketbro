@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { faceUrl } from '~~/nudge/game/sprites'
+import FacePortrait from './FacePortrait.vue'
 import type { DialogState } from '~/stores/nudge/world'
 
 const props = defineProps<{ dialog: DialogState }>()
@@ -14,7 +14,7 @@ const done = computed(() => props.dialog.revealed >= line.value.length)
 <template>
   <div class="dialog" role="dialog" @click="$emit('advance')">
     <div v-if="dialog.speaker" class="speaker px-title">{{ dialog.speaker }}</div>
-    <img v-if="dialog.portrait" class="face" :src="faceUrl(dialog.portrait)" alt="" draggable="false">
+    <FacePortrait v-if="dialog.portrait" class="face" :sprite="dialog.portrait" />
     <p class="text" :class="{ withFace: !!dialog.portrait }">{{ visible }}<span v-if="done" class="more">▼</span></p>
   </div>
 </template>
@@ -50,12 +50,6 @@ const done = computed(() => props.dialog.revealed >= line.value.length)
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 76px;
-  height: 76px;
-  image-rendering: pixelated;
-  background: #2a1c12;
-  border: 3px solid #2a1c12;
-  box-shadow: 0 0 0 2px #c8b088;
 }
 
 .text.withFace {
