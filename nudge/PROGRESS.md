@@ -97,3 +97,16 @@ Known issues / ideas: see the open questions at the end of the M8 balance sectio
 | P2-M5 - Karaktärer och UI | done (`npm run copy-graphics`) |
 
 Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets`.
+
+# PLAN-3 progress
+
+| Milestone | Status |
+|---|---|
+| P3-M0 - Hämta grafik | done (all packs downloaded; `npm run fetch-assets`) |
+| P3-M1 - Temasystem | todo |
+| P3-M2 - Strids-avslut | todo |
+| P3-M3 - Supabase | todo |
+| P3-M4 - Världens system | todo |
+| P3-M5 - Världen del 1 | todo |
+| P3-M6 - Världen del 2 | todo |
+| P3-M7 - Balans och genomspelning | todo |

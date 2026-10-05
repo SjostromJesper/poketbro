@@ -366,3 +366,16 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Credits** (`/nudge/credits`, linked from the title screen): Ninja Adventure by pixel-boy and AAA, Juhani Junkala's JRPG music packs and SFX collection, PokéAPI (plus the Pokémon trademark note). Kenney Tiny Town was
   downloaded in P2-M0 but is not used, so it is not credited (tested). Links only point to pages named in the packs' own READMEs/INFO files.
 - **Browser note.** Synthetic key presses from the test tool are too short for the walking code (it polls held keys per frame), so facing/talking was checked by calling the world store's `keyDown`/`keyUp` with a delay.
+
+# PLAN-3
+
+## P3-M0: graphics packs
+
+- `npm run fetch-assets` now also fetches (into the gitignored `assets-raw/`): **Tuxemon** (theme A) by a shallow, sparse `git clone` of `Tuxemon/Tuxemon` (branch `development`) with only `mods/tuxemon/gfx/tilesets`
+  (about 100 tilesheets, e.g. `core_outdoor*.png`, `core_buildings.png`, `core_indoor_*.png`, `Interior_*`, `Outdoor_*`), `mods/tuxemon/sprites` (about 200 overworld character sheets), `gfx/sprites/player`
+  and `ATTRIBUTIONS.md` (copied to `assets-raw/tuxemon/ATTRIBUTIONS.md`); **Pipoya** tileset and free character sprites (theme B) through the same itch.io click flow as Ninja Adventure (the resolver now takes
+  the page URL and the upload's file name); **Kenney Tiny Dungeon** next to Tiny Town (theme C).
+- The OpenGameArt "Tuxemon tileset" page was not needed: the repository has far more.
+- **Licences.** Tuxemon is mostly CC-BY-SA 4.0 / CC-BY (attribution needed; the credits screen will be generated from each theme's `credits.ts`, and 371 attribution entries are in `ATTRIBUTIONS.md`). Pipoya
+  may not be redistributed: `assets-raw/` was already gitignored and `public/assets/themes/pipoya/` is now too (the repository has no remote, but the rule is kept in case it gets one).
+- The scripts use npm (the project has `package-lock.json`); PLAN-3 says pnpm, the commands are the same under npm.

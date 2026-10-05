@@ -25,3 +25,6 @@ logs
 
 # Third-party art/audio packs (downloaded by `npm run fetch-assets`)
 assets-raw
+
+# Pipoya may not be redistributed: never commit its files
+public/assets/themes/pipoya/
