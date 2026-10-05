@@ -1,4 +1,4 @@
-# Nudge
+# Viska
 
 A Pokémon auto-battler prototype built into this Nuxt project. You explore a classic grid map (tall grass, trainers, a gym), but fights run **by themselves in real time**
 on an ATB timer: each Pokémon picks its own moves, and you only *nudge* it by clicking one of its moves to make that move more likely at its next choice.
@@ -20,7 +20,7 @@ npm run dev -- --port 3100   # pick another port if 3000 is taken
 | `/nudge/play` | The game |
 | `/nudge/dev/battle` | Test battle with any Pokémon, levels, traits, natures, trust, items |
 
-Nudge needs no login (the rest of this project, the gladiator game, does). There are three save slots on the title screen. They live in your browser's `localStorage`
+Viska needs no login (the rest of this project, the gladiator game, does). There are three save slots on the title screen. They live in your browser's `localStorage`
 (`nudge:slot:1..3`) and, when Supabase is set up (below), are also synced to the cloud so you can continue on another device.
 
 ## Supabase (accounts and cloud saves)
@@ -99,7 +99,7 @@ and how many of the 151 Pokémon can be obtained. The same checks run in `npm te
 
 ```bash
 npm test                 # Vitest: engine, data, maps and world checks, controller, whole-game flow, saves, themes, automatic playthroughs (300+ tests)
-npm run typecheck        # vue-tsc for the Nudge Vue code + tsc for the engine (no DOM/Node types) and for everything else under nudge/
+npm run typecheck        # vue-tsc for the Viska Vue code + tsc for the engine (no DOM/Node types) and for everything else under nudge/
 npm run fetch-data       # (re)generate nudge/data/*.json from PokeAPI (cached in .cache/pokeapi/)
 npm run sim -- --battles 1500 --player charmander:12 --enemy bulbasaur:12   # headless batch simulation, with and without the nudge bot
 npm run sim-gyms         # win rates of the expected team against each gym leader, without and with a simple nudge strategy

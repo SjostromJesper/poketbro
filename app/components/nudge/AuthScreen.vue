@@ -33,7 +33,7 @@ async function forgot() {
 
 <template>
   <main class="auth">
-    <h1 class="px-title logo">NUDGE</h1>
+    <h1 class="px-title logo">VISKA</h1>
     <div class="px-panel box">
       <template v-if="upgrade()">
         <h2 class="px-title">Skapa konto för att fortsätta</h2>

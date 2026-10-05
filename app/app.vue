@@ -31,12 +31,12 @@ async function logout() {
     <header class="app-header">
       <span class="brand">Arenan</span>
       <nav v-if="!user">
-        <NuxtLink to="/nudge">Nudge (test)</NuxtLink>
+        <NuxtLink to="/nudge">Viska (test)</NuxtLink>
         <NuxtLink to="/login">Logga in</NuxtLink>
         <NuxtLink to="/registrera">Skapa konto</NuxtLink>
       </nav>
       <div v-else class="header-actions">
-        <NuxtLink to="/nudge" class="nudge-link">Nudge (test)</NuxtLink>
+        <NuxtLink to="/nudge" class="nudge-link">Viska (test)</NuxtLink>
         <button type="button" class="logout-btn" @click="logout">Logga ut</button>
       </div>
     </header>

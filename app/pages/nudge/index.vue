@@ -77,7 +77,7 @@ const syncText = (dirty: boolean) => (saves.account.kind === 'unavailable' ? 'ba
       <div class="sprites" aria-hidden="true">
         <img v-for="(s, i) in starters" :key="s.id" :src="s.sprites.front" alt="" :style="{ animationDelay: `${i * 0.35}s` }">
       </div>
-      <h1 class="px-title logo">NUDGE</h1>
+      <h1 class="px-title logo">VISKA</h1>
       <p v-if="!audioReady" class="press">Tryck för att börja</p>
       <p class="sub">Pokémon som slåss av sig själva. Du viskar bara i örat.</p>
       <p v-if="account.label" class="who">Inloggad som {{ account.label }} <button type="button" class="link" @click="account.signOut()">Logga ut</button></p>
