@@ -58,7 +58,7 @@ m.trainer(trainer('r5-petra', 'Petra', 'picnicker', { x: 8, y: 22, facing: 'auto
 m.trainer(trainer('r5-rune', 'Rune', 'hiker', { x: 14, y: 18, facing: 'auto' }, [[74, 22], [75, 24], [76, 25]]))
 m.trainer(trainer('r5-tilda', 'Tilda', 'psychic', { x: 20, y: 14, facing: 'auto' }, [[96, 23], [63, 22], [64, 25]]))
 m.trainer(trainer('r5-yngve', 'Yngve', 'karate', { x: 18, y: 10, facing: 'auto' }, [[66, 24], [67, 25], [106, 26]]))
-m.trainer(trainer('r5-berit', 'Berit', 'lass', { x: 10, y: 8, facing: 'auto' }, [[83, 23], [22, 25], [78, 25]]))
-m.trainer(trainer('r5-gunvor', 'Gunvor', 'picnicker', { x: 14, y: 4, facing: 'auto' }, [[104, 24], [105, 26], [112, 25]]))
+m.trainer(trainer('r5-berit', 'Berit', 'lass', { x: 10, y: 8, facing: 'auto' }, [[83, 23], [21, 24], [77, 24]]))
+m.trainer(trainer('r5-gunvor', 'Gunvor', 'picnicker', { x: 14, y: 4, facing: 'auto' }, [[104, 24], [105, 26], [111, 25]]))
 
 export const route5 = m.build()

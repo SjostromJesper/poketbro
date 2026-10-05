@@ -20,7 +20,31 @@ npm run dev -- --port 3100   # pick another port if 3000 is taken
 | `/nudge/play` | The game |
 | `/nudge/dev/battle` | Test battle with any Pokémon, levels, traits, natures, trust, items |
 
-Nudge needs no login (the rest of this project, the gladiator game, does). Saves live in your browser's `localStorage` (key `nudge:save:v1`).
+Nudge needs no login (the rest of this project, the gladiator game, does). There are three save slots on the title screen. They live in your browser's `localStorage`
+(`nudge:slot:1..3`) and, when Supabase is set up (below), are also synced to the cloud so you can continue on another device.
+
+## Supabase (cloud saves)
+
+The game works without it (local saves only). To turn on cloud saves it uses the same Supabase project as the rest of this app (`@nuxtjs/supabase`):
+
+1. Environment variables, see `.env.example`: `SUPABASE_URL` and `SUPABASE_KEY` (the **publishable/anon** key, the only one the browser ever sees). The secret key (`NUXT_SUPABASE_SECRET_KEY`) is used by the gladiator game's server routes and never by Nudge.
+2. Run `supabase/migrations/0014_nudge_saves.sql` (SQL Editor or `supabase db push`). It only adds one table, `save_slots`, with row level security (a user only sees their own rows).
+3. In the dashboard, **Authentication -> Sign In / Providers -> Allow anonymous sign-ins must be ON.** Players are signed in anonymously the first time, so their saves belong to an account without any sign-up.
+   To continue on another device, link an e-mail in the settings (this needs e-mail sign-in on and a redirect URL to `/nudge` under Authentication -> URL Configuration).
+
+If anonymous sign-in is off or the project cannot be reached, the title screen says "bara här" next to the slots and everything keeps working locally. When a slot changed both here and in the cloud, a dialog lets you pick which one to keep.
+
+## Graphics themes
+
+Settings -> Grafiktema switches theme live: **Tuxemon** (default), **Ninja Adventure**, **Pipoya** (32x32) and **Kenney**. A theme is plain data (`nudge/game/themes/<id>.ts`: which piece of which sheet is grass, path, water, trees, houses,
+characters ...) and the logical map (collisions, grass, warps) is identical in all of them. Tiles a theme has no piece for are painted in plain colours. The credits page is generated from the themes' credit entries.
+
+```bash
+npm run fetch-assets     # downloads the graphics packs (itch.io / GitHub) into assets-raw/ (gitignored)
+npm run copy-graphics    # copies the used sheets to public/assets/themes/<theme>/
+```
+
+**Pipoya's files must never be committed or published** (its licence forbids redistribution): `public/assets/themes/pipoya/` is gitignored. Without those files the theme falls back to placeholders.
 
 ## Controls
 
@@ -47,13 +71,34 @@ and the Pokémon smarter. Pokémon above the badge level cap (15 + 10 per badge)
   `?map=gruss&x=11&y=13&starter=1&party=charmander:12,pidgey:8&balls=10&money=3000&badges=1&open=starter|shop&menu=party|bag|summary&encounter=16:3&say=Hej`
 * `/nudge/dev/battle?p=bulbasaur:46,pidgey:12&e=chansey:30&kind=trainer&badges=2&seed=7&go=1`
 
+## The world and the map builder
+
+Sixteen places from Hemstad to the Wilderness, four gyms (Granit, Kajsa, Ture, Lilja), a rival who shows up three times, three fishing rods, evolution stones, a Pokédex, fast travel from the Pokémon Centers once you have two badges and
+gifts (Eevee, a fossil, Hitmonlee/Hitmonchan, Lapras). Maps are not drawn by hand; they are written with a small builder (`nudge/game/mapBuilder.ts`) that compiles to the same `MapDef` the game always used:
+
+```ts
+const m = mapBuilder('route4', 34, 36, { name: 'Väg 4', encounterTable: 'route4' })
+m.border('tree', 2)
+m.path([[14, 34], [14, 28], [6, 28]], { width: 2, wobble: 0.15 })   // roads, ponds, grass patches ...
+m.blob(20, 27, 6, 4, 'grass', { onlyOn: '.#o' })
+road(m, 's', 14, 'hamn', 11)                                       // maps/layout.ts: a road to another map (warps, arrival tile)
+const mart = enterable(m, 'mart', 26, 4, 'gnistby_mart', { name: 'Pokémart' })
+m.trainer(trainer('r4-hanna', 'Hanna', 'picnicker', { x: 12, y: 26, facing: 'auto' }, [[43, 17], [70, 18]]))  // trainerClasses.ts
+```
+
+`npm run dump-map -- route5` prints any map as text (N = NPC, T = trainer, > = warp, i / ? = items). `npm run check-world` prints a world report: reachability with the badge gates, warp and entity problems, species/move problems
+and how many of the 151 Pokémon can be obtained. The same checks run in `npm test` (`world.test.ts`, `maps.test.ts`, `worldStore.test.ts`).
+
 ## Scripts
 
 ```bash
-npm test                 # Vitest: engine, data, maps, controller, whole-game flow, saves, an automatic playthrough (200 tests)
+npm test                 # Vitest: engine, data, maps and world checks, controller, whole-game flow, saves, themes, automatic playthroughs (300+ tests)
 npm run typecheck        # vue-tsc for the Nudge Vue code + tsc for the engine (no DOM/Node types) and for everything else under nudge/
 npm run fetch-data       # (re)generate nudge/data/*.json from PokeAPI (cached in .cache/pokeapi/)
 npm run sim -- --battles 1500 --player charmander:12 --enemy bulbasaur:12   # headless batch simulation, with and without the nudge bot
+npm run sim-gyms         # win rates of the expected team against each gym leader, without and with a simple nudge strategy
+npm run check-world      # world report (reachability, warps, coverage)
+npm run dump-map -- <id> # a map as text
 npm run build            # production build (the whole project)
 BENCH=1 XP_MULTS=1.5 npx vitest run nudge/tests/bench.test.ts               # pacing benchmark with the playthrough bot
 ```
@@ -67,8 +112,8 @@ BENCH=1 XP_MULTS=1.5 npx vitest run nudge/tests/bench.test.ts               # pa
 nudge/
   engine/      pure TypeScript battle engine (no Vue/DOM/Node): balance, rng, formulas, atb, choice, nudge, obedience, status, moveExec, battle, progression, ...
   data/        generated PokeAPI JSON (#1-151, FireRed/LeafGreen learnsets) + types
-  game/        maps, tiles, trainers, encounters, items, world logic, summary, save format
-  scripts/     fetch-data.ts, sim.ts
+  game/        maps (+ the map builder), themes, tiles, trainers, encounters, items, world logic, post-battle sequence, saves
+  scripts/     fetch-data, sim, sim-gyms, check-world, dump-map, fetch-assets, copy-graphics, copy-audio
   tests/       Vitest tests (+ the playthrough bot)
   PLAN.md      (the original plan lives outside the repo)  DECISIONS.md  PROGRESS.md
 app/pages/nudge/        index (title), play, dev/battle
@@ -78,6 +123,6 @@ app/stores/nudge/       Pinia: settings, battle, world, player, game, storage
 
 All balance numbers are in `nudge/engine/balance.ts`. Decisions and the balance log are in `DECISIONS.md`, milestone status in `PROGRESS.md`.
 
-## Not in the MVP
+## Not in the game
 
-Abilities, double battles, more gyms / a rival / story, real tilesets and player sprites (the tile renderer has a plug-in point), sound, mobile controls, evolution stones/trades/friendship.
+Abilities, double battles, a story beyond the four gyms and the Wilderness, mobile controls, Tiled map import, trading between players.

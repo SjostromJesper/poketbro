@@ -50,8 +50,8 @@ m.trainer(trainer('r6-anders', 'Anders', 'bugcatcher', { x: 12, y: 24, facing: '
 m.trainer(trainer('r6-ulla', 'Ulla', 'lass', { x: 16, y: 22, facing: 'auto' }, [[70, 24], [44, 25], [114, 26]]))
 m.trainer(trainer('r6-pontus', 'Pontus', 'scientist', { x: 20, y: 20, facing: 'auto' }, [[82, 25], [101, 26], [109, 26]]))
 m.trainer(trainer('r6-saga', 'Siv', 'picnicker', { x: 26, y: 18, facing: 'auto' }, [[47, 25], [70, 26], [71, 27]]))
-m.trainer(trainer('r6-bengt', 'Bengt', 'fisher', { x: 34, y: 18, facing: 'auto' }, [[79, 25], [60, 26], [130, 27]], {}))
-m.trainer(trainer('r6-emil', 'Emil', 'youngster', { x: 28, y: 14, facing: 'auto' }, [[84, 26], [85, 27], [77, 27]]))
-m.trainer(trainer('r6-ylva', 'Ylva', 'psychic', { x: 36, y: 14, facing: 'auto' }, [[96, 26], [97, 27], [64, 26]]))
+m.trainer(trainer('r6-bengt', 'Bengt', 'fisher', { x: 34, y: 18, facing: 'auto' }, [[79, 25], [60, 26], [129, 27]], {}))
+m.trainer(trainer('r6-emil', 'Emil', 'youngster', { x: 28, y: 14, facing: 'auto' }, [[84, 25], [85, 26], [77, 26]]))
+m.trainer(trainer('r6-ylva', 'Ylva', 'psychic', { x: 36, y: 14, facing: 'auto' }, [[96, 26], [97, 27], [63, 25]]))
 
 export const route6 = m.build()

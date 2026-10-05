@@ -1,4 +1,4 @@
-// A simple automatic player that drives the real stores from a fresh game to the first gym badge: it takes a starter from the
+// A simple automatic player that drives the real stores from a fresh game to the first gym badge (or on through all four gyms to the Wilderness): it takes a starter from the
 // professor, walks (with the real controller), fights, catches, heals, shops and learns moves. Used by playthrough.test.ts to prove the
 // game can be finished without crashing, and to collect numbers for balancing.
 import { useBattleStore } from '../../app/stores/nudge/battle'
@@ -6,17 +6,31 @@ import { useGameStore } from '../../app/stores/nudge/game'
 import { usePlayerStore } from '../../app/stores/nudge/player'
 import { useWorldStore } from '../../app/stores/nudge/world'
 import { gameData } from '../data'
+import { BALANCE } from '../engine/balance'
+import { createRng } from '../engine/rng'
+import { createPokemon } from '../engine/pokemon'
+import { expectedTeam, smartMoves, speciesOfSlot } from '../game/expectedTeams'
 import { applyNudgeStrategy } from '../engine/headless'
 import { maxHpOf } from '../engine/pokemon'
 import { MAPS } from '../game/maps'
+import { shopStock } from '../game/items'
 import { DIRECTIONS, type Direction } from '../game/types'
 import { finishBattle, weakestMove } from './sequence'
 
 export interface BotOptions {
   /** Species id of the starter to pick. */
   starter?: number
-  /** The bot grinds until its lead Pokémon reaches this level before challenging the gym. */
+  /** The bot grinds until its lead Pokémon reaches this level before challenging the first gym. */
   gymLevel?: number
+  /** Where to stop: after the first badge (default), after badge 2, after all four badges and Lapras ('all'). */
+  goal?: 'badge1' | 'badge2' | 'all'
+  /** Lead levels to reach before challenging gym 1-4 (default 15, 21, 24, 28). */
+  gymLevels?: number[]
+  /**
+   * Debug shortcut (allowed by PLAN-3 P3-M7): before gym 2-4 the party is replaced by the "expected team" of that gym (see expectedTeams.ts),
+   * as a player who has trained a whole party would bring. The bot only trains one Pokémon, which cannot beat a gym alone. Default: on.
+   */
+  boost?: boolean
   /** Nudge strategy used in battles. */
   strategy?: 'none' | 'best'
   /** Called to let fake timers run (battle transition delays). */
@@ -26,6 +40,12 @@ export interface BotOptions {
 
 export interface BotReport {
   gotBadge: boolean
+  /** Whether the goal of the run was reached (all gyms + Lapras for 'all'). */
+  done: boolean
+  badges: string[]
+  /** Lead level at the moment each gym leader was challenged. */
+  levelsAtGym: number[]
+  gotLapras: boolean
   actions: number
   steps: number
   wildBattles: number
@@ -58,7 +78,7 @@ export class Bot {
   readonly world = useWorldStore()
   readonly battle = useBattleStore()
   readonly report: BotReport = {
-    gotBadge: false, actions: 0, steps: 0, wildBattles: 0, trainerBattles: 0, wins: 0, losses: 0, blackouts: 0, caught: 0, healTrips: 0,
+    gotBadge: false, done: false, badges: [], levelsAtGym: [], gotLapras: false, actions: 0, steps: 0, wildBattles: 0, trainerBattles: 0, wins: 0, losses: 0, blackouts: 0, caught: 0, healTrips: 0,
     potionsUsed: 0, nudges: 0, battleSeconds: 0, leadLevel: 0, partyLevels: [], money: 0, log: [],
   }
   private battleStarted = false
@@ -76,11 +96,14 @@ export class Bot {
   run(): BotReport {
     this.game.newGame()
     const max = this.options.maxActions ?? 3000
-    while (this.report.actions < max && !this.world.world!.hasFlag('badge-granit')) {
+    while (this.report.actions < max && !this.finished()) {
       this.report.actions++
       this.act()
     }
     this.report.gotBadge = this.world.world!.hasFlag('badge-granit')
+    this.report.done = this.finished()
+    this.report.badges = [...this.player.badges]
+    this.report.gotLapras = this.player.party.some(p => p.speciesId === 131) || this.player.box.some(p => p.speciesId === 131)
     this.report.steps = this.world.world!.state.steps
     this.report.money = this.player.money
     this.report.partyLevels = this.player.party.map(p => p.level)
@@ -118,7 +141,7 @@ export class Bot {
         this.log('Took a starter')
         break
       case 'shop':
-        this.shop()
+        this.shop(o.shopId)
         this.game.closeShop()
         break
       case 'evolve':
@@ -127,19 +150,30 @@ export class Bot {
       case 'pc':
         this.game.closePc()
         break
+      case 'gift':
+        this.game.chooseGift(0)
+        break
+      case 'travel':
+        this.game.closeOverlay()
+        break
     }
   }
 
-  private shop() {
+  private shop(shopId: string) {
+    const stock = shopStock(shopId, this.player.badges.length)
     const buy = (item: string, wanted: number, price: number) => {
+      if (!stock.includes(item)) return
       while (this.player.count(item) < wanted && this.player.money >= price) {
         this.player.spend(price)
         this.player.addItem(item)
       }
     }
-    buy('potion', 6, 150)
+    // The best healing the shop has (potions are what the bot uses in battle), then a few balls.
+    const potions: [string, number][] = [['hyper-potion', 800], ['super-potion', 400], ['potion', 150]]
+    const [potion, price] = potions.find(([id]) => stock.includes(id)) ?? potions[2]
+    buy(potion, 6, price)
     buy('poke-ball', 6, 100)
-    this.log(`Shopped (money left ${this.player.money})`)
+    this.log(`Shopped at ${shopId} (money left ${this.player.money})`)
   }
 
   // ---------------------------------------------------------------------------
@@ -167,9 +201,10 @@ export class Bot {
       }
       const me = eng.active('player')
       // Heal when low (potions), throw a ball at a weakened wild Pokémon while the team is small.
-      if (!me.fainted && me.hp < me.stats.hp * 0.3 && player.count('potion') > 0 && eng.state.cooldowns.itemMs <= 0) {
-        const result = battle.act({ type: 'item', item: 'potion', targetIndex: me.teamIndex })
-        if (result?.accepted) { player.removeItem('potion'); this.report.potionsUsed++ }
+      const potion = ['hyper-potion', 'super-potion', 'potion'].find(id => player.count(id) > 0)
+      if (!me.fainted && me.hp < me.stats.hp * 0.3 && potion && eng.state.cooldowns.itemMs <= 0) {
+        const result = battle.act({ type: 'item', item: potion, targetIndex: me.teamIndex })
+        if (result?.accepted) { player.removeItem(potion); this.report.potionsUsed++ }
       }
       const foe = eng.active('enemy')
       if (eng.state.kind === 'wild' && player.party.length < 3 && player.count('poke-ball') > 0 && foe.hp < foe.stats.hp * 0.5 && eng.state.cooldowns.ballMs <= 0) {
@@ -185,6 +220,8 @@ export class Bot {
       this.report.battleSeconds += (battle.engine?.state.timeMs ?? 0) / 1000
       if (result === 'win' || result === 'caught') this.report.wins++
       if (result === 'lose') {
+        const st = this.world.world!.state
+        this.log(`Lost at ${st.mapId} ${st.x},${st.y} (${this.battle.engine?.state.kind} vs ${this.battle.engine?.state.enemy.battlers.map(b => `${gameData.species[b.speciesId].name} ${b.level}`).join(', ')}) with lead ${this.leadLevel()}, party ${this.player.party.map(p => p.level).join('/')}`)
         this.report.losses++
         this.report.blackouts++
       }
@@ -206,6 +243,29 @@ export class Bot {
     return this.player.totalHpFraction()
   }
 
+  // The whole journey as a list of stages: each town's Center, Mart and gym, with the place where the bot trains before the gym.
+  private static readonly STAGES: { badge: string, town: string, gym: string, grind: Goal, minLevel: number }[] = [
+    { badge: 'granit', town: 'gruss', gym: 'gruss_gym', grind: { mapId: 'route1', x: 4, y: 14 }, minLevel: 15 },
+    { badge: 'kajsa', town: 'hamn', gym: 'hamn_gym', grind: { mapId: 'route3', x: 14, y: 22 }, minLevel: 21 },
+    { badge: 'ture', town: 'gnistby', gym: 'gnistby_gym', grind: { mapId: 'route4', x: 20, y: 27 }, minLevel: 24 },
+    { badge: 'lilja', town: 'blomstad', gym: 'blomstad_gym', grind: { mapId: 'route6', x: 14, y: 20 }, minLevel: 28 },
+  ]
+
+  /** Where to stand to talk to the nurse / clerk / gym leader of a town (all interiors of a kind share a layout). */
+  private spot(kind: 'center' | 'mart' | 'gym', town: string): Goal {
+    if (kind === 'gym') return { mapId: `${town}_gym`, x: 6, y: 3, face: 'up' }
+    if (kind === 'center') return { mapId: `${town}_center`, x: 5, y: 4, face: 'up' }
+    return { mapId: `${town}_mart`, x: Math.floor(MAPS[`${town}_mart`].tiles[0].length / 2), y: 4, face: 'up' }
+  }
+
+  private finished(): boolean {
+    const w = this.world.world!
+    const goal = this.options.goal ?? 'badge1'
+    if (goal === 'badge1') return w.hasFlag('badge-granit')
+    if (goal === 'badge2') return w.hasFlag('badge-kajsa')
+    return w.hasFlag('badge-lilja') && w.hasFlag('lapras')
+  }
+
   private plan() {
     const w = this.world.world!
     if (!w.hasFlag('starter')) return this.goAndTalk({ mapId: 'proflab', x: 5, y: 3, face: 'up' })
@@ -216,27 +276,41 @@ export class Bot {
       return this.goAndTalk(this.nearestHealSpot())
     }
 
-    const ready = this.leadLevel() >= (this.options.gymLevel ?? 14)
-    if (!ready) {
-      // Grind in the tall grass of Route 1 until strong enough (the Pokémon Center in Grusstad is far, so go home when hurt).
-      return this.grind()
+    const stage = Bot.STAGES.find(s => !w.hasFlag(`badge-${s.badge}`))
+    if (!stage) {
+      // All four badges: into the Wilderness and the gift at the lake.
+      return this.goAndTalk({ mapId: 'vildmarken', x: 36, y: 28, face: 'right' })
     }
-    // Journey to Grusstad: heal, shop, then the gym leader.
-    if (!w.hasFlag('visited-center')) {
-      w.setFlag('visited-center')
-      return this.goAndTalk({ mapId: 'gruss_center', x: 5, y: 4, face: 'up' })
+    const index = Bot.STAGES.indexOf(stage)
+    const needed = index === 0 ? (this.options.gymLevel ?? this.options.gymLevels?.[0] ?? stage.minLevel) : (this.options.gymLevels?.[index] ?? stage.minLevel)
+    if (this.leadLevel() < needed) return this.grind(stage.grind)
+    // Heal and shop in the town, then the leader. Visiting the Center and Mart once per town.
+    if (!w.hasFlag(`bot-center-${stage.town}`)) return this.visit(this.spot('center', stage.town), `bot-center-${stage.town}`)
+    if (!w.hasFlag(`bot-mart-${stage.town}`)) return this.visit(this.spot('mart', stage.town), `bot-mart-${stage.town}`)
+    if (index >= 1 && (this.options.boost ?? true) && !w.hasFlag(`bot-boost-${index}`)) {
+      w.setFlag(`bot-boost-${index}`)
+      this.boostParty(index + 1 as 2 | 3 | 4)
+      return
     }
-    if (!w.hasFlag('shopped')) {
-      w.setFlag('shopped')
-      return this.goAndTalk({ mapId: 'gruss_mart', x: 4, y: 4, face: 'up' })
-    }
-    return this.goAndTalk({ mapId: 'gruss_gym', x: 6, y: 3, face: 'up' })
+    if (this.report.levelsAtGym.length <= index) this.report.levelsAtGym[index] = this.leadLevel()
+    return this.goAndTalk(this.spot('gym', stage.town))
+  }
+
+  private boostParty(gym: 2 | 3 | 4) {
+    const starter = [1, 4, 7].find(id => this.world.world!.hasFlag(`starter-${id}`)) ?? 4
+    const rng = createRng(gym * 77)
+    const team = expectedTeam(gym).slots.map(([slot, level]) => {
+      const speciesId = speciesOfSlot(slot, starter, level)
+      return createPokemon({ data: gameData, balance: BALANCE, rng, speciesId, level, trust: 120, moves: smartMoves(gameData, speciesId, level) })
+    })
+    this.player.party.splice(0, this.player.party.length, ...team)
+    this.log(`Boosted the party for gym ${gym}: ${team.map(p => p.level).join('/')}`)
   }
 
   private nearestHealSpot(): Goal {
     const w = this.world.world!
     const candidates: Goal[] = [{ mapId: 'hemhus', x: 3, y: 4, face: 'up' }]
-    if (w.hasFlag('visited-center')) candidates.push({ mapId: 'gruss_center', x: 5, y: 4, face: 'up' })
+    for (const c of w.state.visitedCenters) candidates.push(this.spot('center', c.mapId))
     let best = candidates[0]
     let bestLength = Infinity
     for (const c of candidates) {
@@ -249,19 +323,29 @@ export class Bot {
     return best
   }
 
-  /** Walks into the tall grass on Route 1 and paces around in it to trigger encounters (and its trainers on the way). */
-  private grind() {
+  /** Walks into the tall grass (or cave floor) at `target` and paces around in it to trigger encounters (and the trainers on the way). */
+  private grind(target: Goal) {
     const w = this.world.world!
-    const target: Goal = { mapId: 'route1', x: 4, y: 14 }
-    if (w.state.mapId !== 'route1' || w.state.x > 5 || w.state.y < 12 || w.state.y > 16) return this.walk(target)
-    // Pace up and down inside the grass patch.
-    const dir: Direction = w.state.y >= 16 ? 'up' : w.state.y <= 12 ? 'down' : (this.report.actions % 2 === 0 ? 'down' : 'up')
+    if (w.state.mapId !== target.mapId || Math.abs(w.state.x - target.x) > 3 || Math.abs(w.state.y - target.y) > 3) return this.walk(target)
+    // Pace between neighbouring tiles that are walkable (preferring encounter tiles).
+    const options = (['up', 'down', 'left', 'right'] as Direction[]).filter((d) => {
+      const { dx, dy } = DIRECTIONS[d]
+      return w.isWalkable(w.state.x + dx, w.state.y + dy) && !w.warpAt(w.state.x + dx, w.state.y + dy) && Math.abs(w.state.x + dx - target.x) <= 3 && Math.abs(w.state.y + dy - target.y) <= 3
+    })
+    const dir = options.length ? options[this.report.actions % options.length] : 'down'
     this.hold(dir, 180)
   }
 
   // ---------------------------------------------------------------------------
   // Walking with the real controller
   // ---------------------------------------------------------------------------
+
+  /** Walks to `goal`, talks to whoever is there and remembers (with a flag) that the visit is done. */
+  private visit(goal: Goal, flag: string) {
+    const w = this.world.world!
+    if (w.state.mapId === goal.mapId && w.state.x === goal.x && w.state.y === goal.y) w.setFlag(flag)
+    this.goAndTalk(goal)
+  }
 
   private goAndTalk(goal: Goal) {
     const w = this.world.world!
@@ -308,8 +392,11 @@ export class Bot {
         const x = node.x + dx
         const y = node.y + dy
         if (!world.isWalkable(x, y, map)) continue
+        const isGoal = node.mapId === goal.mapId && x === goal.x && y === goal.y
+        if (!isGoal && world.entityAt(x, y, map)) continue
         const warp = world.warpAt(x, y, map)
         if (warp?.requires && !world.hasFlag(warp.requires)) continue
+        if (warp?.requiresBadges && world.badgeCount < warp.requiresBadges) continue
         const next: Node = warp ? { mapId: warp.to, x: warp.toX, y: warp.toY } : { mapId: node.mapId, x, y }
         if (seen.has(key(next))) continue
         seen.add(key(next))

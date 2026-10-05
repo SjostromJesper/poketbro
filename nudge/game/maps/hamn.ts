@@ -111,7 +111,7 @@ gym.trainer(trainer('hamn-gym-1', 'Marina', 'gymstudent', { x: 9, y: 7, facing: 
 gym.trainer(trainer('hamn-gym-2', 'Sture', 'swimmer', { x: 3, y: 11, facing: 'right', sight: 6 }, [[54, 17], [118, 17], [60, 18]], {
   title: 'Gymelev', intro: ['Kajsa kommer inte att prata med dig om du inte klarar mig först!'], defeated: ['Jag sjönk... men du simmade förbi.'],
 }))
-gym.trainer(gymLeader('hamn-kajsa', 'Kajsa', 'leader2', { x: 6, y: 2, facing: 'down' }, [[120, 18], [121, 21]], {
+gym.trainer(gymLeader('hamn-kajsa', 'Kajsa', 'leader2', { x: 6, y: 2, facing: 'down' }, [[120, 18, ['water-gun', 'tackle', 'rapid-spin', 'harden']], [121, 21, ['water-gun', 'bubble-beam', 'swift', 'rapid-spin']]], {
   badge: 'kajsa',
   badgeName: 'Vågmärket',
   tm: 'water-pulse',

@@ -42,7 +42,7 @@ m.npc({
   id: 'vm-vandrare', x: 14, y: 24, facing: 'right', look: 'hiker',
   dialog: ['Jag har sett Snorlax sova i gräset här! Men det var längesedan.', 'Det finns Pokémon här som inte finns någon annanstans. Se dig om!'],
 })
-m.trainer(trainer('vm-ake', 'Åke', 'hiker', { x: 10, y: 22, facing: 'auto' }, [[75, 27], [112, 28], [95, 28]]))
+m.trainer(trainer('vm-ake', 'Åke', 'hiker', { x: 10, y: 22, facing: 'auto' }, [[75, 27], [111, 27], [95, 28]]))
 m.trainer(trainer('vm-selma', 'Selma', 'psychic', { x: 12, y: 16, facing: 'auto' }, [[97, 27], [64, 28], [122, 29]]))
 m.trainer(trainer('vm-henrik', 'Henrik', 'scientist', { x: 18, y: 12, facing: 'auto' }, [[82, 27], [101, 28], [137, 28]]))
 m.trainer(trainer('vm-ebba', 'Ebba', 'lass', { x: 24, y: 12, facing: 'auto' }, [[45, 28], [103, 29], [71, 28]]))

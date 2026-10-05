@@ -67,7 +67,7 @@ gym.trainer(trainer('blomstad-gym-2', 'Viktor', 'gymstudent', { x: 2, y: 11, fac
 gym.trainer(trainer('blomstad-gym-3', 'Daisy', 'gymstudent', { x: 10, y: 11, facing: 'left', sight: 4 }, [[47, 24], [114, 25]], {
   sprite: 'lass', intro: ['Doften av vinst! Eller är det blommor?'], defeated: ['Jag gav dig blommor... och ett nederlag.'],
 }))
-gym.trainer(gymLeader('blomstad-lilja', 'Lilja', 'leader4', { x: 6, y: 2, facing: 'down' }, [[71, 24], [114, 26], [45, 29]], {
+gym.trainer(gymLeader('blomstad-lilja', 'Lilja', 'leader4', { x: 6, y: 2, facing: 'down' }, [[71, 24, ['razor-leaf', 'vine-whip', 'sleep-powder', 'poison-powder']], [114, 26, ['vine-whip', 'absorb', 'sleep-powder', 'poison-powder']], [45, 29, ['mega-drain', 'stun-spore', 'acid', 'sleep-powder']]], {
   badge: 'lilja',
   badgeName: 'Blommärket',
   tm: 'mega-drain',

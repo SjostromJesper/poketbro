@@ -85,7 +85,7 @@ gym.trainer(trainer('gym-tor', 'Tor', 'gymstudent', { x: 9, y: 7, facing: 'left'
 gym.trainer(trainer('gym-sofia', 'Sofia', 'gymstudent', { x: 2, y: 11, facing: 'right', sight: 6 }, [[27, 12]], {
   sprite: 'lass', title: 'Gymelev', intro: ['Sten och mark, det är vår stil. Redo?'], defeated: ['Du krossade mig som en lerklump...'],
 }))
-gym.trainer(gymLeader('gym-granit', 'Granit', 'leader1', { x: 6, y: 2, facing: 'down' }, [[74, 12], [95, 14]], {
+gym.trainer(gymLeader('gym-granit', 'Granit', 'leader1', { x: 6, y: 2, facing: 'down' }, [[74, 14], [95, 18]], {
   badge: 'granit',
   badgeName: 'Granitmärket',
   tm: 'rock-tomb',

@@ -491,3 +491,18 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Butiker**: Gnistby säljer Thunder Wave, Light Screen och Agility, Blomstad Sleep Powder, Razor Leaf och Reflect (`SHOP_EXTRAS`); Hamnstad har fortfarande stenarna.
 - **Hjälpfunktioner** i `maps/layout.ts`: `linkStairs` (två trappor som landar under varandra), `fillCenter` och `fillMart`. Tränare placeras aldrig i smala gångar (en besegrad tränare står kvar): `maps.test.ts` går igenom alla kartor med tränare som hinder.
 - **Test**: `worldStore.test.ts` går hela vägen Hemstad -> Vildmarken med riktiga kontrollern (alla grindar öppna) och bekräftar att första grinden är stängd utan märke.
+
+## P3-M7: balans och genomspelning
+
+- **Gym-simulatorn** (`npm run sim-gyms`, `nudge/scripts/sim-gyms.ts`) låter det "förväntade laget" (`nudge/game/expectedTeams.ts`) möta varje gymledare 500 gånger, utan nudges och med nudge-strategin `best`.
+  Förväntade lag: gym 1 starter 16 + två kompisar på 13-14; gym 2 fyra Pokémon på 17-21; gym 3 på 22-24; gym 4 på 26-28. Spelaren behåller sina bästa attacker (`smartMoves`: de fyra starkaste attackerna den lärt sig, STAB räknas extra), eftersom
+  standardmoves (de fyra senast lärda) ofta tappar den enda riktiga attacken (Weepinbell utan Vine Whip).
+- **Resultat** (medel över de tre starters, 500 strider per ruta): Granit 72 % utan nudges / 76 % med; Kajsa 68 / 78; Ture 68 / 79; Lilja 65 / 82. Alla ligger i 55-75 % utan nudges, och nudges hjälper mer ju längre in man kommer. Typfördelen slår igenom
+  tydligt (Granit: Bulbasaur/Squirtle ~97 %, Charmander ~24 %), vilket är avsiktligt, men Charmander får andra Pokémon och fler nivåer att komma runt det.
+- **Ändrade ledare** (jämfört med planens spann): Granit Geodude 14 + Onix 18 (planen: 12-14; uppmätt nivå vid gymmet är ~16 eftersom Väg 1 och skogen ger mycket XP), Ture Voltorb 20, Pikachu 23, Raichu 26 (planen: 18-24). Ledarnas Pokémon har egna attackval
+  (inga Recover/Stockpile-tomgångar, som gjorde att Starmie nästan inte gick att slå): Kajsa Water Gun/Bubble Beam/Swift, Ture Thunderbolt/Quick Attack/Thunder Wave/Slam, Lilja Razor Leaf/Mega Drain/Sleep Powder.
+- **Tränarnivåer på vägarna** sänktes där en utvecklad Pokémon var för stark för platsen (Bengts Gyarados blev Magikarp, Vildmarkens Rhydon blev Rhyhorn, Ylvas Kadabra blev Abra, m.fl.).
+- **Genomspelning med boten** (`playthrough.test.ts`): boten går med den riktiga kontrollern från Hemstad genom alla städer, handlar i varje Mart, helar i Centren, tar fyra märken i ordning och hämtar Lapras i Vildmarken, för alla tre starters. Genvägar (tillåtna i planen):
+  före gym 2-4 byts laget mot det förväntade laget för gymmet, eftersom boten bara tränar en enda Pokémon. Gym 1 spelas utan genväg.
+- **Fynd under vägen**: en instängd tränare i Månberget, en tränare som stod i en smal gång i Kraftverket (en besegrad tränare står kvar och blockerar), boten besökte aldrig Center/Mart (flaggan sattes innan den kommit fram),
+  och `registerTrainer` kastade fel vid hot reload i dev-servern (nu tillåtet där, aldrig i test/build).

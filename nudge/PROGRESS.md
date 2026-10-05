@@ -118,4 +118,29 @@ Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets
 | P3-M4 - Världens system | done (`npm run check-world` skriver ut en rapport) |
 | P3-M5 - Världen del 1 | done (8 platser spelbara från start till märke 2; 21 kartor nåbara, 0 problem i `check-world`) |
 | P3-M6 - Världen del 2 | done (41 kartor, 4 gym, rival 1-3, 146/146 arter nåbara; `check-world` utan problem) |
-| P3-M7 - Balans och genomspelning | todo |
+| P3-M7 - Balans och genomspelning | done (gym-sim 65-77 % utan nudges, full genomspelning med boten, `npm run build` och `npm test` gröna) |
+
+
+## PLAN-3: genomspelningsrapport (P3-M7)
+
+**Vad som kördes.** `npm run build` och `npm test` (315 tester) är gröna, `npm run typecheck` likaså, `npm run check-world` ger 41 kartor nåbara från Hemstad, 0 problem med varp/entiteter/Pokémon/moves och 146 av 146 arter möjliga att få.
+`playthrough.test.ts` kör en bot med spelets riktiga stores och den riktiga kontrollern, för alla tre starters och tre seeds:
+
+| | Starter 4 (seed 1) | Starter 7 (seed 2) | Starter 1 (seed 3) |
+|---|---|---|---|
+| Fyra märken i ordning + Lapras | ja | ja | ja |
+| Steg totalt | 4 414 | 4 645 | 4 775 |
+| Vilda / tränarstrider | 127 / 47 | 138 / 48 | 122 / 49 |
+| Förluster (blackout) | 16 | 18 | 15 |
+| Ledarens nivå vid gym 1-4 | 16 / 21 / 24 / 28 | 17 / 21 / 24 / 28 | 17 / 21 / 24 / 28 |
+
+Boten tränar bara en Pokémon och byter därför laget mot det förväntade laget före gym 2-4 (en tillåten genväg); gym 1 och all vandring mellan städerna sker utan genvägar. Det mesta av förlusterna kommer från rivalen på Väg 6 och från vilda/tränare i Vildmarken, dvs där man
+förväntas ha ett fullt lag.
+
+**Gym-balans** (`npm run sim-gyms`, medel över de tre starters, utan nudges / med enkel nudge-strategi): Granit 72 / 76 %, Kajsa 68 / 78 %, Ture 68 / 79 %, Lilja 65 / 82 %. Typfördelen avgör mycket (t.ex. Charmander mot Granit ~24 %), så det går bra med rätt lag och sämre med fel.
+
+**Hittat och åtgärdat under genomspelningen:** Torsten i Månberget var instängd av en slumpad vägg; en tränare stod i en smal gång i Kraftverket; boten besökte aldrig Center/Mart; teman saknade bitar för sand/klippa/avsats/grottor (nu målade ersättare); `registerTrainer`
+kraschade vid hot reload; över- och underbalanserade tränare på Väg 5/6 och i Vildmarken.
+
+**Inte testat / att göra själv:** molnsparningen mot riktiga Supabase (rutan överst i den här filen: kör migrationen och slå på anonym inloggning), Pipoya-temat visas bara om du har filerna lokalt (de checkas aldrig in), och en handspelad genomgång i webbläsaren (boten ersätter den
+inte för känslan av balans).

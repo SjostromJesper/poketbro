@@ -4,9 +4,12 @@ import type { TrainerDef } from './types'
 
 export const TRAINERS: Record<string, TrainerDef> = {}
 
+/** In the dev server a map file that is edited runs again (hot reload) and registers its trainers a second time, which is fine there. */
+const hotReloading = () => !!(import.meta as { hot?: unknown }).hot
+
 /** Adds a trainer defined elsewhere. Defining the same id twice is a mistake (two trainers would share a name tag). */
 export function registerTrainer(def: TrainerDef): TrainerDef {
-  if (TRAINERS[def.id] && TRAINERS[def.id] !== def) throw new Error(`Trainer ${def.id} is defined twice`)
+  if (TRAINERS[def.id] && TRAINERS[def.id] !== def && !hotReloading()) throw new Error(`Trainer ${def.id} is defined twice`)
   TRAINERS[def.id] = def
   return def
 }

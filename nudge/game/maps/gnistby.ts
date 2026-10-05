@@ -82,7 +82,7 @@ gym.trainer(trainer('gnistby-gym-2', 'Joel', 'gymstudent', { x: 2, y: 11, facing
 gym.trainer(trainer('gnistby-gym-3', 'Mia', 'gymstudent', { x: 10, y: 11, facing: 'left', sight: 4 }, [[82, 20], [25, 20]], {
   sprite: 'lass', intro: ['Elektricitet går alltid vägen med minst motstånd. Jag tänker inte ge dig något!'], defeated: ['Strömmen bröts.'],
 }))
-gym.trainer(gymLeader('gnistby-ture', 'Ture', 'leader3', { x: 6, y: 2, facing: 'down' }, [[100, 18], [25, 21], [26, 24]], {
+gym.trainer(gymLeader('gnistby-ture', 'Ture', 'leader3', { x: 6, y: 2, facing: 'down' }, [[100, 20, ['thunder-shock', 'tackle', 'sonic-boom', 'spark']], [25, 23, ['thunder-shock', 'quick-attack', 'thunder-wave', 'slam']], [26, 26, ['thunderbolt', 'quick-attack', 'thunder-wave', 'slam']]], {
   badge: 'ture',
   badgeName: 'Gnistmärket',
   tm: 'thunderbolt',
