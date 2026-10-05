@@ -1,11 +1,12 @@
-> ## ⚠ Supabase: två saker att göra (P3-M3)
+> ## ⚠ Supabase: att göra (P3-M3, P4-M5)
 >
-> Spelet fungerar redan med bara lokal sparning, men för molnsparningen behöver du:
+> Spelet kräver nu ett konto (e-post + lösenord, eller inloggningslänk). Supabase CLI är inte inloggad/länkad här, så SQL:en måste köras för hand i Supabase SQL Editor (projektet `xduqbyjrditfzsibcujz`):
 >
-> 1. **Kör SQL:en** i `supabase/migrations/0014_nudge_saves.sql` i Supabase SQL Editor (projektet `xduqbyjrditfzsibcujz`). Den skapar bara en ny tabell, `save_slots`, med RLS-policyer och en trigger. Supabase CLI är inte inloggad/länkad här, så jag kunde inte köra den själv.
-> 2. **Slå på anonym inloggning:** Authentication → Sign In / Providers → "Allow anonymous sign-ins". Idag svarar projektet "Anonymous sign-ins are disabled" (kontrollerat i dev-servern), därför visar inställningarna "Sparar bara i den här webbläsaren".
+> 1. `supabase/migrations/0014_nudge_saves.sql`: tabellen `save_slots` (molnsparning) med RLS.
+> 2. `supabase/migrations/0015_nudge_profiles.sql`: tabellen `profiles` (visningsnamn + unikt spelar-ID `#1452`) och funktionerna `ensure_profile` / `pick_free_tag`. Bara nya objekt.
 >
-> För att kunna koppla e-post och logga in på andra enheter måste dessutom e-postinloggning och en redirect-URL till `/nudge` vara tillåtna (Authentication → URL Configuration).
+> Anonym inloggning behövs inte längre (gamla anonyma spelare uppgraderas till konto via `/api/nudge/upgrade`, som använder service role-nyckeln på servern). Vill du att magic link och "glömt lösenord" ska fungera: Authentication -> URL Configuration ska tillåta redirect till `/nudge`.
+> För att utveckla utan konto: `?noauth=1` på `/nudge` och `/nudge/play` (bara i dev-servern).
 
 # PROGRESS
 
@@ -154,7 +155,7 @@ inte för känslan av balans).
 | P4-M2 - Introt | done (`game/text/intro.ts`, namn och utseende i sparfilen v4) |
 | P4-M3 - Starter och tutorial-strid | done |
 | P4-M4 - Hoppa över och anteckningar | done |
-| P4-M5 - Konton och spelar-ID | todo |
+| P4-M5 - Konton och spelar-ID | done i koden (kör `0015_nudge_profiles.sql`, se rutan överst; kontoflödet är inte provat mot riktiga Supabase) |
 | P4-M6 - Servern: lag, simulering och matcher | todo |
 | P4-M7 - Datorn i Pokémon Center | todo |
 | P4-M8 - Repriser | todo |

@@ -119,14 +119,11 @@ export const useSavesStore = defineStore('nudgeSaves', () => {
   async function connect(supabase: AuthClient) {
     client = supabase
     try {
-      let { data } = await supabase.auth.getSession()
+      // An account is needed to play (PLAN-4 2.1): there is no automatic anonymous sign-in any more. Old anonymous sessions still work until they are upgraded.
+      const { data } = await supabase.auth.getSession()
       if (!data.session) {
-        const result = await supabase.auth.signInAnonymously()
-        if (result.error) {
-          account.value = { kind: 'unavailable', reason: result.error.message }
-          return refresh()
-        }
-        data = { session: result.data.session }
+        account.value = { kind: 'unavailable', reason: 'Inte inloggad' }
+        return refresh()
       }
       const user = data.session?.user
       account.value = user?.email && !user.is_anonymous ? { kind: 'account', email: user.email } : { kind: 'anonymous' }

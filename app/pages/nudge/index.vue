@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from '#imports'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from '#imports'
 import { gameData } from '~~/nudge/data'
 import { SLOTS, type Slot } from '~~/nudge/game/saveSlots'
 import NudgeFrame from '~/components/nudge/NudgeFrame.vue'
@@ -8,12 +8,16 @@ import SettingsPanel from '~/components/nudge/menu/SettingsPanel.vue'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { useSavesStore } from '~/stores/nudge/saves'
 import { useSettingsStore } from '~/stores/nudge/settings'
+import AuthScreen from '~/components/nudge/AuthScreen.vue'
+import { useAccountStore } from '~/stores/nudge/account'
 
 const router = useRouter()
 const settings = useSettingsStore()
 const audio = useAudioStore()
 const saves = useSavesStore()
 const supabase = useSupabaseClient()
+const account = useAccountStore()
+const route = useRoute()
 
 const audioReady = ref(false)
 const showSettings = ref(false)
@@ -25,11 +29,19 @@ function onFirstInput() {
   window.removeEventListener('keydown', onFirstInput, true)
 }
 
-onMounted(() => {
+// Cloud saves are connected once an account is signed in (also right after signing in on this screen).
+watch(() => account.access, (access) => {
+  if (access !== 'signed-out') void saves.connect(supabase)
+})
+
+onMounted(async () => {
   settings.load()
   audio.music('title')
   saves.init()
-  void saves.connect(supabase)
+  // Dev only: /nudge?noauth=1 skips the account while the game is being built (ignored in production builds).
+  if (import.meta.dev && route.query.noauth === '1') account.devBypass()
+  else await account.init(supabase)
+  if (account.access !== 'signed-out') void saves.connect(supabase)
   window.addEventListener('pointerdown', onFirstInput, true)
   window.addEventListener('keydown', onFirstInput, true)
 })
@@ -59,13 +71,17 @@ const syncText = (dirty: boolean) => (saves.account.kind === 'unavailable' ? 'ba
 
 <template>
   <NudgeFrame>
-    <main class="title">
+    <main v-if="!account.ready" class="title"><p class="press">Laddar...</p></main>
+    <AuthScreen v-else-if="!account.canPlay" />
+    <main v-else class="title">
       <div class="sprites" aria-hidden="true">
         <img v-for="(s, i) in starters" :key="s.id" :src="s.sprites.front" alt="" :style="{ animationDelay: `${i * 0.35}s` }">
       </div>
       <h1 class="px-title logo">NUDGE</h1>
       <p v-if="!audioReady" class="press">Tryck för att börja</p>
       <p class="sub">Pokémon som slåss av sig själva. Du viskar bara i örat.</p>
+      <p v-if="account.label" class="who">Inloggad som {{ account.label }} <button type="button" class="link" @click="account.signOut()">Logga ut</button></p>
+      <p v-else class="who">Inloggad ({{ account.email }}). Ditt spelar-ID skapas när du valt namn i introt. <button type="button" class="link" @click="account.signOut()">Logga ut</button></p>
 
       <div class="slots">
         <div v-for="slot in SLOTS" :key="slot" class="slot px-panel" :class="{ empty: !saves.slots[slot - 1] }">
@@ -169,6 +185,22 @@ const syncText = (dirty: boolean) => (saves.account.kind === 'unavailable' ? 'ba
   color: #ffd840;
   text-shadow: 4px 4px 0 #c8402c, 8px 8px 0 #2a1c12;
   letter-spacing: 0.08em;
+}
+
+.who {
+  margin: 0;
+  font-size: 14px;
+  color: #8ef08e;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0 0 0 8px;
+  font: inherit;
+  color: #ffd840;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .sub {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue'
-import { useRoute } from '#imports'
+import { useRoute, useRouter } from '#imports'
 import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { createPokemon } from '~~/nudge/engine/pokemon'
@@ -15,6 +15,7 @@ import { usePlayerStore } from '~/stores/nudge/player'
 import { isSlot } from '~~/nudge/game/saveSlots'
 import { useSavesStore } from '~/stores/nudge/saves'
 import { useSettingsStore } from '~/stores/nudge/settings'
+import { useAccountStore } from '~/stores/nudge/account'
 import { useWorldStore } from '~/stores/nudge/world'
 
 const route = useRoute()
@@ -25,6 +26,8 @@ const settings = useSettingsStore()
 const battle = useBattleStore()
 const saves = useSavesStore()
 const supabase = useSupabaseClient()
+const account = useAccountStore()
+const router = useRouter()
 
 /** Saves when the page is hidden or closed (the cloud upload is best effort, the browser copy is what counts). */
 function onHide() {
@@ -44,8 +47,17 @@ onBeforeUnmount(() => {
   window.removeEventListener('pagehide', onPageHide)
 })
 
-onMounted(() => {
+onMounted(async () => {
   settings.load()
+  // An account is needed to play (PLAN-4 2.1). Dev only: ?noauth=1 skips it while the game is being built (ignored in production builds).
+  if (!account.canPlay) {
+    if (import.meta.dev && route.query.noauth === '1') account.devBypass()
+    else await account.init(supabase)
+  }
+  if (!account.canPlay) {
+    await router.replace('/nudge')
+    return
+  }
   saves.init()
   document.addEventListener('visibilitychange', onHide)
   window.addEventListener('pagehide', onPageHide)

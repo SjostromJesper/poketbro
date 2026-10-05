@@ -11,9 +11,6 @@ import { useSettingsStore } from '~/stores/nudge/settings'
 const settings = useSettingsStore()
 const audio = useAudioStore()
 const saves = useSavesStore()
-const email = ref('')
-const emailMessage = ref('')
-
 const cloudText = computed(() => {
   const a = saves.account
   if (a.kind === 'unavailable') return `Sparar bara i den här webbläsaren (${a.reason}).`
@@ -23,13 +20,6 @@ const cloudText = computed(() => {
   return `${who} ${state}`
 })
 
-async function linkEmail() {
-  emailMessage.value = await saves.linkEmail(email.value)
-}
-
-async function signIn() {
-  emailMessage.value = await saves.signInWithEmail(email.value)
-}
 const battle = useBattleStore()
 
 onMounted(() => settings.load())
@@ -81,21 +71,6 @@ onMounted(() => settings.load())
     <div class="cloud">
       <span>Molnsparning</span>
       <small class="note">{{ cloudText }}</small>
-      <template v-if="saves.account.kind === 'anonymous'">
-        <small class="note">Koppla ett konto med e-post för att nå dina sparfiler från andra enheter. Sparfilerna följer med.</small>
-        <form class="email" @submit.prevent="linkEmail">
-          <input v-model="email" type="email" placeholder="din@epost.se" autocomplete="email">
-          <button type="submit" class="px-btn small" :disabled="!email">Koppla konto</button>
-        </form>
-      </template>
-      <template v-if="saves.account.kind !== 'unavailable'">
-        <small class="note">Har du redan ett konto på en annan enhet?</small>
-        <form class="email" @submit.prevent="signIn">
-          <input v-model="email" type="email" placeholder="din@epost.se" autocomplete="email">
-          <button type="submit" class="px-btn small" :disabled="!email">Logga in med länk</button>
-        </form>
-      </template>
-      <small v-if="emailMessage" class="note msg">{{ emailMessage }}</small>
     </div>
   </div>
 </template>

@@ -12,6 +12,7 @@ import { randomNatureName, randomTrait } from '~~/nudge/engine/formulas'
 import * as TUT from '~~/nudge/game/text/tutorial'
 import { NOTES_BY_ID, type NoteId } from '~~/nudge/game/text/notes'
 import { useSettingsStore } from './settings'
+import { useAccountStore } from './account'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
@@ -65,6 +66,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
   const audio = useAudioStore()
   const saves = useSavesStore()
   const settings = useSettingsStore()
+  const account = useAccountStore()
   /** When the running session began (for the play time). */
   let sessionStart = Date.now()
   /** Dev shortcut sessions (`?map=...`) never write to a save slot. */
@@ -200,6 +202,8 @@ export const useGameStore = defineStore('nudgeGame', () => {
     player.introDone = true
     settings.introSeen = true
     setNames(player.name, player.rivalName)
+    // The trainer name is the display name online (creates the profile with its player id the first time).
+    void account.setDisplayName(player.name)
     if (introMode.value === 'quick') world.world?.setFlag('tutorial-off')
     for (const id of ['atb', 'nudge', 'trust'] as const) unlockNote(id, false)
     if (introMode.value === 'quick') for (const id of ['nature', 'trait', 'capture', 'favorite', 'obedience'] as const) unlockNote(id, false)

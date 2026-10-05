@@ -23,16 +23,16 @@ npm run dev -- --port 3100   # pick another port if 3000 is taken
 Nudge needs no login (the rest of this project, the gladiator game, does). There are three save slots on the title screen. They live in your browser's `localStorage`
 (`nudge:slot:1..3`) and, when Supabase is set up (below), are also synced to the cloud so you can continue on another device.
 
-## Supabase (cloud saves)
+## Supabase (accounts and cloud saves)
 
-The game works without it (local saves only). To turn on cloud saves it uses the same Supabase project as the rest of this app (`@nuxtjs/supabase`):
+An account is needed to play (e-mail + password, or a sign-in link). It uses the same Supabase project as the rest of this app (`@nuxtjs/supabase`):
 
-1. Environment variables, see `.env.example`: `SUPABASE_URL` and `SUPABASE_KEY` (the **publishable/anon** key, the only one the browser ever sees). The secret key (`NUXT_SUPABASE_SECRET_KEY`) is used by the gladiator game's server routes and never by Nudge.
-2. Run `supabase/migrations/0014_nudge_saves.sql` (SQL Editor or `supabase db push`). It only adds one table, `save_slots`, with row level security (a user only sees their own rows).
-3. In the dashboard, **Authentication -> Sign In / Providers -> Allow anonymous sign-ins must be ON.** Players are signed in anonymously the first time, so their saves belong to an account without any sign-up.
-   To continue on another device, link an e-mail in the settings (this needs e-mail sign-in on and a redirect URL to `/nudge` under Authentication -> URL Configuration).
+1. Environment variables, see `.env.example`: `SUPABASE_URL` and `SUPABASE_KEY` (the **publishable/anon** key, the only one the browser ever sees). The secret key (`NUXT_SUPABASE_SECRET_KEY`) is used by server routes only (creating accounts at `/api/auth/register`, upgrading old anonymous ones at `/api/nudge/upgrade`) and never reaches the browser.
+2. Run `supabase/migrations/0014_nudge_saves.sql` (cloud saves, table `save_slots`) and `0015_nudge_profiles.sql` (table `profiles`: trainer name + unique player id like `#1452`, functions `ensure_profile` and `pick_free_tag`) in the SQL Editor or with `supabase db push`. They only add new objects, with row level security.
+3. Anonymous sign-in is no longer needed. Players who played anonymously are asked to "Skapa konto för att fortsätta"; the user id stays, so their saves follow. For sign-in links and password reset, allow a redirect URL to `/nudge` under Authentication -> URL Configuration.
 
-If anonymous sign-in is off or the project cannot be reached, the title screen says "bara här" next to the slots and everything keeps working locally. When a slot changed both here and in the cloud, a dialog lets you pick which one to keep.
+Players are shown as `Name #1452` (the name is the trainer name from the intro). Saves are written to the browser at once (`nudge:slot:1..3`) and to the cloud a few seconds later; when a slot changed both here and in the cloud, a dialog lets you pick which one to keep.
+For development without an account, add `?noauth=1` to `/nudge` or `/nudge/play` (ignored in production builds).
 
 ## Graphics themes
 
@@ -68,7 +68,7 @@ and the Pokémon smarter. Pokémon above the badge level cap (15 + 10 per badge)
   The overlay shows, live, for both sides: trait, nature, trust, smartness, ATB value and fill rate, effective speed, HP, the nudge budget and the pending nudge, the category weights
   and for every move `p_auto` (what it would do on its own), `p_final` (with the nudge) and the expected damage.
 * Dev shortcuts for `/nudge/play` (they start a new game, they do not touch your save):
-  `?map=gruss&x=11&y=13&starter=1&party=charmander:12,pidgey:8&balls=10&money=3000&badges=1&open=starter|shop&menu=party|bag|summary&encounter=16:3&say=Hej`
+  `?noauth=1&map=gruss&x=11&y=13&starter=1&party=charmander:12,pidgey:8&balls=10&money=3000&badges=1&open=starter|shop&menu=party|bag|summary&encounter=16:3&say=Hej`
 * `/nudge/dev/battle?p=bulbasaur:46,pidgey:12&e=chansey:30&kind=trainer&badges=2&seed=7&go=1`
 
 ## The world and the map builder

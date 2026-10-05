@@ -542,3 +542,14 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   och flaggan `tutorial-off` sätts, så professorns pauser i första striden hoppas över (striden, rivalen och gåvorna är desamma). Första gången på en enhet visas ingen hoppa över-indikator.
 - **Professorns anteckningar** (`game/text/notes.ts`, menyknappen "Anteckningar"): ATB, nudge, natur, drag, förtroende, favoritattack, fångst, lydnad och märken. Avsnitt låses upp när spelet förklarar dem: ATB/nudge/förtroende i introt, natur/drag när man väljer starter, fångst efter första striden,
   favorit när första favoritattacken dyker upp, lydnad vid första gymmärket eller första gången en Pokémon ignorerar en. Efter ett hoppat intro är alla läsbara direkt, och spel som redan var igång (migrering 3 -> 4) har alla upplåsta. Låsta avsnitt visas som "???". Ett litet meddelande säger "Ny anteckning: ..." när något låses upp på kartan.
+
+## P4-M5: konton och spelar-ID
+
+- **Konto krävs** (`AuthScreen.vue` före titelskärmen, `play.vue` skickar tillbaka till `/nudge` utan konto): e-post + lösenord, skapa konto (samma serverroute `/api/auth/register` som gladiatorspelet, kontot är bekräftat direkt), inloggningslänk (magic link) och "glömt lösenord" (Supabase `resetPasswordForEmail`).
+  Den automatiska anonyma inloggningen är borttagen. Samma Supabase-användare som i gladiatorspelet kan logga in.
+- **Gamla anonyma spelare** ser "Skapa konto för att fortsätta"; `/api/nudge/upgrade` (servern, service role) sätter e-post + lösenord på samma användare med admin-API:t, så användar-id och därmed sparfilerna är kvar. Ingen bekräftelsemejl behövs (som vid vanlig registrering).
+- **Profil och spelar-ID** (`supabase/migrations/0015_nudge_profiles.sql`): tabellen `profiles` (`display_name` 1-10 tecken, `tag` unik). RLS: alla inloggade får läsa, ägaren får bara ändra `display_name` (kolumnrättighet, inte `tag`), inga direkta insert/delete. Raden skapas av `ensure_profile(namn)` (security definer) som drar ett ledigt
+  tal 1000-9999 på servern; är intervallet fullt (sökning över lediga tal) går den över till 10000-99999 (det noteras här). `pick_free_tag` är inte anropbar från klienten. Tränarnamnet från introt blir visningsnamnet (`account.setDisplayName` anropas när introt är klart); före introt visas bara e-posten.
+  `Namn #1452` visas på titelskärmen och överst i menyn (och senare på datorn).
+- **Hjälpfunktioner** i `nudge/game/account.ts` (tolka `#1452`, formatera, rensa namn, kontrollera formuläret, vem får spela). Migrationen har tester som kontrollerar att den bara skapar nya objekt, har RLS och att taggen sätts på servern.
+- **Dev**: `?noauth=1` på `/nudge` och `/nudge/play` hoppar över kontot, bara i dev-servern (`import.meta.dev`). Inloggnings- och kontoflödet är inte provat mot riktiga Supabase (jag skapar inga konton där): skärmen och spärren är kontrollerade i webbläsaren.
