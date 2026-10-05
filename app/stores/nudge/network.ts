@@ -103,9 +103,9 @@ export const useNetworkStore = defineStore('nudgeNetwork', () => {
       if (!me) return false
       const nowIso = new Date().toISOString()
       const [incoming, played, turned] = await Promise.all([
-        client.from('challenges').select('id, from_user, bracket, created_at, expires_at').eq('to_user', me).eq('status', 'pending').gt('expires_at', nowIso).order('created_at', { ascending: false }),
-        client.from('matches').select('id, kind, bracket, player_a, player_b, result, rating_change_a, rating_change_b, created_at').or(`player_a.eq.${me},player_b.eq.${me}`).order('created_at', { ascending: false }).limit(100),
-        client.from('challenges').select('id, to_user, bracket, created_at').eq('from_user', me).eq('status', 'declined').order('created_at', { ascending: false }).limit(20),
+        client.from('nudge_challenges').select('id, from_user, bracket, created_at, expires_at').eq('to_user', me).eq('status', 'pending').gt('expires_at', nowIso).order('created_at', { ascending: false }),
+        client.from('nudge_matches').select('id, kind, bracket, player_a, player_b, result, rating_change_a, rating_change_b, created_at').or(`player_a.eq.${me},player_b.eq.${me}`).order('created_at', { ascending: false }).limit(100),
+        client.from('nudge_challenges').select('id, to_user, bracket, created_at').eq('from_user', me).eq('status', 'declined').order('created_at', { ascending: false }).limit(20),
       ])
       if (incoming.error || played.error || turned.error) return false
       const names = await profilesOf([
@@ -134,7 +134,7 @@ export const useNetworkStore = defineStore('nudgeNetwork', () => {
   /** Fetches one match with its saved event log and both teams (only possible for the two players, row level security). Null when it cannot be read. */
   async function loadReplay(matchId: string): Promise<ReplayData | null> {
     if (!online.value || !client) return null
-    const { data, error } = await client.from('matches')
+    const { data, error } = await client.from('nudge_matches')
       .select('id, kind, bracket, player_a, player_b, team_a, team_b, result, events, engine_version, rating_change_a, rating_change_b, created_at').eq('id', matchId).maybeSingle()
     if (error || !data || !Array.isArray(data.events)) return null
     const names = await profilesOf([data.player_a, data.player_b])

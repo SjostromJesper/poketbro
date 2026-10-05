@@ -192,12 +192,12 @@ describe('the matches migration', () => {
   const sql = readFileSync(new URL('../../supabase/migrations/0016_nudge_matches.sql', import.meta.url), 'utf8')
 
   it('only creates new tables, with row level security and no writes from the browser', () => {
-    for (const table of ['bracket_ratings', 'bracket_entries', 'matches', 'challenges']) {
+    for (const table of ['bracket_ratings', 'bracket_entries', 'nudge_matches', 'nudge_challenges']) {
       expect(sql).toContain(`create table if not exists public.${table}`)
       expect(sql).toContain(`alter table public.${table} enable row level security`)
     }
-    expect(sql).not.toMatch(/drop table|alter table (?!public\.(bracket_ratings|bracket_entries|matches|challenges))/i)
-    expect(sql).toContain('revoke insert, update, delete on public.bracket_ratings, public.bracket_entries, public.matches, public.challenges from anon, authenticated')
+    expect(sql).not.toMatch(/drop table|alter table (?!public\.(bracket_ratings|bracket_entries|nudge_matches|nudge_challenges))/i)
+    expect(sql).toContain('revoke insert, update, delete on public.bracket_ratings, public.bracket_entries, public.nudge_matches, public.nudge_challenges from anon, authenticated')
     expect(sql).not.toMatch(/for (insert|update|delete)/i)
     expect(sql).toContain('grant execute on function public.nudge_record_match')
     expect(sql).toContain('to service_role')
@@ -205,8 +205,8 @@ describe('the matches migration', () => {
 
   it('has the indexes of the plan', () => {
     expect(sql).toContain('(bracket, rating desc)')
-    expect(sql).toContain('public.matches (player_a, created_at desc)')
-    expect(sql).toContain('public.matches (player_b, created_at desc)')
-    expect(sql).toContain('public.challenges (to_user, status)')
+    expect(sql).toContain('public.nudge_matches (player_a, created_at desc)')
+    expect(sql).toContain('public.nudge_matches (player_b, created_at desc)')
+    expect(sql).toContain('public.nudge_challenges (to_user, status)')
   })
 })

@@ -62,17 +62,17 @@ function supabaseDb(db: any): Db {
       return toProfile(must(await db.from('profiles').select('user_id, display_name, tag').eq('tag', tag).maybeSingle()))
     },
     async countRecentBracketMatches(userId, sinceMs) {
-      const r = await db.from('matches').select('id', { count: 'exact', head: true }).eq('kind', 'bracket').eq('player_a', userId).gte('created_at', iso(sinceMs))
+      const r = await db.from('nudge_matches').select('id', { count: 'exact', head: true }).eq('kind', 'bracket').eq('player_a', userId).gte('created_at', iso(sinceMs))
       if (r.error) throw new Error(r.error.message)
       return r.count ?? 0
     },
     async countRecentChallenges(userId, sinceMs) {
-      const r = await db.from('challenges').select('id', { count: 'exact', head: true }).eq('from_user', userId).gte('created_at', iso(sinceMs))
+      const r = await db.from('nudge_challenges').select('id', { count: 'exact', head: true }).eq('from_user', userId).gte('created_at', iso(sinceMs))
       if (r.error) throw new Error(r.error.message)
       return r.count ?? 0
     },
     async countPendingOutgoing(userId, nowMs) {
-      const r = await db.from('challenges').select('id', { count: 'exact', head: true }).eq('from_user', userId).eq('status', 'pending').gt('expires_at', iso(nowMs))
+      const r = await db.from('nudge_challenges').select('id', { count: 'exact', head: true }).eq('from_user', userId).eq('status', 'pending').gt('expires_at', iso(nowMs))
       if (r.error) throw new Error(r.error.message)
       return r.count ?? 0
     },
@@ -88,7 +88,7 @@ function supabaseDb(db: any): Db {
       return rows.map(r => ({ userId: r.user_id, team: r.team, rating: byUser.get(r.user_id)?.rating ?? 1000, games: byUser.get(r.user_id)?.games ?? 0 }))
     },
     async recentOpponents(userId, bracket, count) {
-      const rows = must(await db.from('matches').select('player_a, player_b').eq('kind', 'bracket').eq('bracket', bracket)
+      const rows = must(await db.from('nudge_matches').select('player_a, player_b').eq('kind', 'bracket').eq('bracket', bracket)
         .or(`player_a.eq.${userId},player_b.eq.${userId}`).order('created_at', { ascending: false }).limit(count)) as { player_a: string, player_b: string }[]
       return rows.map(r => (r.player_a === userId ? r.player_b : r.player_a))
     },
@@ -104,17 +104,17 @@ function supabaseDb(db: any): Db {
       return id as string
     },
     async insertChallenge(row) {
-      const created = must(await db.from('challenges').insert({
+      const created = must(await db.from('nudge_challenges').insert({
         from_user: row.fromUser, to_user: row.toUser, bracket: row.bracket, team_from: row.teamFrom, status: 'pending', created_at: iso(row.createdAt), expires_at: iso(row.expiresAt),
       }).select('id').single()) as { id: string }
       return created.id
     },
     async getChallenge(id) {
-      const row = must(await db.from('challenges').select('*').eq('id', id).maybeSingle()) as Record<string, unknown> | null
+      const row = must(await db.from('nudge_challenges').select('*').eq('id', id).maybeSingle()) as Record<string, unknown> | null
       return row ? toChallenge(row) : null
     },
     async setChallengeStatus(id, status) {
-      must(await db.from('challenges').update({ status }).eq('id', id))
+      must(await db.from('nudge_challenges').update({ status }).eq('id', id))
     },
   }
 }
