@@ -3,7 +3,7 @@ import { ref, shallowRef } from 'vue'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { createRng } from '~~/nudge/engine/rng'
 import { getMap } from '~~/nudge/game/maps'
-import type { Direction, NpcAction, WorldState } from '~~/nudge/game/types'
+import type { Direction, NpcAction, PickupDef, WorldState } from '~~/nudge/game/types'
 import { newWorldState, World, type Trigger, type WildEncounter } from '~~/nudge/game/world'
 import type { SpriteKey } from '~~/nudge/game/sprites'
 import { DIRECTIONS, OPPOSITE } from '~~/nudge/game/types'
@@ -29,6 +29,9 @@ export interface WorldHooks {
   onAction?: (action: NpcAction, npcId: string) => void
   onMapChanged?: (mapId: string) => void
   onStepsChanged?: (steps: number) => void
+  /** The player talked to the water (interact while facing it): the game checks for a fishing rod. */
+  onWater?: () => void
+  onPickup?: (pickup: PickupDef) => void
 }
 
 const KEY_DIRECTIONS: Record<string, Direction> = {
@@ -160,6 +163,10 @@ export const useWorldStore = defineStore('nudgeWorld', () => {
       if (result.type === 'dialog') {
         const { action: npcAction, npcId } = result
         openDialog(result.lines, result.speaker, npcAction && npcId ? () => hooks.onAction?.(npcAction, npcId) : undefined, result.portrait)
+      } else if (result.type === 'water') {
+        hooks.onWater?.()
+      } else if (result.type === 'pickup') {
+        hooks.onPickup?.(result.pickup)
       } else {
         hooks.onTrainer?.(result.trainerId, false)
       }

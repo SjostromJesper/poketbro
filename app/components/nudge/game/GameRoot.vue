@@ -7,6 +7,8 @@ import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import BoxScreen from './BoxScreen.vue'
 import EvolutionScene from './EvolutionScene.vue'
+import GiftSelect from './GiftSelect.vue'
+import TravelMenu from './TravelMenu.vue'
 import Hud from './Hud.vue'
 import GameMenu from '~/components/nudge/menu/GameMenu.vue'
 import { useWorldStore } from '~/stores/nudge/world'
@@ -33,6 +35,8 @@ const initialMenu = computed(() => {
         <GameMenu v-if="world.menuOpen" :initial-screen="initialMenu" />
         <StarterSelect v-if="overlay?.kind === 'starter'" @choose="game.chooseStarter" />
         <ShopMenu v-else-if="overlay?.kind === 'shop'" :shop-id="overlay.shopId" @close="game.closeShop" />
+        <GiftSelect v-else-if="overlay?.kind === 'gift'" :options="overlay.options" @choose="game.chooseGift" />
+        <TravelMenu v-else-if="overlay?.kind === 'travel'" @travel="game.travelTo" @close="game.closeOverlay" />
         <BoxScreen v-else-if="overlay?.kind === 'pc'" @close="game.closePc" />
         <EvolutionScene v-else-if="overlay?.kind === 'evolve'" :uid="overlay.uid" :to="overlay.to" @resolve="game.resolveEvolve" />
       </template>

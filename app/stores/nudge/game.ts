@@ -4,19 +4,22 @@ import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { createTrainerPokemon, createWildPokemon } from '~~/nudge/engine/ai'
 import { createPokemon, displayNameOf } from '~~/nudge/engine/pokemon'
-import { evolvePokemon, learnMove } from '~~/nudge/engine/progression'
+import { evolvePokemon, learnMove, stoneEvolution } from '~~/nudge/engine/progression'
+import type { Rod } from '~~/nudge/game/encounters'
+import type { GiveDef, PickupDef } from '~~/nudge/game/types'
 import { createRandomRng } from '~~/nudge/engine/rng'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
+import { rivalTeam } from '~~/nudge/game/rival'
 import { applyAndNarrate, type SequenceStep } from '~~/nudge/game/postBattle'
-import { STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
+import { itemInfo, STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { spriteFor, type SpriteKey } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
 import { SAVE_VERSION, summarizeSave, type SaveData, type SaveSummary } from '~~/nudge/game/save'
 import type { Slot } from '~~/nudge/game/saveSlots'
-import type { NpcAction, TrainerDef, WorldState } from '~~/nudge/game/types'
+import type { NpcAction, TrainerDef, TrainerMon, WorldState } from '~~/nudge/game/types'
 import { useAudioStore } from './audio'
 import { useBattleStore } from './battle'
 import { useSavesStore } from './saves'
@@ -30,6 +33,8 @@ export type Overlay =
   | { kind: 'shop', shopId: string }
   | { kind: 'evolve', uid: string, to: number }
   | { kind: 'pc' }
+  | { kind: 'gift', npcId: string, options: { speciesId: number, level: number }[] }
+  | { kind: 'travel' }
 
 /** One step of what happens after a battle (dialogs, choices, side effects), played in order. */
 type PostStep =
@@ -42,7 +47,6 @@ interface BattleContext {
   trainer?: TrainerDef
 }
 
-const SHOP_BY_MAP: Record<string, string> = { gruss_mart: 'gruss_mart' }
 
 /** Ties the overworld, the battle screen, the player's belongings and the story together. */
 export const useGameStore = defineStore('nudgeGame', () => {
@@ -75,12 +79,20 @@ export const useGameStore = defineStore('nudgeGame', () => {
     audio.music(w ? mapMusic(w.state.mapId) : null)
   }
 
+  /** The world's gates open with the badge count. */
+  function syncBadges() {
+    if (world.world) world.world.badgeCount = player.badges.length
+  }
+
   function install() {
+    syncBadges()
     world.setHooks({
       onEncounter: startWildBattle,
       onTrainer: onTrainer,
       onAction: onAction,
       onStepsChanged: () => player.addSteps(1),
+      onWater: startFishing,
+      onPickup: pickUp,
       onMapChanged: () => {
         playMapMusic()
         save(true)
@@ -172,11 +184,17 @@ export const useGameStore = defineStore('nudgeGame', () => {
         break
       case 'shop':
         world.setBusy(true)
-        overlay.value = { kind: 'shop', shopId: SHOP_BY_MAP[w.state.mapId] ?? 'gruss_mart' }
+        overlay.value = { kind: 'shop', shopId: w.state.mapId }
         break
       case 'pc':
         world.setBusy(true)
         overlay.value = { kind: 'pc' }
+        break
+      case 'give':
+        giveFromNpc(_npcId)
+        break
+      case 'travel':
+        openTravel()
         break
       case 'starter':
         if (!w.hasFlag('starter')) {
@@ -187,6 +205,107 @@ export const useGameStore = defineStore('nudgeGame', () => {
       default:
         break
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fishing, things on the ground, gifts and fast travel
+  // ---------------------------------------------------------------------------
+
+  /** The player's rods, best first. */
+  const RODS: { item: string, rod: Rod }[] = [{ item: 'super-rod', rod: 'super' }, { item: 'good-rod', rod: 'good' }, { item: 'old-rod', rod: 'old' }]
+
+  /** Talking to the water with a rod in the bag: cast, and maybe something bites (then a wild battle starts). */
+  function startFishing() {
+    const w = world.world
+    const best = RODS.find(r => player.count(r.item) > 0)
+    if (!w || !best || !player.hasAbleParty) return
+    world.openDialog([`Du kastar ut linan med ${itemInfo(gameData, best.item).name}...`], undefined, () => {
+      const encounter = w.rollFishing(best.rod)
+      if (!encounter) return world.openDialog(['Inget nappade.'])
+      world.openDialog(['Napp!'], undefined, () => startWildBattle(encounter))
+    })
+  }
+
+  function pickUp(pickup: PickupDef) {
+    const w = world.world
+    if (!w) return
+    w.collect(pickup)
+    const count = pickup.count ?? 1
+    player.addItem(pickup.item, count)
+    void audio.jingle('item')
+    const name = `${count > 1 ? `${count} st ` : ''}${itemInfo(gameData, pickup.item).name}`
+    world.openDialog([pickup.hidden ? `Du hittade ${name} gömt här!` : `Du plockade upp ${name}!`])
+    save(true)
+  }
+
+  function grant(give: GiveDef, pokemon?: { speciesId: number, level: number }) {
+    const w = world.world
+    if (!w) return
+    w.setFlag(give.flag)
+    const lines: string[] = []
+    for (const { item, count } of give.items ?? []) {
+      player.addItem(item, count)
+      lines.push(`Du fick ${count > 1 ? `${count} st ` : ''}${itemInfo(gameData, item).name}!`)
+    }
+    if (pokemon) {
+      const mon = createPokemon({
+        data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId: pokemon.speciesId, level: pokemon.level,
+        trust: BALANCE.TRUST_START_STARTER, originalTrainer: player.name, caughtAt: Date.now(),
+      })
+      const where = player.addPokemon(mon)
+      lines.push(`Du fick ${displayNameOf(gameData, mon)}!`)
+      if (where === 'box') lines.push('Ditt lag var fullt, så den skickades till boxen.')
+    }
+    void audio.jingle('item')
+    save(true)
+    world.openDialog(lines)
+  }
+
+  function giveFromNpc(npcId: string) {
+    const w = world.world
+    const give = w?.map.npcs.find(n => n.id === npcId)?.give
+    if (!w || !give || w.hasFlag(give.flag)) return
+    if (give.pokemon && give.pokemon.length > 1) {
+      world.setBusy(true)
+      overlay.value = { kind: 'gift', npcId, options: give.pokemon }
+      return
+    }
+    grant(give, give.pokemon?.[0])
+  }
+
+  function chooseGift(index: number) {
+    const o = overlay.value
+    overlay.value = null
+    world.setBusy(false)
+    if (o?.kind !== 'gift') return
+    const give = world.world?.map.npcs.find(n => n.id === o.npcId)?.give
+    if (give) grant(give, o.options[index])
+  }
+
+  /** Fast travel (after badge 2): to any Pokémon Center the player has used. */
+  function openTravel() {
+    const w = world.world
+    if (!w) return
+    if (player.badges.length < BALANCE.TRAVEL_MIN_BADGES) return world.openDialog([`Resekartan fungerar först när du har ${BALANCE.TRAVEL_MIN_BADGES} märken.`])
+    if (!w.state.visitedCenters.some(c => c.mapId !== w.state.mapId)) return world.openDialog(['Du har inte besökt något annat Pokémon Center ännu.'])
+    world.setBusy(true)
+    overlay.value = { kind: 'travel' }
+  }
+
+  function travelTo(mapId: string) {
+    const w = world.world
+    const target = w?.state.visitedCenters.find(c => c.mapId === mapId)
+    overlay.value = null
+    world.setBusy(false)
+    if (!w || !target) return
+    world.teleport(target.mapId, target.x, target.y, 'down')
+    playMapMusic()
+    save(true)
+  }
+
+  function closeOverlay() {
+    overlay.value = null
+    world.setBusy(false)
   }
 
   function chooseStarter(speciesId: number) {
@@ -200,6 +319,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     player.addItem('poke-ball', STARTER_BALLS)
     void audio.jingle('item')
     w.setFlag('starter')
+    w.setFlag(`starter-${speciesId}`)
     overlay.value = null
     world.setBusy(false)
     save(true)
@@ -235,6 +355,14 @@ export const useGameStore = defineStore('nudgeGame', () => {
     begin({ kind: 'wild' }, [enemy])
   }
 
+  /** The team a trainer fights with: fixed, or for the rival depending on the player's starter. */
+  function trainerTeam(def: TrainerDef): TrainerMon[] {
+    if (!def.rival) return def.team
+    const w = world.world
+    const starter = [1, 4, 7].find(id => w?.hasFlag(`starter-${id}`)) ?? 4
+    return rivalTeam(def.rival.round, starter)
+  }
+
   function onTrainer(trainerId: string, _spotted: boolean) {
     const def = TRAINERS[trainerId]
     if (!def || !player.hasAbleParty) {
@@ -244,7 +372,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     world.setBusy(true)
     world.openDialog(def.intro, `${def.title} ${def.name}`, () => {
       world.setBusy(true)
-      const enemy = def.team.map(mon => createTrainerPokemon({
+      const enemy = trainerTeam(def).map(mon => createTrainerPokemon({
         data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId: mon.speciesId, level: mon.level,
         moves: mon.moves, heldItem: mon.heldItem, trainerName: def.name,
       }))
@@ -318,7 +446,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         const def = ctx.trainer
         const speaker = `${def.title} ${def.name}`
         const portrait = spriteFor(def) ?? undefined
-        const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...def.team.map(m => m.level))
+        const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...trainerTeam(def).map(m => m.level))
         w?.markDefeated(def.id)
         player.money += prize
         steps.push({ type: 'message', lines: [`${foe} svimmade!`, `Du besegrade ${speaker}!`] })
@@ -346,6 +474,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
       const def = ctx.trainer
       const gym = def.gym!
       if (!player.badges.includes(gym.badge)) player.badges.push(gym.badge)
+      syncBadges()
       w?.setFlag(`badge-${gym.badge}`)
       player.addItem(tmId(gym.tm))
       steps.push({
@@ -409,10 +538,28 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
 
 
+  /** The stone being used, consumed only when the evolution really happens (cancelling keeps it). */
+  let pendingStone: string | null = null
+
+  /** Starts an evolution with a stone from the bag. Returns a message when it cannot be used. */
+  function useStone(item: string, uid: string): string | null {
+    const pokemon = player.findPokemon(uid)
+    if (!pokemon || player.count(item) < 1) return 'Det gick inte.'
+    const to = stoneEvolution(gameData, pokemon, item)
+    if (!to) return `${displayNameOf(gameData, pokemon)} påverkas inte av stenen.`
+    pendingStone = item
+    world.closeMenu()
+    world.setBusy(true)
+    overlay.value = { kind: 'evolve', uid, to }
+    return null
+  }
+
   function resolveEvolve(accept: boolean) {
     const o = overlay.value
     overlay.value = null
     if (o?.kind !== 'evolve') return runQueue()
+    if (accept && pendingStone) player.removeItem(pendingStone)
+    pendingStone = null
     const pokemon = player.findPokemon(o.uid)
     if (pokemon) {
       const before = displayNameOf(gameData, pokemon)
@@ -431,6 +578,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

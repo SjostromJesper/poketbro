@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { gameData } from '~~/nudge/data'
-import { itemInfo, sellPrice, SHOP_BADGE_REQUIREMENT, SHOPS } from '~~/nudge/game/items'
+import { itemInfo, sellPrice, shopStock } from '~~/nudge/game/items'
 import { useAudioStore } from '~/stores/nudge/audio'
 import { usePlayerStore } from '~/stores/nudge/player'
 
@@ -13,9 +13,7 @@ const audio = useAudioStore()
 const tab = ref<'buy' | 'sell'>('buy')
 const message = ref('')
 
-const stock = computed(() => (SHOPS[props.shopId] ?? [])
-  .filter(id => player.badges.length >= (SHOP_BADGE_REQUIREMENT[id] ?? 0))
-  .map(id => itemInfo(gameData, id)))
+const stock = computed(() => shopStock(props.shopId, player.badges.length).map(id => itemInfo(gameData, id)))
 const sellable = computed(() => Object.entries(player.bag).filter(([, n]) => n > 0).map(([id, n]) => ({ info: itemInfo(gameData, id), n })))
 
 function say(text: string) {

@@ -25,3 +25,8 @@ export const ENCOUNTER_TABLES: Record<string, EncounterEntry[]> = {
     { speciesId: 25, weight: 5, minLevel: 3, maxLevel: 6 }, // Pikachu
   ],
 }
+
+export type Rod = 'old' | 'good' | 'super'
+
+/** Fishing: per table id and rod. Water next to a map without an entry here simply has no fish. */
+export const FISHING_TABLES: Record<string, Partial<Record<Rod, EncounterEntry[]>>> = {}

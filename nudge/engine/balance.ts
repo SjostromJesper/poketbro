@@ -133,6 +133,12 @@ export interface Balance {
   TRUST_START_STARTER: number
   TRUST_START_WILD: number
   TRUST_START_TRAINER: number
+  /** Level at which Pokémon that evolve by trade in the games (Kadabra, Machoke, Graveler, Haunter) evolve here. */
+  TRADE_EVOLUTION_LEVEL: number
+  /** Badges needed for fast travel between Pokémon Centers. */
+  TRAVEL_MIN_BADGES: number
+  /** Chance that something bites when fishing. */
+  FISHING_BITE_CHANCE: number
   TRUST_MAX: number
   TRUST_PER_100_STEPS: number
   TRUST_LEVEL_UP: number
@@ -201,6 +207,8 @@ export interface Balance {
   CAPTURE_FAIL_ATB_BONUS: number
   RUN_LOCK_MS: number
   POTION_HEAL: number
+  /** HP restored by each healing potion item. */
+  POTION_HEALS: Record<string, number>
 
   // ---- Rewards (5.9) ----
   TRAINER_XP_MULT: number
@@ -351,6 +359,9 @@ export const BALANCE: Balance = {
   TRUST_START_STARTER: 120,
   TRUST_START_WILD: 50,
   TRUST_START_TRAINER: 150,
+  TRADE_EVOLUTION_LEVEL: 38,
+  TRAVEL_MIN_BADGES: 2,
+  FISHING_BITE_CHANCE: 0.75,
   TRUST_MAX: 255,
   TRUST_PER_100_STEPS: 1,
   TRUST_LEVEL_UP: 3,
@@ -407,6 +418,7 @@ export const BALANCE: Balance = {
   CAPTURE_FAIL_ATB_BONUS: 200,
   RUN_LOCK_MS: 600,
   POTION_HEAL: 20,
+  POTION_HEALS: { 'potion': 20, 'super-potion': 50, 'hyper-potion': 120 },
 
   TRAINER_XP_MULT: 1.5,
   XP_MULTIPLIER: 1.5,

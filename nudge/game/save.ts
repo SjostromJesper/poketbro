@@ -5,7 +5,7 @@ import { MAPS, START_MAP } from './maps'
 import { migrateSave } from './saveSlots'
 import type { WorldState } from './types'
 
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 /** The key of the single-slot save of earlier versions; it is migrated into slot 1 on first start. */
 export const SAVE_KEY = 'nudge:save:v1'
 
@@ -18,6 +18,8 @@ export interface PlayerData {
   bag: Record<string, number>
   badges: string[]
   pokedex: number[]
+  /** Species seen in battle (superset of `pokedex`, the owned ones). */
+  pokedexSeen: number[]
   stepRemainder: number
   /** Approximate time played (ms). */
   playTimeMs: number
@@ -77,9 +79,9 @@ export function parseSave(raw: string | null): ParseResult {
     && Array.isArray(player.box) && player.box.every(validPokemon)
     && isNumber(player.money)
     && !!player.bag && typeof player.bag === 'object'
-    && Array.isArray(player.badges) && Array.isArray(player.pokedex) && isNumber(player.stepRemainder) && isNumber(player.playTimeMs)
+    && Array.isArray(player.badges) && Array.isArray(player.pokedex) && Array.isArray(player.pokedexSeen) && isNumber(player.stepRemainder) && isNumber(player.playTimeMs)
   const okWorld = typeof world.mapId === 'string' && isNumber(world.x) && isNumber(world.y)
-    && Array.isArray(world.flags) && Array.isArray(world.defeatedTrainers) && isNumber(world.steps)
+    && Array.isArray(world.flags) && Array.isArray(world.defeatedTrainers) && Array.isArray(world.visitedCenters) && isNumber(world.steps)
     && !!world.lastCenter && typeof world.lastCenter.mapId === 'string'
   if (!okPlayer || !okWorld) return { ok: false, reason: 'corrupt' }
 

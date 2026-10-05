@@ -34,8 +34,8 @@ export interface SpeciesData {
   levelUpMoves: { level: number, move: string }[]
   /** Moves the species can learn from a TM (move names). */
   tmMoves: string[]
-  /** Level-based evolutions only (MVP). */
-  evolutions: { to: number, minLevel: number }[]
+  /** Level-up evolutions (`minLevel`), stones (`item`, the PokeAPI item name) and trade evolutions (`trade`, level set by the game). */
+  evolutions: { to: number, minLevel: number, item?: string, trade?: boolean }[]
 }
 
 export interface MoveData {

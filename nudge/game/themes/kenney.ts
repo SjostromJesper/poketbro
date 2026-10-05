@@ -47,6 +47,7 @@ export const kenney: ThemeManifest = {
     floor: [dungeon(1, 4)],
     floorStone: [dungeon(4, 3)],
     counter: dungeon(0, 6),
+    sand: town(4, 3),
     hedge: town(5, 0),
     buildings: {
       houseA: house(ORANGE),

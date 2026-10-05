@@ -36,6 +36,7 @@ export const tuxemon: ThemeManifest = {
     floor: [at('floors', 1, 1)],
     floorStone: [at('floors', 7, 1)],
     counter: at('kelvin', 2, 2),
+    sand: at('buch', 6, 2),
     hedge: at('vegetation', 2, 1),
     buildings: {
       houseA: building(0, 9, 4, 4, 2),

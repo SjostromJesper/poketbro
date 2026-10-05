@@ -115,7 +115,7 @@ Missing packs: none. To fetch everything on a new machine: `npm run fetch-assets
 | P3-M1 - Temasystem | done (Tuxemon standard, Ninja Adventure, Pipoya, Kenney; `npm run copy-graphics`) |
 | P3-M2 - Strids-avslut | done |
 | P3-M3 - Supabase | done in code; **two dashboard steps are needed before the cloud works** (see the box at the top of this file) |
-| P3-M4 - Världens system | todo |
+| P3-M4 - Världens system | done (`npm run check-world` skriver ut en rapport) |
 | P3-M5 - Världen del 1 | todo |
 | P3-M6 - Världen del 2 | todo |
 | P3-M7 - Balans och genomspelning | todo |

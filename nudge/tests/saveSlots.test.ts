@@ -53,7 +53,7 @@ function fakeTimers() {
   }
 }
 
-const player: PlayerData = { name: 'Du', party: [mon('charmander', 5)], box: [], money: 10, bag: {}, badges: [], pokedex: [4], stepRemainder: 0, playTimeMs: 5 }
+const player: PlayerData = { name: 'Du', party: [mon('charmander', 5)], box: [], money: 10, bag: {}, badges: [], pokedex: [4], pokedexSeen: [4], stepRemainder: 0, playTimeMs: 5 }
 
 describe('migrating saves', () => {
   it('upgrades a version 1 save (no play time) and refuses unknown versions', () => {

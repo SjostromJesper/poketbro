@@ -126,6 +126,16 @@ export interface ThemeTiles {
   wallTop?: Ref
   /** Outdoor tiles with something to stand on or in (mat in front of doors). */
   mat?: Ref
+  /** Tiles of the world maps (PLAN-3). A theme that lacks one gets the neutral placeholder drawing for it (with one warning). */
+  sand?: Ref
+  rock?: Ref
+  ledge?: Ref
+  caveFloor?: Ref
+  caveWall?: Ref
+  stairs?: Ref
+  shelf?: Ref
+  table?: Ref
+  bed?: Ref
   /** Fills the leftover tiles of a building's footprint when its sprite is smaller (a garden bush). */
   hedge: Ref
   buildings: Record<BuildingKind, BuildingSprite>

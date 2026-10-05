@@ -9,6 +9,7 @@ import { createRng } from '~~/nudge/engine/rng'
 import type { ActionResult, BattleEvent, BattleKind, BattleOutcome, BattleResult, OwnedPokemon, PlayerAction, Side } from '~~/nudge/engine/types'
 import type { BattleTheme } from '~~/nudge/game/battleThemes'
 import { useAudioStore } from './audio'
+import { usePlayerStore } from './player'
 import { useSettingsStore } from './settings'
 
 export interface LogLine {
@@ -57,6 +58,7 @@ export interface StartOptions {
 export const useBattleStore = defineStore('nudgeBattle', () => {
   const settings = useSettingsStore()
   const audio = useAudioStore()
+  const player = usePlayerStore()
 
   const engine = shallowRef<BattleEngine | null>(null)
   const view = shallowRef<BattleView | null>(null)
@@ -121,6 +123,7 @@ export const useBattleStore = defineStore('nudgeBattle', () => {
       if (text) pushLog(text, toneFor(event))
       switch (event.type) {
         case 'send-out':
+          if (event.side === 'enemy') player.markSeen(event.speciesId)
           fx[event.side].fainted = false
           playAnim(event.side, 'enter')
           break

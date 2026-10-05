@@ -442,3 +442,29 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   Play time is approximate: earlier sessions plus the running one (idle time counts).
 - **Not verified against a live Supabase** (anonymous sign-ins are off and the table is missing); the cloud adapter (`app/stores/nudge/cloud.ts`) is thin and the sync logic is tested with fakes. Offline behaviour was verified in the browser (it saves and loads locally and
   migrates the old save).
+
+## P3-M4: systems the big world needs
+
+- **Map builder** (`nudge/game/mapBuilder.ts`): `mapBuilder(id, w, h, opts)` with `fill`, `border`, `path(points, {width, wobble})` (L-shaped segments, optionally winding), `blob` (organic ellipse: fields, ponds), `scatter`, `ledge`, `building(kind, x, y, door)`
+  (stamps the 5x4 footprint and adds the door warp), `warp/exit`, `npc`, `trainer`, `sign`, `pickup`, and `build()`; `room(id, w, h, {exit})` makes an interior with walls and an exit mat. Tile names (`tree`, `grass`, `water`, `path`, `sand`, `ledge`, `rock`, `cave`, ...) or
+  single characters; everything is seeded from the map id, so maps are identical on every build. `build()` throws if an NPC, trainer or pickup is on a blocked tile. It compiles to the same `MapDef` as before (the dekoration layer of PLAN-2 is the theme's job, so nothing extra
+  is needed). Tiled import was not built (it was optional).
+- **New tiles**: sand `s`, ledge `L`, rock `^`, cave floor `c` (wild encounters like tall grass), cave wall `X`, stairs `A`, shelf `H`, table `B`, bed `K`. Themes have optional pieces for them; a theme without one gets the neutral placeholder drawing and one console warning
+  (Tuxemon, Pipoya and Kenney have a sand tile, the rest are placeholders for now).
+- **Ledges** are one-way: walking down onto a ledge tile jumps over it to the tile behind (which must be free); every other direction is blocked.
+- **Badge gates**: an NPC with `gate: { badges: n }` blocks its tile (and is drawn) until the player has `n` badges, then it is gone; warps can have `requiresBadges`. `World.badgeCount` is set by the game store (`syncBadges`).
+- **Fishing**: three rods as key items (`old-rod`, `good-rod`, `super-rod`). Pressing the action key facing water with a rod casts; `World.rollFishing(rod)` (bite chance 75 %, `FISHING_BITE_CHANCE`) uses `FISHING_TABLES[map.fishingTable ?? map.encounterTable][rod]`; a bite starts a
+  wild battle ("Napp!"), otherwise "Inget nappade". The best rod in the bag is used. Without a rod nothing happens.
+- **Evolution stones** (fire, water, thunder, leaf, moon): `evolutions` in the data now has `item` (PokeAPI item name) and `trade` entries (`fetch-data` reads `use-item` and `trade` triggers). Stones are used from the bag (a new "Stenar & spön" tab): the evolution scene
+  opens, and the stone is only consumed if the evolution happens (cancelling keeps it). **Trade evolutions** (Kadabra, Machoke, Graveler, Haunter) evolve at level 38 (`TRADE_EVOLUTION_LEVEL` in `balance.ts`) through the normal level-up path.
+- **Pokédex**: `player.pokedexSeen` (species met in battle) next to `pokedex` (owned), a Pokédex screen in the menu (sprites/types for seen species, a ball for owned ones, and where to find it - only shown for seen ones), computed from the encounter and fishing tables, NPC gifts
+  and evolution (`nudge/game/pokedex.ts`). Save version 3 (migration 2 -> 3 copies owned species into seen and fills `visitedCenters`).
+- **Fast travel**: after `TRAVEL_MIN_BADGES` (2) badges, the "Resekarta" terminal in every Pokémon Center (NPC action `travel`) lists the centers used before (`world.visitedCenters`, filled when the nurse heals) and puts you outside the chosen one.
+- **Hidden items and gifts**: `PickupDef` (visible ones are drawn as a small ball and block their tile until picked up; hidden ones are found by interacting with the tile; collected ones are remembered as `pickup-<id>` flags); NPCs with `give: { flag, items?, pokemon? }`
+  (action `give`) hand things over once, and several Pokémon open a choice dialog (Hitmonlee/Hitmonchan); `dialogAfter` shows the later line.
+- **Shops**: the stock grows with the badges (Great Ball 1, Super Potion 2, Ultra Ball 3, Hyper Potion 4; `shopStock(shopId, badges)`; Super Potion heals 50 HP and Hyper Potion 120, `POTION_HEALS`), each town's mart adds its own TMs (`SHOP_EXTRAS[mapId]`). The shop id is the mart's map id.
+- **Rival** (`rival.ts`): `TrainerDef.rival = { round: 1 | 2 | 3 }`; the team comes from `rivalTeam(round, playerStarter)`; the rival's starter is the one with the type advantage (fire beats grass, water fire, grass water) and the player's starter is remembered as a
+  `starter-<id>` flag. Teams: round 1 Pidgey 6 + starter 7; round 2 Pidgeotto 19, Abra 18, evolved starter 21; round 3 Pidgeotto 25, Kadabra 24, Growlithe 25, evolved starter 29.
+- **World checks** (`nudge/game/worldCheck.ts`, used by `world.test.ts` and `npm run check-world`): warps (target exists and is walkable, a way back), reachability (a search over maps, tiles, ledges, warps and gate NPCs; whenever a gym leader's map is reached
+  the next badge counts as won and the search repeats), nobody on blocked tiles or on top of each other, valid species/moves/items in tables, teams and gifts, and the coverage count (legendaries and Mew/Mewtwo excluded). The required coverage in the test is raised
+  at each milestone (12 now, 100 at P3-M6).

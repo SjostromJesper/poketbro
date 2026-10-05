@@ -2,13 +2,13 @@
 // Pure TypeScript with discrete positions; the UI animates between tiles.
 import type { Balance } from '../engine/balance'
 import { pickWeightedIndex, randInt, type Rng } from '../engine/rng'
-import { ENCOUNTER_TABLES } from './encounters'
+import { ENCOUNTER_TABLES, FISHING_TABLES, type Rod } from './encounters'
 import { getMap, START_MAP } from './maps'
 import { spriteFor, type SpriteKey } from './sprites'
 import { tileInfo, type TileInfo } from './tiles'
 import { TRAINERS } from './trainers'
 import {
-  DIRECTIONS, OPPOSITE, type Direction, type MapDef, type NpcAction, type NpcDef, type SignDef, type TrainerDef, type TrainerSpot,
+  DIRECTIONS, OPPOSITE, type Direction, type MapDef, type NpcAction, type NpcDef, type PickupDef, type SignDef, type TrainerDef, type TrainerSpot,
   type WarpDef, type WorldState,
 } from './types'
 
@@ -21,6 +21,7 @@ export function newWorldState(): WorldState {
     defeatedTrainers: [],
     flags: [],
     lastCenter: { mapId: START_MAP.mapId, x: START_MAP.x, y: START_MAP.y },
+    visitedCenters: [],
     steps: 0,
   }
 }
@@ -29,6 +30,7 @@ export type Entity =
   | { kind: 'npc', npc: NpcDef }
   | { kind: 'trainer', spot: TrainerSpot, def: TrainerDef }
   | { kind: 'sign', sign: SignDef }
+  | { kind: 'pickup', pickup: PickupDef }
 
 export type Trigger =
   | { type: 'warp', warp: WarpDef }
@@ -40,6 +42,10 @@ export type StepResult =
   | { kind: 'moved', from: { x: number, y: number }, to: { x: number, y: number }, triggers: Trigger[] }
 
 export type InteractResult =
+  /** Facing water (the game checks for a fishing rod). */
+  | { type: 'water' }
+  /** Found something on the ground: the game gives the item. */
+  | { type: 'pickup', pickup: PickupDef }
   | { type: 'dialog', lines: string[], speaker?: string, /** Face shown next to the text. */ portrait?: SpriteKey, npcId?: string, action?: NpcAction }
   | { type: 'trainer', trainerId: string }
   | null
@@ -53,7 +59,28 @@ export class World {
   /** Visual-only: where NPCs and trainers currently face (they turn towards the player when spoken to). */
   readonly npcFacing: Record<string, Direction> = {}
 
+  /** Number of badges the player has (set by the game; gates open with it). Not part of the saved world. */
+  badgeCount = 0
+
   constructor(public state: WorldState, private readonly rng: Rng, private readonly balance: Balance) {}
+
+  /** A gate NPC is there until the player has enough badges, then it steps aside (gone: no collision, not drawn). */
+  npcActive(npc: NpcDef): boolean {
+    return !npc.gate || this.badgeCount < npc.gate.badges
+  }
+
+  activeNpcs(map: MapDef = this.map): NpcDef[] {
+    return map.npcs.filter(n => this.npcActive(n))
+  }
+
+  /** Pickups that are still on the ground (visible or hidden). */
+  pickupsLeft(map: MapDef = this.map): PickupDef[] {
+    return (map.pickups ?? []).filter(p => !this.hasFlag(`pickup-${p.id}`))
+  }
+
+  collect(pickup: PickupDef): void {
+    this.setFlag(`pickup-${pickup.id}`)
+  }
 
   get map(): MapDef {
     return getMap(this.state.mapId)
@@ -91,8 +118,11 @@ export class World {
   }
 
   entityAt(x: number, y: number, map: MapDef = this.map): Entity | null {
-    const npc = map.npcs.find(n => n.x === x && n.y === y)
+    const npc = map.npcs.find(n => n.x === x && n.y === y && this.npcActive(n))
     if (npc) return { kind: 'npc', npc }
+    // Visible pickups block their tile; hidden ones are not entities (they are found by interacting).
+    const pickup = (map.pickups ?? []).find(p => p.x === x && p.y === y && !p.hidden && !this.hasFlag(`pickup-${p.id}`))
+    if (pickup) return { kind: 'pickup', pickup }
     const spot = map.trainers.find(t => t.x === x && t.y === y)
     if (spot) return { kind: 'trainer', spot, def: TRAINERS[spot.id] }
     const sign = map.signs.find(s => s.x === x && s.y === y)
@@ -129,14 +159,26 @@ export class World {
     const from = { x: this.state.x, y: this.state.y }
     const to = { x: from.x + dx, y: from.y + dy }
 
-    const tile = this.tileAt(to.x, to.y)
+    let tile = this.tileAt(to.x, to.y)
     if (!tile) return { kind: 'blocked', reason: 'edge' }
-    if (!tile.walkable) return { kind: 'blocked', reason: 'wall' }
-    if (this.entityAt(to.x, to.y)) return { kind: 'blocked', reason: 'entity' }
+    // A ledge is jumped over, downwards only: you land on the tile behind it (which must be free).
+    if (tile.kind === 'ledge') {
+      const land = { x: to.x, y: to.y + 1 }
+      const landTile = this.tileAt(land.x, land.y)
+      if (dir !== 'down' || !landTile?.walkable || this.entityAt(land.x, land.y)) return { kind: 'blocked', reason: 'wall' }
+      to.y = land.y
+      tile = landTile
+    } else {
+      if (!tile.walkable) return { kind: 'blocked', reason: 'wall' }
+      if (this.entityAt(to.x, to.y)) return { kind: 'blocked', reason: 'entity' }
+    }
 
     const warp = this.warpAt(to.x, to.y)
     if (warp?.requires && !this.hasFlag(warp.requires)) {
       return { kind: 'blocked', reason: 'gate', dialog: warp.blockedDialog ?? ['Du kan inte gå dit ännu.'] }
+    }
+    if (warp?.requiresBadges && this.badgeCount < warp.requiresBadges) {
+      return { kind: 'blocked', reason: 'gate', dialog: warp.blockedDialog ?? [`Du behöver ${warp.requiresBadges} märken för att gå dit.`] }
     }
 
     this.state.x = to.x
@@ -172,7 +214,9 @@ export class World {
   /** Remembers the outside of the current building as the place to wake up after a blackout. */
   rememberCenter(): void {
     const exit = this.map.warps[0]
-    if (exit) this.state.lastCenter = { mapId: exit.to, x: exit.toX, y: exit.toY }
+    if (!exit) return
+    this.state.lastCenter = { mapId: exit.to, x: exit.toX, y: exit.toY }
+    if (!this.state.visitedCenters.some(c => c.mapId === exit.to)) this.state.visitedCenters.push({ mapId: exit.to, x: exit.toX, y: exit.toY })
   }
 
   // ---------------------------------------------------------------------------
@@ -189,8 +233,12 @@ export class World {
       ty += dy
     }
     const entity = this.entityAt(tx, ty)
-    if (!entity) return null
-
+    if (!entity) {
+      const hidden = (this.map.pickups ?? []).find(p => p.hidden && p.x === tx && p.y === ty && !this.hasFlag(`pickup-${p.id}`))
+      if (hidden) return { type: 'pickup', pickup: hidden }
+      return this.tileAt(tx, ty)?.kind === 'water' ? { type: 'water' } : null
+    }
+    if (entity.kind === 'pickup') return { type: 'pickup', pickup: entity.pickup }
     if (entity.kind === 'sign') return { type: 'dialog', lines: entity.sign.text }
     if (entity.kind === 'npc') {
       const npc = entity.npc
@@ -226,6 +274,16 @@ export class World {
       }
     }
     return spotted
+  }
+
+  /** A bite while fishing (null: nothing bit). The table is the map's `fishingTable` (or its encounter table id). */
+  rollFishing(rod: Rod): WildEncounter | null {
+    const tableId = this.map.fishingTable ?? this.map.encounterTable
+    const table = tableId ? FISHING_TABLES[tableId]?.[rod] : undefined
+    if (!table?.length) return null
+    if (this.rng.next() >= this.balance.FISHING_BITE_CHANCE) return null
+    const entry = table[Math.max(0, pickWeightedIndex(this.rng, table.map(e => e.weight)))]
+    return { speciesId: entry.speciesId, level: randInt(this.rng, entry.minLevel, entry.maxLevel) }
   }
 
   /** Rolls a wild encounter for the tile the player just stepped on. */

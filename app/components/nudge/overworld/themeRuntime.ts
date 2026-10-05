@@ -192,7 +192,12 @@ async function build(manifest: ThemeManifest): Promise<LoadedTheme> {
   const tiles: TileRenderer = {
     drawTile(ctx, map: MapDef, tx, ty, x, y, frame) {
       const layers = describeTile(manifest, map, tx, ty, { frame })
-      if (!layers.length) return fallback.drawTile(ctx, map, tx, ty, x, y, frame)
+      if (!layers.length) {
+        // Indoor walls and the door mat are drawn by the placeholder in every theme; anything else is a missing tile of the theme.
+        const char = map.tiles[ty][tx]
+        if (!(map.indoor && (char === '#' || char === 'M' || char === 'T' || char === 'F')) && !'RWD'.includes(char)) warnOnce(`${manifest.id}:tile:${char}`, `theme ${manifest.id} has no graphics for the tile "${char}", drawing a placeholder`)
+        return fallback.drawTile(ctx, map, tx, ty, x, y, frame)
+      }
       // All sheets must be there, otherwise the whole tile is drawn by the placeholder (no half tiles).
       for (const layer of layers) {
         if ('sheet' in layer && !sheets.get(layer.sheet)) {

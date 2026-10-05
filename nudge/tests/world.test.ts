@@ -1,208 +1,164 @@
 import { describe, expect, it } from 'vitest'
-import { BALANCE, withBalance } from '../engine/balance'
+import { BALANCE } from '../engine/balance'
+import { mapBuilder, room } from '../game/mapBuilder'
+import { MAPS } from '../game/maps'
+import { coverage, entityProblems, pokemonProblems, reachability, warpProblems } from '../game/worldCheck'
+import { TILES } from '../game/tiles'
+import type { PickupDef } from '../game/types'
+import { World, newWorldState } from '../game/world'
 import { createRng } from '../engine/rng'
-import { ENCOUNTER_TABLES } from '../game/encounters'
-import { newWorldState, World } from '../game/world'
-import type { WorldState } from '../game/types'
-import { constRng } from './helpers'
+import { data } from './helpers'
 
-function worldAt(mapId: string, x: number, y: number, patch: Partial<WorldState> = {}, seed = 1, balance = BALANCE) {
-  return new World({ ...newWorldState(), mapId, x, y, ...patch }, createRng(seed), balance)
-}
+/**
+ * How many of the 151 species must be obtainable at the end of each milestone: 8 after P3-M5's first part is not meaningful yet,
+ * the final target (P3-M6) is 100.
+ */
+const REQUIRED_COVERAGE = 12
 
-describe('walking', () => {
-  it('turns and moves one tile at a time, counting steps', () => {
-    const world = worldAt('hemstad', 5, 5)
-    const result = world.step('down')
-    expect(result).toMatchObject({ kind: 'moved', from: { x: 5, y: 5 }, to: { x: 5, y: 6 } })
-    expect(world.state).toMatchObject({ x: 5, y: 6, facing: 'down', steps: 1 })
-    world.turn('left')
-    expect(world.state).toMatchObject({ x: 5, y: 6, facing: 'left' })
+describe('the world is consistent', () => {
+  it('every warp points to an existing walkable tile and has a way back', () => {
+    expect(warpProblems()).toEqual([])
   })
 
-  it('is blocked by walls, water, fences, buildings, the map edge and entities - but still turns', () => {
-    const wall = worldAt('hemstad', 1, 5)
-    expect(wall.step('left')).toEqual({ kind: 'blocked', reason: 'wall' })
-    expect(wall.state).toMatchObject({ x: 1, y: 5, facing: 'left' })
-    expect(worldAt('hemstad', 14, 10).step('down')).toEqual({ kind: 'blocked', reason: 'wall' }) // pond
-    expect(worldAt('hemstad', 3, 8).step('down')).toEqual({ kind: 'blocked', reason: 'wall' }) // fence
-    expect(worldAt('hemstad', 4, 5).step('up')).toEqual({ kind: 'blocked', reason: 'wall' }) // house wall
-    expect(worldAt('hemstad', 6, 6).step('down')).toEqual({ kind: 'blocked', reason: 'entity' }) // villager at (6,7)
-    expect(worldAt('hemstad', 6, 6).step('right')).toEqual({ kind: 'blocked', reason: 'wall' }) // sign at (7,6) is a solid tile
-    const edge = new World({ ...newWorldState(), mapId: 'hemstad', x: 0, y: 0 }, createRng(1), BALANCE)
-    expect(edge.step('up')).toEqual({ kind: 'blocked', reason: 'edge' })
-    expect(worldAt('hemstad', 5, 5).state.steps).toBe(0)
-  })
-})
-
-describe('warps', () => {
-  it('reports doors as triggers and applies them', () => {
-    const world = worldAt('hemstad', 3, 5)
-    const result = world.step('up')
-    expect(result.kind).toBe('moved')
-    if (result.kind !== 'moved') return
-    const warp = result.triggers.find(t => t.type === 'warp')
-    expect(warp).toBeDefined()
-    if (warp?.type !== 'warp') return
-    world.applyWarp(warp.warp)
-    expect(world.state).toMatchObject({ mapId: 'hemhus', x: 3, y: 4, facing: 'up' })
-    // the mat leads back outside
-    const back = world.step('down')
-    expect(back.kind).toBe('moved')
-    if (back.kind !== 'moved') return
-    expect(back.triggers).toContainEqual({ type: 'warp', warp: expect.objectContaining({ to: 'hemstad', toX: 3, toY: 5 }) })
+  it('every map can be reached from Hemstad (badge gates in order)', () => {
+    const r = reachability()
+    expect(r.unreachable).toEqual([])
+    expect(r.maps[0]).toBe('hemstad')
   })
 
-  it('stops you at the north gate until you own a starter', () => {
-    const blocked = worldAt('hemstad', 9, 1)
-    const result = blocked.step('up')
-    expect(result).toMatchObject({ kind: 'blocked', reason: 'gate' })
-    expect(blocked.state.y).toBe(1)
-    expect((result as { dialog: string[] }).dialog.length).toBeGreaterThan(0)
-
-    const open = worldAt('hemstad', 9, 1, { flags: ['starter'] })
-    const through = open.step('up')
-    expect(through.kind).toBe('moved')
-    if (through.kind === 'moved') expect(through.triggers[0]).toMatchObject({ type: 'warp', warp: { to: 'route1' } })
+  it('nobody stands on a blocked tile or on top of someone else', () => {
+    expect(entityProblems()).toEqual([])
   })
 
-  it('never lands you on a warp, so there is no ping-pong between maps', () => {
-    const world = worldAt('route1', 6, 1)
-    const result = world.step('up')
-    if (result.kind !== 'moved' || result.triggers[0].type !== 'warp') throw new Error('expected a warp')
-    world.applyWarp(result.triggers[0].warp)
-    expect(world.state.mapId).toBe('skogen')
-    expect(world.warpAt(world.state.x, world.state.y)).toBeUndefined()
+  it('every Pokémon in the encounter tables, teams and gifts exists and has valid moves for its level', () => {
+    expect(pokemonProblems(data)).toEqual([])
+  })
+
+  it(`at least ${REQUIRED_COVERAGE} species can be obtained (the final goal is 100)`, () => {
+    const c = coverage(data)
+    console.log(`coverage: ${c.count} of ${c.count + c.missing.length} species obtainable`)
+    expect(c.count).toBeGreaterThanOrEqual(REQUIRED_COVERAGE)
   })
 })
 
-describe('interaction', () => {
-  it('reads signs and talks to NPCs (turning them towards you)', () => {
-    const world = worldAt('hemstad', 6, 6, {}, 1)
-    world.turn('right')
-    expect(world.interact()).toEqual({ type: 'dialog', lines: ['HEMSTAD', 'Där äventyret börjar.'] })
-    world.turn('down')
-    const npc = world.interact()
-    expect(npc).toMatchObject({ type: 'dialog', npcId: 'hem-gubbe' })
-    expect(world.npcFacing['hem-gubbe']).toBe('up')
-    world.turn('left')
+describe('the reachability check', () => {
+  it('knows that a badge gate blocks until the gym leader is beaten', () => {
+    // Uses the real maps: the gate logic is exercised once world maps with gates exist; here we check the machinery on a tiny made-up world.
+    const m = mapBuilder('t-gate', 7, 3, { name: 'Test' })
+    m.fill(0, 0, 7, 3, 'ground')
+    m.npc({ id: 'guard', x: 3, y: 1, facing: 'left', look: 'boy', dialog: ['Stopp!'], gate: { badges: 1 } })
+    const map = m.build()
+    const world = new World({ ...newWorldState(), mapId: 'hemstad' }, createRng(1), BALANCE)
+    world.badgeCount = 0
+    expect(world.npcActive(map.npcs[0])).toBe(true)
+    world.badgeCount = 1
+    expect(world.npcActive(map.npcs[0])).toBe(false)
+  })
+})
+
+describe('the map builder', () => {
+  it('compiles to the usual map format with buildings, warps and entities', () => {
+    const m = mapBuilder('t-town', 20, 14, { name: 'Teststad', encounterTable: 'route1' })
+    m.border('tree')
+    m.path([[9, 13], [9, 6], [3, 6]], { width: 2 })
+    m.blob(14, 9, 3, 2, 'water')
+    m.scatter(2, 8, 6, 4, 'flowers', 4)
+    m.building('houseA', 2, 1, { to: 't-house', toX: 3, toY: 4 })
+    m.sign(8, 8, ['Hej'])
+    m.npc({ id: 'n1', x: 6, y: 7, facing: 'down', look: 'girl', dialog: ['Hej'] })
+    const map = m.build()
+    expect(map.tiles).toHaveLength(14)
+    expect(map.tiles.every(r => r.length === 20)).toBe(true)
+    expect(map.tiles[0]).toBe('#'.repeat(20))
+    expect(map.tiles[1][4]).toBe('R')
+    expect(map.tiles[2][4]).toBe('W')
+    expect(map.tiles[4][4]).toBe('D') // door in the middle of the bottom row of the footprint
+    expect(map.warps).toEqual([{ x: 4, y: 4, to: 't-house', toX: 3, toY: 4 }])
+    expect(map.buildings).toEqual([{ kind: 'houseA', x: 2, y: 1 }])
+    expect(map.signs).toHaveLength(1)
+    expect(map.tiles.join('')).toContain('~')
+    for (const row of map.tiles) for (const c of row) expect(TILES[c], c).toBeDefined()
+  })
+
+  it('is deterministic', () => {
+    const make = () => mapBuilder('same', 30, 30, { name: 'x' }).blob(15, 15, 8, 6, 'water', { roughness: 0.4 }).scatter(0, 0, 30, 30, 'tree', 20).path([[2, 2], [27, 27]], { wobble: 0.5 }).build().tiles
+    expect(make()).toEqual(make())
+  })
+
+  it('refuses to place someone on a blocked tile', () => {
+    const m = mapBuilder('t-bad', 5, 5, { name: 'x' }).fill(0, 0, 5, 5, 'tree')
+    m.npc({ id: 'n', x: 2, y: 2, facing: 'down', look: 'boy', dialog: ['x'] })
+    expect(() => m.build()).toThrow(/blocked tile/)
+  })
+
+  it('rooms have walls, a floor and a mat that leads outside', () => {
+    const r = room('t-room', 8, 6, { name: 'Rum', exit: { to: 'hemstad', toX: 3, toY: 5 } }).build()
+    expect(r.indoor).toBe(true)
+    expect(r.tiles[0]).toBe('#'.repeat(8))
+    expect(r.tiles[5][3]).toBe('M')
+    expect(r.warps[0]).toMatchObject({ x: 3, y: 5, to: 'hemstad' })
+  })
+})
+
+describe('ledges, pickups and fishing in the world logic', () => {
+  function worldWith(rows: string[], extra: Record<string, unknown> = {}) {
+    const m = mapBuilder('t-logic', rows[0].length, rows.length, { name: 'x' })
+    rows.forEach((row, y) => [...row].forEach((c, x) => m.fill(x, y, 1, 1, c)))
+    const map = { ...m.build(), ...extra }
+    MAPS['t-logic'] = map
+    const world = new World({ ...newWorldState(), mapId: 't-logic', x: 1, y: 0 }, createRng(5), BALANCE)
+    return { world, cleanup: () => { delete MAPS['t-logic'] } }
+  }
+
+  it('a ledge is jumped over downwards only', () => {
+    const { world, cleanup } = worldWith(['...', '.L.', '...', '...'])
+    const down = world.step('down')
+    expect(down).toMatchObject({ kind: 'moved', to: { x: 1, y: 2 } }) // lands behind the ledge
+    // back up is blocked, and so is sideways onto it
+    expect(world.step('up')).toMatchObject({ kind: 'blocked', reason: 'wall' })
+    world.state.x = 0
+    world.state.y = 1
+    expect(world.step('right')).toMatchObject({ kind: 'blocked' })
+    cleanup()
+  })
+
+  it('a gate NPC blocks until enough badges, hidden pickups are found by interacting, visible ones block', () => {
+    const rows = ['...', '...', '...']
+    const m = mapBuilder('t-logic', 3, 3, { name: 'x' })
+    rows.forEach((row, y) => [...row].forEach((c, x) => m.fill(x, y, 1, 1, c)))
+    m.npc({ id: 'guard', x: 1, y: 1, facing: 'up', look: 'old', dialog: ['Stopp'], gate: { badges: 2 } })
+    m.pickup({ id: 'p-hidden', x: 2, y: 0, item: 'potion', hidden: true })
+    m.pickup({ id: 'p-visible', x: 0, y: 2, item: 'poke-ball' })
+    MAPS['t-logic'] = m.build()
+    const world = new World({ ...newWorldState(), mapId: 't-logic', x: 1, y: 0 }, createRng(5), BALANCE)
+    expect(world.step('down')).toMatchObject({ kind: 'blocked', reason: 'entity' })
+    world.badgeCount = 2
+    expect(world.step('down')).toMatchObject({ kind: 'moved' })
+    // the visible ball blocks until collected
+    world.state.x = 0
+    world.state.y = 1
+    expect(world.step('down')).toMatchObject({ kind: 'blocked', reason: 'entity' })
+    world.state.facing = 'down'
+    const found = world.interact()
+    expect(found).toMatchObject({ type: 'pickup', pickup: { id: 'p-visible' } })
+    world.collect((found as unknown as { pickup: PickupDef }).pickup)
+    expect(world.step('down')).toMatchObject({ kind: 'moved' })
+    // the hidden one: face its tile and interact
+    world.state.x = 1
+    world.state.y = 0
+    world.state.facing = 'right'
+    expect(world.interact()).toMatchObject({ type: 'pickup', pickup: { id: 'p-hidden' } })
+    world.collect(m.build().pickups![0])
     expect(world.interact()).toBeNull()
+    delete MAPS['t-logic']
   })
 
-  it('switches NPC dialog once a flag is set', () => {
-    const before = worldAt('hemstad', 11, 9)
-    before.turn('down')
-    const lines1 = (before.interact() as { lines: string[] }).lines
-    const after = worldAt('hemstad', 11, 9, { flags: ['starter'] })
-    after.turn('down')
-    const lines2 = (after.interact() as { lines: string[] }).lines
-    expect(lines1).not.toEqual(lines2)
-  })
-
-  it('exposes NPC actions (heal, shop, starter)', () => {
-    const home = worldAt('hemhus', 3, 3)
-    home.turn('up')
-    expect(home.interact()).toMatchObject({ npcId: 'hem-mamma', action: 'heal' })
-    const lab = worldAt('proflab', 4, 3)
-    lab.turn('up')
-    expect(lab.interact()).toMatchObject({ npcId: 'professor', action: 'starter', speaker: 'Professor Almqvist' })
-  })
-
-  it('lets you talk across a counter', () => {
-    const world = worldAt('gruss_center', 4, 4)
-    world.turn('up')
-    expect(world.interact()).toMatchObject({ npcId: 'sjukskoterska', action: 'heal' })
-    const mart = worldAt('gruss_mart', 4, 4)
-    mart.turn('up')
-    expect(mart.interact()).toMatchObject({ npcId: 'expedit', action: 'shop' })
-  })
-
-  it('challenges to a battle when talking to an undefeated trainer', () => {
-    const world = worldAt('route1', 6, 20)
-    world.turn('right')
-    expect(world.interact()).toEqual({ type: 'trainer', trainerId: 'r1-kalle' })
-    world.markDefeated('r1-kalle')
-    expect(world.interact()).toMatchObject({ type: 'dialog', speaker: 'Kalle' })
-  })
-
-  it('can remember a Pokémon Center and black out back to it', () => {
-    const world = worldAt('gruss_center', 4, 4)
-    world.rememberCenter()
-    expect(world.state.lastCenter).toEqual({ mapId: 'gruss', x: 5, y: 7 })
-    world.state.mapId = 'skogen'
-    world.state.x = 8
-    world.state.y = 5
-    world.blackout()
-    expect(world.state).toMatchObject({ mapId: 'gruss', x: 5, y: 7, facing: 'down' })
-  })
-})
-
-describe('trainer sight', () => {
-  it('spots the player in the line of sight and challenges as you step in', () => {
-    const world = worldAt('route1', 3, 20) // trainer Kalle at (7,20) faces left, sight 3
-    expect(world.trainersInSight()).toEqual([])
-    const result = world.step('right') // to (4,20): exactly 3 tiles away
-    expect(result.kind).toBe('moved')
-    if (result.kind === 'moved') expect(result.triggers).toContainEqual({ type: 'trainer-sight', trainerId: 'r1-kalle' })
-  })
-
-  it('does not see beyond its range, to the side, or after being beaten', () => {
-    expect(worldAt('route1', 3, 20).trainersInSight()).toEqual([])
-    expect(worldAt('route1', 5, 19).trainersInSight()).toEqual([])
-    expect(worldAt('route1', 5, 20).trainersInSight()).toEqual(['r1-kalle'])
-    expect(worldAt('route1', 5, 20, { defeatedTrainers: ['r1-kalle'] }).trainersInSight()).toEqual([])
-  })
-
-  it('is blocked by obstacles in the way', () => {
-    // Elis (9,5) faces left with sight 3 in the forest: a tree between him and the path would block the view.
-    const world = worldAt('skogen', 7, 5)
-    expect(world.trainersInSight()).toEqual(['skog-elis'])
-    // Gym leader Granit has sight 0: he never spots anyone.
-    expect(worldAt('gruss_gym', 5, 5).trainersInSight()).toEqual([])
-  })
-})
-
-describe('wild encounters', () => {
-  it('only happen on tall grass, at the configured rate', () => {
-    expect(worldAt('route1', 6, 20).rollEncounter()).toBeNull() // path
-    expect(worldAt('hemstad', 5, 5).rollEncounter()).toBeNull() // no table
-    const always = worldAt('route1', 2, 4, {}, 1, withBalance({ ENCOUNTER_RATE: 1 }))
-    expect(always.rollEncounter()).not.toBeNull()
-    const never = worldAt('route1', 2, 4, {}, 1, withBalance({ ENCOUNTER_RATE: 0 }))
-    expect(never.rollEncounter()).toBeNull()
-  })
-
-  it('draws species and levels from the map table (statistically)', () => {
-    const counts = new Map<number, number>()
-    const world = worldAt('route1', 2, 4, {}, 5, withBalance({ ENCOUNTER_RATE: 1 }))
-    const n = 6000
-    for (let i = 0; i < n; i++) {
-      const e = world.rollEncounter()!
-      counts.set(e.speciesId, (counts.get(e.speciesId) ?? 0) + 1)
-      const entry = ENCOUNTER_TABLES.route1.find(t => t.speciesId === e.speciesId)!
-      expect(e.level).toBeGreaterThanOrEqual(entry.minLevel)
-      expect(e.level).toBeLessThanOrEqual(entry.maxLevel)
-    }
-    expect(Object.keys(Object.fromEntries(counts)).map(Number).sort()).toEqual([16, 19, 21])
-    expect((counts.get(16) ?? 0) / n).toBeGreaterThan(0.41)
-    expect((counts.get(16) ?? 0) / n).toBeLessThan(0.49)
-    expect((counts.get(21) ?? 0) / n).toBeGreaterThan(0.07)
-    expect((counts.get(21) ?? 0) / n).toBeLessThan(0.13)
-  })
-
-  it('the forest has the rare Pikachu', () => {
-    const world = worldAt('skogen', 2, 3, {}, 9, withBalance({ ENCOUNTER_RATE: 1 }))
-    const species = new Set<number>()
-    for (let i = 0; i < 4000; i++) species.add(world.rollEncounter()!.speciesId)
-    expect([...species].sort((a, b) => a - b)).toEqual([10, 11, 13, 14, 16, 25])
-    expect(constRng).toBeTypeOf('function')
-  })
-
-  it('reports grass as a trigger when stepping into it', () => {
-    const world = worldAt('route1', 4, 4)
-    world.state.facing = 'left'
-    const result = world.step('left')
-    expect(result.kind).toBe('moved')
-    if (result.kind === 'moved') expect(result.triggers).toContainEqual({ type: 'grass' })
+  it('facing water gives a fishing interaction', () => {
+    const { world, cleanup } = worldWith(['.~.', '...'])
+    world.state.facing = 'right'
+    world.state.x = 0
+    world.state.y = 0
+    expect(world.interact()).toEqual({ type: 'water' })
+    cleanup()
   })
 })

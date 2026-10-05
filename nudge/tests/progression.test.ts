@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyBattleOutcome, evolvePokemon, grantXp, healPokemon, learnMove, movesLearnedAtLevel, pendingEvolution } from '../engine/progression'
+import { applyBattleOutcome, evolvePokemon, grantXp, healPokemon, learnMove, movesLearnedAtLevel, pendingEvolution, stoneEvolution } from '../engine/progression'
 import { createPokemon, maxHpOf, statsOf } from '../engine/pokemon'
 import { createWildPokemon, createTrainerPokemon } from '../engine/ai'
 import { createRng } from '../engine/rng'
@@ -85,14 +85,14 @@ describe('levelling up', () => {
     const bulbasaur = mon('bulbasaur', 15)
     const info = grantXp(data, BALANCE, bulbasaur, xpForLevel(data.growthRates, 'medium-slow', 16) - bulbasaur.xp)!
     expect(info.evolveTo).toBe(2)
-    expect(pendingEvolution(data, bulbasaur)).toBe(2)
+    expect(pendingEvolution(data, bulbasaur, BALANCE)).toBe(2)
     const oldMax = maxHpOf(data, bulbasaur)
     evolvePokemon(data, bulbasaur, 2)
     expect(bulbasaur.speciesId).toBe(2)
     expect(maxHpOf(data, bulbasaur)).toBeGreaterThan(oldMax)
     expect(bulbasaur.currentHp).toBe(maxHpOf(data, bulbasaur))
-    expect(pendingEvolution(data, mon('ivysaur', 20))).toBeNull()
-    expect(pendingEvolution(data, mon('pikachu', 50))).toBeNull() // stone evolution is out of the MVP
+    expect(pendingEvolution(data, mon('ivysaur', 20), BALANCE)).toBeNull()
+    expect(pendingEvolution(data, mon('pikachu', 50), BALANCE)).toBeNull() // stone evolution: see stoneEvolution
   })
 
   it('stops at the level cap', () => {
@@ -176,5 +176,30 @@ describe('applying a battle outcome', () => {
     expect(p.trust).toBe(100 + BALANCE.TRUST_CENTER)
     expect(speciesId('charmander')).toBe(4)
     expect(createPokemon).toBeTypeOf('function')
+  })
+})
+
+describe('evolution stones and trade evolutions', () => {
+  it('stones evolve the right species and do nothing to others', () => {
+    expect(stoneEvolution(data, mon('pikachu', 5), 'thunder-stone')).toBe(26)
+    expect(stoneEvolution(data, mon('pikachu', 5), 'fire-stone')).toBeNull()
+    expect(stoneEvolution(data, mon('eevee', 5), 'water-stone')).toBe(134)
+    expect(stoneEvolution(data, mon('eevee', 5), 'fire-stone')).toBe(136)
+    expect(stoneEvolution(data, mon('charmander', 50), 'fire-stone')).toBeNull()
+    expect(stoneEvolution(data, mon('nidorino', 5), 'moon-stone')).toBe(34)
+  })
+
+  it('trade evolutions (Kadabra, Machoke, Graveler, Haunter) evolve at the balance level', () => {
+    const L = BALANCE.TRADE_EVOLUTION_LEVEL
+    expect(L).toBe(38)
+    for (const [name, to] of [['kadabra', 65], ['machoke', 68], ['graveler', 76], ['haunter', 94]] as const) {
+      expect(pendingEvolution(data, mon(name, L - 1), BALANCE), name).toBeNull()
+      expect(pendingEvolution(data, mon(name, L), BALANCE), name).toBe(to)
+    }
+  })
+
+  it('stone evolutions never trigger on level-up', () => {
+    expect(pendingEvolution(data, mon('pikachu', 90), BALANCE)).toBeNull()
+    expect(pendingEvolution(data, mon('eevee', 90), BALANCE)).toBeNull()
   })
 })

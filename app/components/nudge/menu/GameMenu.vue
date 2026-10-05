@@ -7,9 +7,10 @@ import { useWorldStore } from '~/stores/nudge/world'
 import BagScreen from './BagScreen.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import PartyScreen from './PartyScreen.vue'
+import PokedexScreen from './PokedexScreen.vue'
 import SummaryScreen from './SummaryScreen.vue'
 
-type Screen = 'main' | 'party' | 'summary' | 'bag' | 'settings'
+type Screen = 'main' | 'party' | 'summary' | 'bag' | 'settings' | 'pokedex'
 
 const props = withDefaults(defineProps<{
   /** Which screen to open first (dev shortcut). */
@@ -56,6 +57,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
       <h3 class="px-title">Meny</h3>
       <button type="button" class="px-btn" @click="screen = 'party'">Lag</button>
       <button type="button" class="px-btn" @click="screen = 'bag'">Väska</button>
+      <button type="button" class="px-btn" @click="screen = 'pokedex'">Pokédex</button>
       <button type="button" class="px-btn" :disabled="!player.party.length" @click="game.save()">Spara</button>
       <button type="button" class="px-btn" @click="screen = 'settings'">Inställningar</button>
       <button type="button" class="px-btn" @click="toTitle">Titelskärm</button>
@@ -65,6 +67,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
       <PartyScreen v-if="screen === 'party'" @summary="openSummary" @back="screen = 'main'" />
       <SummaryScreen v-else-if="screen === 'summary'" :uid="summaryUid" @select="summaryUid = $event" @back="screen = 'party'" />
       <BagScreen v-else-if="screen === 'bag'" @back="screen = 'main'" />
+      <PokedexScreen v-else-if="screen === 'pokedex'" @back="screen = 'main'" />
       <div v-else-if="screen === 'settings'" class="settings-screen">
         <SettingsPanel />
         <button type="button" class="px-btn" @click="screen = 'main'">Tillbaka</button>

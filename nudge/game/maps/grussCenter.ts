@@ -22,6 +22,10 @@ export const grussCenter: MapDef = {
       dialog: ['Välkommen till Pokémon Center! Ska jag ta hand om dina Pokémon?', 'Klart! Dina Pokémon är friska igen. Välkommen åter!'],
     },
     {
+      id: 'resekarta', x: 2, y: 1, facing: 'down', look: 'pc', action: 'travel', name: 'Resekarta',
+      dialog: ['Snabbresekartan visar alla Pokémon Center du har besökt.'],
+    },
+    {
       id: 'pc', x: 7, y: 1, facing: 'down', look: 'pc', action: 'pc', name: 'PC',
       dialog: ['Du loggade in på Pokémon-lagringen.'],
     },

@@ -28,8 +28,9 @@ const CONCURRENCY = 5
 
 /** Items used by the game (held items, consumables, balls). Missing ones are skipped with a warning. */
 const ITEM_NAMES = [
-  'poke-ball', 'great-ball', 'ultra-ball', 'potion', 'antidote', 'paralyze-heal', 'oran-berry',
+  'poke-ball', 'great-ball', 'ultra-ball', 'potion', 'super-potion', 'hyper-potion', 'antidote', 'paralyze-heal', 'oran-berry',
   'quick-claw', 'silk-scarf', 'charcoal', 'mystic-water', 'leftovers',
+  'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'old-rod', 'good-rod', 'super-rod',
 ]
 
 const STAT_MAP: Record<string, StatKey> = {
@@ -210,11 +211,21 @@ function collectEvolutions(node: any, into: Map<number, SpeciesData['evolutions'
   const fromId = idFromUrl(node.species.url)
   for (const next of node.evolves_to) {
     const toId = idFromUrl(next.species.url)
-    const detail = (next.evolution_details as any[]).find(d => d.trigger.name === 'level-up' && d.min_level != null)
-    if (detail && toId <= MAX_POKEMON && fromId <= MAX_POKEMON) {
-      const list = into.get(fromId) ?? []
-      list.push({ to: toId, minLevel: detail.min_level })
-      into.set(fromId, list)
+    const details = next.evolution_details as any[]
+    const byLevel = details.find(d => d.trigger.name === 'level-up' && d.min_level != null)
+    const byItem = details.find(d => d.trigger.name === 'use-item' && d.item)
+    const byTrade = details.find(d => d.trigger.name === 'trade')
+    if (toId <= MAX_POKEMON && fromId <= MAX_POKEMON) {
+      let entry: SpeciesData['evolutions'][number] | null = null
+      if (byLevel) entry = { to: toId, minLevel: byLevel.min_level }
+      // Stones: the item's PokeAPI name ("fire-stone"). Trades have no level in the data; the game uses one constant for all of them.
+      else if (byItem) entry = { to: toId, minLevel: 0, item: byItem.item.name }
+      else if (byTrade) entry = { to: toId, minLevel: 0, trade: true }
+      if (entry) {
+        const list = into.get(fromId) ?? []
+        list.push(entry)
+        into.set(fromId, list)
+      }
     }
     collectEvolutions(next, into)
   }

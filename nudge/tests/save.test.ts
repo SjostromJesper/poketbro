@@ -19,7 +19,7 @@ function slotData(slot: 1 | 2 | 3): any {
 function playerData(): PlayerData {
   return {
     name: 'Du', party: [mon('charmander', 12, { heldItem: 'oran-berry' }), mon('pidgey', 7)], box: [], money: 777,
-    bag: { 'poke-ball': 4, 'potion': 2 }, badges: ['granit'], pokedex: [4, 16], stepRemainder: 42, playTimeMs: 3_600_000,
+    bag: { 'poke-ball': 4, 'potion': 2 }, badges: ['granit'], pokedex: [4, 16], stepRemainder: 42, playTimeMs: 3_600_000, pokedexSeen: [4, 16, 19],
   }
 }
 

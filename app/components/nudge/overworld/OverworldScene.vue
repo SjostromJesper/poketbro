@@ -78,9 +78,26 @@ function draw() {
     for (let tx = x0; tx <= x1; tx++) renderer.drawTile(ctx, map, tx, ty, tx * TILE - camX, ty * TILE - camY, frame)
   }
 
+  // Items lying on the ground (hidden ones are not drawn).
+  for (const pickup of world.pickupsLeft()) {
+    if (pickup.hidden) continue
+    const px = pickup.x * TILE - camX
+    const py = pickup.y * TILE - camY
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+    ctx.fillRect(px + 4, py + 12, 8, 2)
+    ctx.fillStyle = '#2a1c12'
+    ctx.fillRect(px + 4, py + 4, 8, 8)
+    ctx.fillStyle = '#e03a3a'
+    ctx.fillRect(px + 5, py + 5, 6, 3)
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(px + 5, py + 8, 6, 3)
+    ctx.fillStyle = '#2a1c12'
+    ctx.fillRect(px + 7, py + 7, 2, 2)
+  }
+
   // Characters, back to front.
   const drawables: { y: number, draw: () => void }[] = []
-  for (const npc of map.npcs) {
+  for (const npc of world.activeNpcs()) {
     drawables.push({
       y: npc.y,
       draw: () => actor(spriteFor(npc), LOOKS[npc.look], world.facingOf(npc.id, npc.facing), npc.x * TILE - camX, npc.y * TILE - camY, -1),

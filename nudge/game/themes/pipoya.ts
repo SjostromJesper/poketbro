@@ -38,6 +38,7 @@ export const pipoya: ThemeManifest = {
     floor: [at('base', 0, 36)],
     floorStone: [at('base', 3, 37)],
     counter: at('base', 1, 28),
+    sand: at('dirt', 0, 4),
     hedge: at('base', 0, 5),
     buildings: {
       houseA: house({ roof: '#b8503c', wall: '#e8d8b0', trim: '#6a4a2a' }),

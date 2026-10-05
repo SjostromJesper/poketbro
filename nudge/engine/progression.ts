@@ -47,9 +47,20 @@ export function movesLearnedAtLevel(data: GameData, pokemon: OwnedPokemon, level
   return species.levelUpMoves.filter(e => e.level === level && data.moves[e.move] && !known.has(e.move)).map(e => e.move)
 }
 
-export function pendingEvolution(data: GameData, pokemon: OwnedPokemon): number | null {
+/** A level-based or "trade" evolution the Pokémon has reached (trades evolve at one fixed level here). Stones are separate: `stoneEvolution`. */
+export function pendingEvolution(data: GameData, pokemon: Pick<OwnedPokemon, 'speciesId' | 'level'>, balance: Balance): number | null {
   const species = speciesOf(data, pokemon)
-  const evolution = species.evolutions.find(e => pokemon.level >= e.minLevel && data.species[e.to])
+  const evolution = species.evolutions.find((e) => {
+    if (e.item || !data.species[e.to]) return false
+    if (e.trade) return pokemon.level >= balance.TRADE_EVOLUTION_LEVEL
+    return pokemon.level >= e.minLevel
+  })
+  return evolution?.to ?? null
+}
+
+/** What an evolution stone does to this Pokémon: the species it turns into, or null when the stone has no effect on it. */
+export function stoneEvolution(data: GameData, pokemon: Pick<OwnedPokemon, 'speciesId'>, item: string): number | null {
+  const evolution = speciesOf(data, pokemon).evolutions.find(e => e.item === item && data.species[e.to])
   return evolution?.to ?? null
 }
 
@@ -144,7 +155,7 @@ export function grantXp(data: GameData, balance: Balance, pokemon: OwnedPokemon,
   }
   pokemon.level = to
   rescaleHpAfterStatChange(data, pokemon, oldMax)
-  return { uid: pokemon.uid, from, to, learned, pendingMoves, evolveTo: pendingEvolution(data, pokemon) }
+  return { uid: pokemon.uid, from, to, learned, pendingMoves, evolveTo: pendingEvolution(data, pokemon, balance) }
 }
 
 /** Applies a finished battle to the player's party (in place). */

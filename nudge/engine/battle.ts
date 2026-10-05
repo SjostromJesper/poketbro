@@ -466,7 +466,9 @@ export class BattleEngine {
         let used = false
         switch (action.item) {
           case 'potion':
-            used = healBattler(ctx, target, balance.POTION_HEAL, 'item') > 0
+          case 'super-potion':
+          case 'hyper-potion':
+            used = healBattler(ctx, target, balance.POTION_HEALS[action.item], 'item') > 0
             break
           case 'antidote':
             if (target.status === 'poison') { cureStatus(target); used = true }
@@ -478,7 +480,7 @@ export class BattleEngine {
             return reject('invalid')
         }
         if (!used) return reject('no-effect')
-        if (action.item !== 'potion') {
+        if (!(action.item in balance.POTION_HEALS)) {
           events.push({ type: 'status-cured', side: 'player', name: target.name, status: action.item === 'antidote' ? 'poison' : 'paralysis', reason: 'item' })
         }
         events.unshift({ type: 'item-used', side: 'player', name: target.name, item: action.item })

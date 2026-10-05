@@ -17,6 +17,7 @@ export interface PlayerSave {
   bag: Record<string, number>
   badges: string[]
   pokedex: number[]
+  pokedexSeen: number[]
   stepRemainder: number
   playTimeMs: number
 }
@@ -31,12 +32,18 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   const badges = ref<string[]>([])
   /** Species ids the player has owned. */
   const pokedex = ref<number[]>([])
+  /** Species ids the player has seen (in battle) - a superset of the owned ones. */
+  const pokedexSeen = ref<number[]>([])
   const stepRemainder = ref(0)
   /** Time played in earlier sessions (ms); the game store adds the running session when saving. */
   const playTimeMs = ref(0)
 
   const ablePokemon = computed(() => party.value.filter(p => p.currentHp > 0))
   const hasAbleParty = computed(() => ablePokemon.value.length > 0)
+
+  function markSeen(speciesId: number) {
+    if (!pokedexSeen.value.includes(speciesId)) pokedexSeen.value.push(speciesId)
+  }
 
   function reset() {
     name.value = 'Du'
@@ -46,6 +53,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     bag.value = {}
     badges.value = []
     pokedex.value = []
+    pokedexSeen.value = []
     stepRemainder.value = 0
     playTimeMs.value = 0
   }
@@ -76,6 +84,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   /** Adds a Pokémon to the party, or to the box when the party is full. Returns where it went. */
   function addPokemon(pokemon: OwnedPokemon): 'party' | 'box' {
     if (!pokedex.value.includes(pokemon.speciesId)) pokedex.value.push(pokemon.speciesId)
+    markSeen(pokemon.speciesId)
     if (party.value.length < MAX_PARTY) {
       party.value.push(pokemon)
       return 'party'
@@ -152,10 +161,10 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   function useHealingItem(item: string, uid: string): string | null {
     const pokemon = party.value.find(p => p.uid === uid)
     if (!pokemon || count(item) < 1) return null
-    if (item === 'potion') {
+    if (item in BALANCE.POTION_HEALS) {
       const max = maxHpOf(gameData, pokemon)
       if (pokemon.currentHp <= 0 || pokemon.currentHp >= max) return null
-      const healed = Math.min(BALANCE.POTION_HEAL, max - pokemon.currentHp)
+      const healed = Math.min(BALANCE.POTION_HEALS[item], max - pokemon.currentHp)
       pokemon.currentHp += healed
       removeItem(item)
       return `${nameOf(pokemon)} fick tillbaka ${healed} HP.`
@@ -229,7 +238,7 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
   function serialize(): PlayerSave {
     return JSON.parse(JSON.stringify({
       name: name.value, party: party.value, box: box.value, money: money.value, bag: bag.value,
-      badges: badges.value, pokedex: pokedex.value, stepRemainder: stepRemainder.value, playTimeMs: playTimeMs.value,
+      badges: badges.value, pokedex: pokedex.value, pokedexSeen: pokedexSeen.value, stepRemainder: stepRemainder.value, playTimeMs: playTimeMs.value,
     })) as PlayerSave
   }
 
@@ -241,12 +250,13 @@ export const usePlayerStore = defineStore('nudgePlayer', () => {
     bag.value = save.bag
     badges.value = save.badges
     pokedex.value = save.pokedex
+    pokedexSeen.value = save.pokedexSeen ?? [...save.pokedex]
     stepRemainder.value = save.stepRemainder
     playTimeMs.value = save.playTimeMs ?? 0
   }
 
   return {
-    name, party, box, money, bag, badges, pokedex, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
+    name, party, box, money, bag, badges, pokedex, pokedexSeen, markSeen, stepRemainder, playTimeMs, ablePokemon, hasAbleParty,
     reset, count, addItem, removeItem, spend, addPokemon, healAll, findPokemon, addSteps, totalHpFraction, serialize, hydrate,
     moveToBox, moveToParty, setNickname, moveParty, useHealingItem, feedBerry, giveHeldItem, takeHeldItem, tmStatus, teachTm,
   }

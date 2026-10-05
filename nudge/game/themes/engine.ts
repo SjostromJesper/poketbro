@@ -137,6 +137,9 @@ export function describeTile(theme: Pick<ThemeManifest, 'tiles'>, map: MapView, 
     switch (char) {
       case 'F': return [floor]
       case 'T': return [floor, t.counter]
+      case 'H': return t.shelf ? [floor, t.shelf] : []
+      case 'B': return t.table ? [floor, t.table] : []
+      case 'K': return t.bed ? [floor, t.bed] : []
       case 'M': return t.mat ? [floor, t.mat] : [floor, { badge: 'mat' }]
       case '#': {
         const faceVisible = map.tiles[ty + 1]?.[tx] !== '#'
@@ -156,6 +159,12 @@ export function describeTile(theme: Pick<ThemeManifest, 'tiles'>, map: MapView, 
       return [groundLayer(t, tx, ty), look[frame % look.length]]
     }
     case 'f': return [groundLayer(t, tx, ty), t.fence]
+    case 's': return t.sand ? [t.sand] : []
+    case '^': return t.rock ? [t.ground[0], t.rock] : []
+    case 'L': return t.ledge ? [t.ground[0], t.ledge] : []
+    case 'c': return t.caveFloor ? [t.caveFloor] : []
+    case 'X': return t.caveWall ? [t.caveWall] : []
+    case 'A': return t.stairs ? [t.stairs] : []
     case 'S': return [groundLayer(t, tx, ty), t.sign]
     case '=': return autotileLayers(t, t.path, map, tx, ty, '=', map.tiles[ty + 1]?.[tx] === 'D')
     case '~': {

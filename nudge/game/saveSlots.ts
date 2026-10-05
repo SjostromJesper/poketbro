@@ -94,6 +94,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     data.player = { ...data.player, playTimeMs: data.player?.playTimeMs ?? 0 }
     return data
   },
+  // v2 -> v3: the Pokédex knows which species were only seen, and the world remembers the Pokémon Centers used (fast travel).
+  2: (data) => {
+    const owned: number[] = Array.isArray(data.player?.pokedex) ? data.player.pokedex : []
+    data.player = { ...data.player, pokedexSeen: data.player?.pokedexSeen ?? [...owned] }
+    const center = data.world?.lastCenter
+    data.world = { ...data.world, visitedCenters: data.world?.visitedCenters ?? (center && center.mapId !== 'hemstad' ? [center] : []) }
+    return data
+  },
 }
 
 /** Brings a parsed save of any older version up to `toVersion`. Returns null for saves from the future or without a usable version. */

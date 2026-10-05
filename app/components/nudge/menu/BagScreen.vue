@@ -3,23 +3,26 @@ import { computed, ref } from 'vue'
 import { gameData } from '~~/nudge/data'
 import { BALANCE } from '~~/nudge/engine/balance'
 import { displayNameOf, maxHpOf } from '~~/nudge/engine/pokemon'
+import { stoneEvolution } from '~~/nudge/engine/progression'
 import { itemInfo, type ItemInfo } from '~~/nudge/game/items'
+import { useGameStore } from '~/stores/nudge/game'
 import { usePlayerStore } from '~/stores/nudge/player'
 import { hpColor, STATUS_LABELS, TYPE_COLORS } from '../ui'
 
 defineEmits<{ (e: 'back'): void }>()
 
 const player = usePlayerStore()
-type Tab = 'all' | 'items' | 'balls' | 'held' | 'tm'
+const game = useGameStore()
+type Tab = 'all' | 'items' | 'balls' | 'held' | 'tm' | 'special'
 const tab = ref<Tab>('all')
 const message = ref('')
 
-type Mode = 'use' | 'give' | 'feed' | 'tm'
+type Mode = 'use' | 'give' | 'feed' | 'tm' | 'stone'
 const picking = ref<{ item: ItemInfo, mode: Mode } | null>(null)
 const replacing = ref<{ item: ItemInfo, uid: string } | null>(null)
 
 const TABS: { id: Tab, label: string }[] = [
-  { id: 'all', label: 'Alla' }, { id: 'items', label: 'Läkning' }, { id: 'balls', label: 'Bollar' }, { id: 'held', label: 'Hålls' }, { id: 'tm', label: 'TM' },
+  { id: 'all', label: 'Alla' }, { id: 'items', label: 'Läkning' }, { id: 'balls', label: 'Bollar' }, { id: 'held', label: 'Hålls' }, { id: 'tm', label: 'TM' }, { id: 'special', label: 'Stenar & spön' },
 ]
 
 const entries = computed(() => Object.entries(player.bag)
@@ -31,6 +34,7 @@ const entries = computed(() => Object.entries(player.bag)
       case 'balls': return info.kind === 'ball'
       case 'held': return info.kind === 'held'
       case 'tm': return info.kind === 'tm'
+      case 'special': return info.kind === 'stone' || info.kind === 'key'
       default: return true
     }
   }))
@@ -46,10 +50,12 @@ function eligible(pokemon: (typeof player.party)[number]): string | null {
   switch (p.mode) {
     case 'use':
       if (pokemon.currentHp <= 0) return 'svimmad'
-      if (p.item.id === 'potion') return pokemon.currentHp >= maxHpOf(gameData, pokemon) ? 'full HP' : null
+      if (p.item.id in BALANCE.POTION_HEALS) return pokemon.currentHp >= maxHpOf(gameData, pokemon) ? 'full HP' : null
       if (p.item.id === 'antidote') return pokemon.status === 'poison' ? null : 'inte förgiftad'
       if (p.item.id === 'paralyze-heal') return pokemon.status === 'paralysis' ? null : 'inte förlamad'
       return 'går inte'
+    case 'stone':
+      return stoneEvolution(gameData, pokemon, p.item.id) ? null : 'påverkas inte'
     case 'tm': {
       const status = player.tmStatus(p.item.id, pokemon)
       return status === 'can' ? null : status === 'known' ? 'kan redan' : 'kan inte lära sig'
@@ -67,6 +73,7 @@ function pick(uid: string) {
   if (p.mode === 'use') result = player.useHealingItem(p.item.id, uid)
   else if (p.mode === 'give') result = player.giveHeldItem(p.item.id, uid)
   else if (p.mode === 'feed') result = player.feedBerry(uid)
+  else if (p.mode === 'stone') result = game.useStone(p.item.id, uid)
   else if (p.mode === 'tm') {
     if (pokemon.moves.length >= BALANCE.MAX_MOVES) {
       replacing.value = { item: p.item, uid }
@@ -115,6 +122,8 @@ function replace(index: number) {
           <button v-if="e.info.holdable" type="button" class="px-btn small" @click="start(e.info, 'give')">Ge</button>
           <button v-if="e.info.id === 'oran-berry'" type="button" class="px-btn small" @click="start(e.info, 'feed')">Mata</button>
           <button v-if="e.info.kind === 'tm'" type="button" class="px-btn small" @click="start(e.info, 'tm')">Lär ut</button>
+          <button v-if="e.info.kind === 'stone'" type="button" class="px-btn small" @click="start(e.info, 'stone')">Använd</button>
+          <span v-if="e.info.kind === 'key'" class="note">Används vid vatten</span>
           <span v-if="e.info.kind === 'ball'" class="note">Används i strid</span>
         </div>
       </li>
