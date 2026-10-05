@@ -128,7 +128,7 @@ export interface TrainerDef {
   intro: string[]
   defeated: string[]
   /** Rival battles: the team depends on the player's starter (see rival.ts). */
-  rival?: { round: 1 | 2 | 3 }
+  rival?: { round: 0 | 1 | 2 | 3 }
   /** Set for gym leaders. */
   gym?: { badge: string, badgeName: string, tm: string, rewardDialog: string[] }
 }

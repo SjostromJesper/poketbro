@@ -193,6 +193,11 @@ export class Bot {
     const strategy = this.options.strategy ?? 'best'
     for (let i = 0; i < 400 && !battle.result; i++) {
       battle.frame(16)
+      // The guided first battle: the professor's pauses are read, and the "try a move" prompt waits for a nudge.
+      if (battle.tutorialPrompt) {
+        if (battle.tutorialPrompt.waitsForNudge) battle.nudge(0)
+        else battle.dismissTutorial()
+      }
       const eng = battle.engine!
       if (strategy !== 'none') {
         const before = eng.active('player').nudgesUsed
@@ -332,7 +337,13 @@ export class Bot {
       const { dx, dy } = DIRECTIONS[d]
       return w.isWalkable(w.state.x + dx, w.state.y + dy) && !w.warpAt(w.state.x + dx, w.state.y + dy) && Math.abs(w.state.x + dx - target.x) <= 3 && Math.abs(w.state.y + dy - target.y) <= 3
     })
-    const dir = options.length ? options[this.report.actions % options.length] : 'down'
+    // Stay in the grass: prefer steps onto encounter tiles, otherwise walk back towards the target.
+    const grassy = options.filter((d) => {
+      const { dx, dy } = DIRECTIONS[d]
+      return w.tileAt(w.state.x + dx, w.state.y + dy)?.encounter
+    })
+    const pool = grassy.length ? grassy : options
+    const dir = pool.length ? pool[this.report.actions % pool.length] : 'down'
     this.hold(dir, 180)
   }
 

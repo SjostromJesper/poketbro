@@ -105,6 +105,9 @@ export const MIGRATIONS: Record<number, Migration> = {
   // v3 -> v4: the intro's names and look. Games from before the intro have the old rival and count as having seen it.
   3: (data) => {
     data.player = { ...data.player, rivalName: data.player?.rivalName ?? 'Elias', look: data.player?.look ?? 'player', introDone: data.player?.introDone ?? true }
+    // The Pokédex is handed over in the guided first battle's end; games that are further than that have it.
+    const flags: string[] = Array.isArray(data.world?.flags) ? data.world.flags : []
+    if (flags.includes('starter') && !flags.includes('pokedex')) data.world = { ...data.world, flags: [...flags, 'pokedex'] }
     return data
   },
 }

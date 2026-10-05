@@ -1,20 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import { gameData } from '~~/nudge/data'
-import { BALANCE } from '~~/nudge/engine/balance'
+import { BALANCE, type TraitId } from '~~/nudge/engine/balance'
 import { createTrainerPokemon, createWildPokemon } from '~~/nudge/engine/ai'
 import { createPokemon, displayNameOf } from '~~/nudge/engine/pokemon'
 import { evolvePokemon, learnMove, stoneEvolution } from '~~/nudge/engine/progression'
 import type { Rod } from '~~/nudge/game/encounters'
 import type { GiveDef, PickupDef } from '~~/nudge/game/types'
 import { createRandomRng } from '~~/nudge/engine/rng'
+import { randomNatureName, randomTrait } from '~~/nudge/engine/formulas'
+import * as TUT from '~~/nudge/game/text/tutorial'
 import type { BattleKind, BattleOutcome, OwnedPokemon } from '~~/nudge/engine/types'
 import { themeForMap } from '~~/nudge/game/battleThemes'
 import { battleMusic, mapMusic } from '~~/nudge/game/music'
 import { DEFAULT_PLAYER_NAME, DEFAULT_RIVAL_NAME, fillNames, setNames } from '~~/nudge/game/names'
 import { rivalTeam } from '~~/nudge/game/rival'
 import { applyAndNarrate, type SequenceStep } from '~~/nudge/game/postBattle'
-import { itemInfo, STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
+import { itemInfo, STARTERS, STARTER_BALLS, STARTER_LEVEL, tmId } from '~~/nudge/game/items'
 import { spriteFor, type SpriteKey } from '~~/nudge/game/sprites'
 import { TRAINERS } from '~~/nudge/game/trainers'
 import { newWorldState, type WildEncounter } from '~~/nudge/game/world'
@@ -46,6 +48,8 @@ type PostStep =
 interface BattleContext {
   kind: BattleKind
   trainer?: TrainerDef
+  /** The guided first battle against the rival in the lab. */
+  tutorial?: boolean
 }
 
 
@@ -223,6 +227,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
         break
       case 'starter':
         if (!w.hasFlag('starter')) {
+          rollStarters()
           world.setBusy(true)
           overlay.value = { kind: 'starter' }
         }
@@ -333,26 +338,60 @@ export const useGameStore = defineStore('nudgeGame', () => {
     world.setBusy(false)
   }
 
+  /** Rolls the nature and trait of the three starters once (kept in the save), so they can be looked at before choosing. */
+  function rollStarters() {
+    const rng = createRandomRng()
+    for (const { speciesId } of STARTERS) {
+      if (!player.starterRolls[speciesId]) player.starterRolls[speciesId] = { nature: randomNatureName(rng, gameData), trait: randomTrait(rng, BALANCE) }
+    }
+  }
+
   function chooseStarter(speciesId: number) {
     const w = world.world
     if (!w) return
+    rollStarters()
+    const roll = player.starterRolls[speciesId]
     const pokemon = createPokemon({
       data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId, level: STARTER_LEVEL,
       trust: BALANCE.TRUST_START_STARTER, originalTrainer: player.name, caughtAt: Date.now(),
+      nature: roll.nature, trait: roll.trait as TraitId,
     })
     player.addPokemon(pokemon)
-    player.addItem('poke-ball', STARTER_BALLS)
     void audio.jingle('item')
     w.setFlag('starter')
     w.setFlag(`starter-${speciesId}`)
     overlay.value = null
-    world.setBusy(false)
     save(true)
-    world.openDialog([
-      `Du valde ${displayNameOf(gameData, pokemon)}!`,
-      `Professorn gav dig också ${STARTER_BALLS} Poké Balls.`,
-      'Nu kan du lämna Hemstad. Lycka till på resan!',
-    ])
+    // The guided first battle follows at once: the professor, then the rival bursts in.
+    world.setBusy(true)
+    world.openDialog(TUT.AFTER_PICK(displayNameOf(gameData, pokemon)), TUT.PROFESSOR, () => {
+      world.openDialog(TUT.RIVAL_ENTRANCE, '{rival}', startTutorialBattle, 'rival')
+    }, 'professor')
+  }
+
+  /** The guided first battle: the rival with the starter that beats the player's, level 5 against level 5. */
+  function startTutorialBattle() {
+    const def = TRAINERS['rival-0']
+    world.setBusy(true)
+    const enemy = trainerTeam(def).map(mon => createTrainerPokemon({
+      data: gameData, balance: BALANCE, rng: createRandomRng(), speciesId: mon.speciesId, level: mon.level, moves: mon.moves, trainerName: fillNames(def.name),
+    }))
+    begin({ kind: 'trainer', trainer: def, tutorial: true }, enemy)
+  }
+
+  /** After the guided battle, whatever the result: the professor hands over the Poké Balls and the Pokédex. */
+  function tutorialAfter(): PostStep[] {
+    return [
+      {
+        type: 'run',
+        run: () => {
+          player.addItem('poke-ball', STARTER_BALLS)
+          world.world?.setFlag('pokedex')
+          void audio.jingle('item')
+        },
+      },
+      { type: 'dialog', lines: TUT.AFTER_BATTLE, speaker: TUT.PROFESSOR, portrait: 'professor' },
+    ]
   }
 
   function closeShop() {
@@ -411,7 +450,7 @@ export const useGameStore = defineStore('nudgeGame', () => {
     audio.sfx('encounter')
     audio.music(battleMusic(ctx.kind, ctx.trainer))
     setTimeout(() => {
-      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length, theme: themeForMap(world.world?.state.mapId ?? '') })
+      battle.start({ player: player.party, enemy, kind: ctx.kind, badges: player.badges.length, theme: themeForMap(world.world?.state.mapId ?? ''), tutorial: ctx.tutorial })
       screen.value = 'battle'
     }, 900)
   }
@@ -445,6 +484,14 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
     const { steps: xpSteps, application } = applyAndNarrate(gameData, BALANCE, player.party, outcome)
 
+    if (outcome.result === 'lose' && ctx?.tutorial) {
+      // The guided battle cannot stop the game: the rival wins, the Pokémon is healed and everything goes on.
+      steps.push({ type: 'message', lines: [`${fillNames('{rival}')} vann den här gången.`], speaker: fillNames('{rival}'), portrait: 'rival' }, { type: 'message', lines: TUT.RIVAL_WON.map(fillNames), speaker: fillNames('{rival}'), portrait: 'rival' })
+      queue.push({ type: 'run', run: () => { player.healAll(false); world.clearTrainer() } }, ...tutorialAfter())
+      sequence.value = steps
+      return
+    }
+
     if (outcome.result === 'lose') {
       steps.push({ type: 'message', lines: ['Du har inga Pokémon kvar som kan slåss...', 'Allt blev svart!'] })
       queue.push({
@@ -471,11 +518,11 @@ export const useGameStore = defineStore('nudgeGame', () => {
         const def = ctx.trainer
         const speaker = fillNames(`${def.title} ${def.name}`)
         const portrait = spriteFor(def) ?? undefined
-        const prize = BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...trainerTeam(def).map(m => m.level))
+        const prize = ctx.tutorial ? 0 : BALANCE.TRAINER_MONEY_PER_LEVEL * Math.max(...trainerTeam(def).map(m => m.level))
         w?.markDefeated(def.id)
         player.money += prize
         steps.push({ type: 'message', lines: [`${foe} svimmade!`, `Du besegrade ${speaker}!`] })
-        steps.push({ type: 'message', lines: [...def.defeated, `Du fick ${prize} kr för segern!`], speaker, portrait })
+        steps.push({ type: 'message', lines: [...def.defeated, ...(prize ? [`Du fick ${prize} kr för segern!`] : [])], speaker, portrait })
       } else {
         steps.push({ type: 'message', lines: [`Vilda ${foe} svimmade!`] })
       }
@@ -513,6 +560,8 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
     // Evolutions are shown after the scene closes, in their own scene.
     for (const info of application.levelUps) if (info.evolveTo) queue.push({ type: 'evolve', uid: info.uid, to: info.evolveTo })
+
+    if (ctx?.tutorial) queue.push(...tutorialAfter())
 
     sequence.value = steps
   }
@@ -603,6 +652,6 @@ export const useGameStore = defineStore('nudgeGame', () => {
 
   return {
     screen, overlay,
-    install, newGame, resume, beginIntro, finishIntro, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
+    install, newGame, resume, beginIntro, finishIntro, rollStarters, setEphemeral, save, savedGame, hasSave, loadSave, deleteSave, chooseStarter, closeShop, closePc, chooseGift, travelTo, closeOverlay, sequence, beginPostBattle, learnChoice, giveNickname, finishBattle, useStone, resolveEvolve, startWildBattle, onTrainer, onAction,
   }
 })

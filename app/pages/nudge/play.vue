@@ -93,6 +93,7 @@ onMounted(() => {
       }
     }
     if (!state.flags.includes('starter')) world.world?.setFlag('starter')
+    world.world?.setFlag('pokedex')
   }
   if (q.balls) player.addItem('poke-ball', Number(q.balls))
   if (q.money) player.money = Number(q.money)

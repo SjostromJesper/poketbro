@@ -16,6 +16,7 @@ import DebugOverlay from './DebugOverlay.vue'
 import MoveButton from './MoveButton.vue'
 import NudgePips from './NudgePips.vue'
 import PostBattleSequence from './PostBattleSequence.vue'
+import FacePortrait from '~/components/nudge/overworld/FacePortrait.vue'
 import { hpColor } from '../ui'
 
 const props = defineProps<{
@@ -56,6 +57,12 @@ function loop(now: number) {
 function onKey(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
+  // The professor's explanations in the guided first battle: one press dismisses one (key repeat is ignored).
+  if (store.tutorialPrompt && (event.key === ' ' || event.key === 'Enter' || event.key === 'z' || event.key === 'Z')) {
+    event.preventDefault()
+    if (!event.repeat) store.dismissTutorial()
+    return
+  }
   if (menu.value !== 'none' || store.result || store.capturing) return
   if (event.key >= '1' && event.key <= '4') {
     store.nudge(Number(event.key) - 1)
@@ -260,6 +267,7 @@ const xpLines = computed(() => {
 })
 
 const speeds = BALANCE.SPEED_MULTIPLIERS
+const focus = computed(() => store.tutorialPrompt?.focus ?? null)
 </script>
 
 <template>
@@ -268,7 +276,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
     <div ref="stageEl" class="stage px-panel">
       <BattleBackdrop :theme="store.theme" />
 
-      <div class="enemy-info">
+      <div class="enemy-info" :class="{ spot: focus === 'atb' }">
         <BattlerPanel :battler="view.enemy" />
         <div v-if="view.kind === 'trainer'" class="trainer-count" :title="`${view.enemyRemaining} av ${view.enemyTeamSize} kvar`">
           <span v-for="i in view.enemyTeamSize" :key="i" class="ball" :class="{ out: i > view.enemyRemaining }" />
@@ -285,7 +293,7 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
         <img :src="view.player.sprite.back || view.player.sprite.front" :alt="view.player.name" draggable="false">
       </div>
 
-      <div class="player-info">
+      <div class="player-info" :class="{ spot: focus === 'atb' }">
         <BattlerPanel :battler="view.player" numbers />
       </div>
 
@@ -302,17 +310,18 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
         :stage="stageEl" @throw="onThrow" @absorb="onAbsorb" @shake="onShake" @result="onResult" @release="onRelease" @done="onCaptureDone"
       />
       <div v-if="store.paused && !store.result" class="paused px-title">PAUS</div>
+      <div v-if="focus === 'emote'" class="emote-spot" />
     </div>
 
     <!-- Controls -->
     <div class="controls">
-      <div class="moves-col">
+      <div class="moves-col" :class="{ spot: focus === 'moves' }">
         <div class="moves">
           <MoveButton
             v-for="m in view.player.moves" :key="m.index" :move="m" :hotkey="m.index + 1" :disabled="capturing" @nudge="store.nudge(m.index)"
           />
         </div>
-        <div class="nudge-line">
+        <div class="nudge-line" :class="{ spot: focus === 'pips' }">
           <span class="px-title tiny">Nudge</span>
           <NudgePips :total="view.player.nudge.budget" :remaining="view.player.nudge.remaining" />
           <span class="hint">Klicka (eller 1-4) för att nudga nästa val.</span>
@@ -352,6 +361,15 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
       </div>
     </div>
 
+    <div v-if="store.tutorialPrompt" class="tutorial" role="dialog" @click="store.dismissTutorial()">
+      <div class="speaker px-title">Professor Ek</div>
+      <FacePortrait class="face" sprite="professor" />
+      <div class="tut-text">
+        <p v-for="line in store.tutorialPrompt.lines" :key="line">{{ line }}</p>
+      </div>
+      <span v-if="!store.tutorialPrompt.waitsForNudge" class="more">▼</span>
+      <button type="button" class="skip" @click.stop="store.skipTutorial()">Hoppa över förklaringarna</button>
+    </div>
     <BattleLog :lines="store.log" :visible="5" />
     <p v-if="message" class="toast">{{ message }}</p>
 
@@ -401,6 +419,102 @@ const speeds = BALANCE.SPEED_MULTIPLIERS
 </template>
 
 <style scoped>
+.spot {
+  outline: 4px solid #ffd840;
+  outline-offset: 3px;
+  animation: spot 0.8s steps(2) infinite;
+  position: relative;
+  z-index: 3;
+}
+
+.spot::after {
+  content: '▼';
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  color: #ffd840;
+  font-size: 22px;
+  animation: pointer 0.6s steps(2) infinite;
+}
+
+@keyframes spot {
+  50% { outline-color: #fff4dc; }
+}
+
+@keyframes pointer {
+  50% { transform: translateY(5px); }
+}
+
+.emote-spot {
+  position: absolute;
+  left: 14%;
+  bottom: 24%;
+  width: 90px;
+  height: 90px;
+  border: 4px solid #ffd840;
+  border-radius: 50%;
+  animation: spot 0.8s steps(2) infinite;
+  pointer-events: none;
+}
+
+.tutorial {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(720px, 94vw);
+  min-height: 92px;
+  padding: 14px 18px 14px 110px;
+  background: #f8ecd0;
+  color: #2a1c12;
+  border: 4px solid #2a1c12;
+  box-shadow: inset 0 0 0 3px #c8b088, 4px 4px 0 rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  z-index: 30;
+}
+
+.tutorial .speaker {
+  position: absolute;
+  top: -16px;
+  left: 14px;
+  font-size: 10px;
+  padding: 5px 8px;
+  background: #2a1c12;
+  color: #ffd840;
+}
+
+.tutorial .face {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tut-text p {
+  margin: 0 0 6px;
+  font-size: 19px;
+  line-height: 1.4;
+}
+
+.tutorial .more {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+}
+
+.tutorial .skip {
+  position: absolute;
+  right: 12px;
+  top: -34px;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #5a4330;
+  color: #fff4dc;
+  border: 2px solid #2a1c12;
+  cursor: pointer;
+}
+
 .scene {
   position: relative;
   width: min(960px, 100%);

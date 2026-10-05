@@ -525,3 +525,13 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
   Sparning är nu tillåten så fort introt är klart (inte först när man fått en Pokémon), så namnen överlever om man stänger spelet före starter-valet.
 - **Namn i all text**: text kan innehålla `{player}` och `{rival}` (`nudge/game/names.ts`, `fillNames`); de fylls i när en dialogruta öppnas, i tränarnas namn och i strids-avslutets texter. Rivalen heter `{rival}` i tränardatan (`RIVAL_NAME`).
 - **Andra utseendet**: ny sprite-nyckel `player2` i alla fyra teman (Tuxemon "heroine", Ninja Adventure "Princess", Kenney en annan karaktär, Pipoya återanvänder `girl`); det är det enda som behövdes för att temat ska kunna visa det.
+
+## P4-M3: starter och guidad första strid
+
+- **Starter-valet** visar nu varje starters drag (trait) och natur med förklaring (samma texter som sammanfattningen). De slumpas första gången labbet öppnas (`player.starterRolls`, sparas i sparfilen), så valet är personligt och inte kan "omrullas" genom att ladda om.
+  Professor Ek (labbets professor heter inte längre Almqvist) hälsar med `{player}` och förklarar att natur och drag påverkar striderna.
+- **Första striden** (`game/tutorial.ts`, rent och testat) startar direkt efter valet: professorn kommenterar, rivalen kliver in med den starter som slår spelarens (`rivalTeam(0, ...)`, nivå 5 mot nivå 5, tränaren `rival-0` finns inte på någon karta) och striden börjar.
+  Striden pausar fyra gånger: (1) ATB-baren (markerad), (2) "tryck på en attack" (väntar tills spelaren har nudgat, kan inte stängas med tryck), (3) efter nästa val förklaras ♪ eller … beroende på om Pokémonen följde, (4) nudge-prickarna. Ett tryck stänger en ruta (260 ms spärr, nyckel-repeat ignoreras). Knapp "Hoppa över förklaringarna" finns redan; själva valet för senare nya spel kommer i P4-M4.
+- **Kan inte förloras så att spelet stoppas**: vid förlust läks Pokémonen, ingen blackout, inga pengar förloras, rivalen får sin replik; vid vinst får man inga pengar. Båda vägarna fortsätter med professorns scen: 5 Poké Balls, Pokédex (flaggan `pokedex`, menyknappen visas först då) och en kort förklaring av fångst ("ju svagare, desto lättare").
+  Poké Balls ges alltså inte längre vid valet. Äldre spel som redan har en starter får Pokédex-flaggan i migreringen.
+- **Boten** läser tutorial-rutorna (nudgar på "prova nu") och håller sig nu i gräset när den tränar (en ändrad slumpföljd visade att den annars kunde pendla utanför gräset).

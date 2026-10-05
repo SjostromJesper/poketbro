@@ -47,19 +47,16 @@ lab
   .fill(1, 1, 8, 1, 'shelf')
   .fill(4, 4, 2, 1, 'table')
   .npc({
-    id: 'professor', x: 5, y: 2, facing: 'down', look: 'professor', action: 'starter', name: 'Professor Almqvist',
+    id: 'professor', x: 5, y: 2, facing: 'down', look: 'professor', action: 'starter', name: 'Professor Ek',
     dialog: [
-      'Välkommen! Jag är professor Almqvist.',
-      'Pokémon här slåss inte som du kanske är van vid. De väljer själva sina attacker, i realtid!',
-      'Du kan ändå påverka dem: klicka på en av deras attacker under striden, så blir den mer sannolik att väljas. Det kallar jag att nudga.',
-      'Men var försiktig! Varje strid har bara ett fåtal nudges, och varje ny nudge påverkar lite mindre än den förra.',
-      'Ju mer en Pokémon litar på dig, desto bättre lyssnar den - och desto smartare väljer den.',
-      'Nu är det dags: välj din första Pokémon!',
+      'Där är du, {player}! Jag har väntat på dig.',
+      'Jag har tre Pokémon här som behöver en tränare. Var och en har sin egen natur och sitt eget drag, slumpade just för dig.',
+      'Titta noga på dem innan du väljer. Natur och drag påverkar hur de fightas och hur väl de lyssnar på dig.',
     ],
     dialogAfter: {
       flag: 'starter',
       lines: [
-        'Ta väl hand om din Pokémon! Gå norrut genom Väg 1 och Viridianskogen, så kommer du till Grusstad.',
+        'Ta väl hand om din Pokémon, {player}! Gå norrut genom Väg 1 och skogen, så kommer du till Grusstad.',
         'Där finns ett gym. Lycka till!',
       ],
     },

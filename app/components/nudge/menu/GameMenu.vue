@@ -57,7 +57,7 @@ onBeforeUnmount(() => world.setMenuBack(null))
       <h3 class="px-title">Meny</h3>
       <button type="button" class="px-btn" @click="screen = 'party'">Lag</button>
       <button type="button" class="px-btn" @click="screen = 'bag'">Väska</button>
-      <button type="button" class="px-btn" @click="screen = 'pokedex'">Pokédex</button>
+      <button v-if="world.world?.hasFlag('pokedex')" type="button" class="px-btn" @click="screen = 'pokedex'">Pokédex</button>
       <button type="button" class="px-btn" :disabled="!player.party.length" @click="game.save()">Spara</button>
       <button type="button" class="px-btn" @click="screen = 'settings'">Inställningar</button>
       <button type="button" class="px-btn" @click="toTitle">Titelskärm</button>

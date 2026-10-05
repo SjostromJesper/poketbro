@@ -58,7 +58,7 @@ afterEach(() => {
 describe('the first steps: professor, starter, healing', () => {
   it('lets you pick a starter from the professor, which opens the gate', () => {
     const ctx = setup()
-    const { game, player, world } = ctx
+    const { game, player, world, battle } = ctx
     world.world!.state.mapId = 'proflab'
     world.teleport('proflab', 5, 3, 'up')
     world.action() // talk to the professor
@@ -70,10 +70,35 @@ describe('the first steps: professor, starter, healing', () => {
     expect(game.overlay).toBeNull()
     expect(player.party).toHaveLength(1)
     expect(player.party[0]).toMatchObject({ speciesId: 4, level: 5, trust: BALANCE.TRUST_START_STARTER, originalTrainer: 'Du' })
-    expect(player.count('poke-ball')).toBe(5)
+    expect(player.count('poke-ball')).toBe(0) // the balls come after the guided battle
     expect(world.world!.hasFlag('starter')).toBe(true)
+    expect(world.world!.hasFlag('pokedex')).toBe(false)
+    // The professor and the rival talk, then the guided first battle against the rival's starter (the one that beats yours) starts.
     expect(world.mode).toBe('dialog')
     talkThrough(ctx)
+    expect(game.screen).toBe('transition')
+    vi.advanceTimersByTime(1000)
+    expect(game.screen).toBe('battle')
+    expect(battle.engine!.state.enemy.battlers.map(b => [b.speciesId, b.level])).toEqual([[7, 5]])
+    // The professor explains in four steps; the battle stops at each and "try a move" waits for a nudge.
+    const shown: string[] = []
+    battle.setSpeed(3)
+    for (let i = 0; i < 60000 && !battle.result; i++) {
+      battle.frame(16)
+      const prompt = battle.tutorialPrompt
+      if (prompt) {
+        if (!shown.includes(prompt.id)) shown.push(prompt.id)
+        if (prompt.waitsForNudge) battle.nudge(0)
+        else battle.dismissTutorial()
+      }
+    }
+    expect(shown).toEqual(['atb', 'moves', 'afterNudge', 'pips'])
+    expect(battle.result).not.toBeNull()
+    finishBattle(game, battle.outcome)
+    talkThrough(ctx)
+    expect(player.count('poke-ball')).toBe(5)
+    expect(world.world!.hasFlag('pokedex')).toBe(true)
+    expect(player.party[0].currentHp).toBeGreaterThan(0) // winning or losing, the game goes on
     expect(world.mode).toBe('walk')
     // The professor only offers a starter once.
     world.action()
