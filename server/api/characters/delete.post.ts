@@ -1,0 +1,20 @@
+import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
+
+export default defineEventHandler(async (event) => {
+  const user = await serverSupabaseUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
+  }
+
+  const admin = serverSupabaseServiceRole(event)
+
+  await admin.from('items').delete().eq('user_id', user.sub)
+  await admin.from('duel_queue').delete().eq('user_id', user.sub)
+  await admin
+    .from('matches')
+    .delete()
+    .or(`player_a_user_id.eq.${user.sub},player_b_user_id.eq.${user.sub}`)
+  await admin.from('characters').delete().eq('user_id', user.sub)
+
+  return { ok: true }
+})
