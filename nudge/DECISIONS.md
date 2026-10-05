@@ -577,3 +577,12 @@ Open questions: the early-game bot overstates grinding (it only farms Route 1), 
 - **Nätverksstoren** (`stores/nudge/network.ts`) anropar bara funktionerna (`submit-bracket`, `send-challenge`, `respond-challenge`) och *läser* tabellerna (profiler, utmaningar, matcher; RLS ser till att man bara ser sitt eget). Inkorgen läses när spelet startar och var 90:e sekund; en liten ✉-ikon med antal visas i HUD:en och i menyn när
   det finns väntande utmaningar eller resultat efter senaste besöket i inkorgen (`nudge:inbox:seen`).
 - **Logiken** (`nudge/game/network.ts`, testad): vem som får vara med i ett lag, lagordningen, texterna för resultat och fel, vad som är nytt. Hela flödet till servern är provat i webbläsaren fram till anropet (som svarar offline eftersom funktionerna inte är deployade här).
+
+## P4-M8: repriser
+
+- **Loggen spelas, matchen körs inte om** (`nudge/game/replay.ts`, `ReplayPlayer`): händelserna från servern spelas upp en och en och bilden (vem som är ute, HP, status, svimmade) hålls uppdaterad ur händelserna (HP kommer från händelsernas `hp`/`maxHp`). Bara startvärdena (namn, nivå, typer) räknas ur lagets ögonblicksbilder.
+  Ett test spelar en påhittad logg med HP-tal som motorn aldrig skulle ge, och loggen spelas som den är. `ENGINE_VERSION` finns sparad vid varje match.
+- **Åskådarläget** (`ReplayScene.vue`) ser ut som en vanlig strid (bakgrund, paneler, sprites, lagprickar, logg, rop, skadetal) men har inga nudge- eller handlingsknappar. Kontroller: pausa, 1x/2x/4x, "Hoppa till slutet" och stäng. Båda spelarnas namn och ID står överst och i loggen
+  ("Anna #1452s Charizard använde ..."; `describeEvent` fick ett `names`-val). ATB-baren är bara en bild (loggen har inga ATB-värden): den fylls igen efter varje handling. Dev-sida: `/nudge/dev/replay` (spelar en lokalt simulerad match).
+- **Reprislistan** på datorn (Nätverk -> Repriser): de 100 senaste matcherna, sida för sida (10 per sida), med typ, bracket, motståndare, resultat och ratingförändring, senaste först. "Se repris" finns också i inkorgen och direkt efter en spelad match. Alla matcher ligger kvar i databasen.
+- **Lagring**: loggen ligger inline som `jsonb` (se P4-M6: 5-11 kB per match), ingen Storage behövs.

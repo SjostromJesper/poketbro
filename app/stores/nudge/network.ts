@@ -2,6 +2,7 @@
 // (challenges to answer, results of matches). Everything that changes something goes through the functions; the tables are only read (row level security).
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import type { BattleEvent } from '~~/nudge/engine/types'
 import { OFFLINE_MESSAGE, outcomeFor, unseenCount, type InboxChallenge, type InboxMatch, type OpponentLike, type ServerError } from '~~/nudge/game/network'
 import type { ChallengeResult, PublicProfile, RespondResult, SubmitResult } from '~~/nudge/server/handlers'
 import type { PokemonSnapshot } from '~~/nudge/server/snapshot'
@@ -16,6 +17,23 @@ interface Client {
 }
 
 const SEEN_KEY = 'nudge:inbox:seen'
+
+/** A saved match, ready to be played back. */
+export interface ReplayData {
+  matchId: string
+  kind: 'bracket' | 'challenge'
+  bracket: string
+  createdAt: number
+  result: 'a' | 'b' | 'draw'
+  engineVersion: string
+  playerA: OpponentLike
+  playerB: OpponentLike
+  teamA: PokemonSnapshot[]
+  teamB: PokemonSnapshot[]
+  events: BattleEvent[]
+  ratingChangeA: number | null
+  ratingChangeB: number | null
+}
 
 export const useNetworkStore = defineStore('nudgeNetwork', () => {
   const account = useAccountStore()
@@ -111,5 +129,20 @@ export const useNetworkStore = defineStore('nudgeNetwork', () => {
     writeItem(SEEN_KEY, String(lastSeenAt.value))
   }
 
-  return { challenges, matches, declined, loaded, online, unseen, connect, call, submitBracket, sendChallenge, respond, findPlayer, refresh, markSeen }
+  /** Fetches one match with its saved event log and both teams (only possible for the two players, row level security). Null when it cannot be read. */
+  async function loadReplay(matchId: string): Promise<ReplayData | null> {
+    if (!online.value || !client) return null
+    const { data, error } = await client.from('matches')
+      .select('id, kind, bracket, player_a, player_b, team_a, team_b, result, events, engine_version, rating_change_a, rating_change_b, created_at').eq('id', matchId).maybeSingle()
+    if (error || !data || !Array.isArray(data.events)) return null
+    const names = await profilesOf([data.player_a, data.player_b])
+    const unknown = { displayName: '?', tag: 0 }
+    return {
+      matchId: data.id, kind: data.kind, bracket: data.bracket, createdAt: Date.parse(data.created_at), result: data.result, engineVersion: data.engine_version,
+      playerA: names.get(data.player_a) ?? unknown, playerB: names.get(data.player_b) ?? unknown, teamA: data.team_a, teamB: data.team_b, events: data.events,
+      ratingChangeA: data.rating_change_a, ratingChangeB: data.rating_change_b,
+    }
+  }
+
+  return { challenges, matches, declined, loaded, online, unseen, connect, call, submitBracket, sendChallenge, respond, findPlayer, loadReplay, refresh, markSeen }
 })

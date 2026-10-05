@@ -9,13 +9,15 @@ import { snapshotOf, type PokemonSnapshot } from '~~/nudge/server/snapshot'
 import type { PublicProfile } from '~~/nudge/server/handlers'
 import { useNetworkStore } from '~/stores/nudge/network'
 import { usePlayerStore } from '~/stores/nudge/player'
+import ReplayScene from '~/components/nudge/battle/ReplayScene.vue'
+import type { ReplayData } from '~/stores/nudge/network'
 import TeamPicker from './TeamPicker.vue'
 
 const emit = defineEmits<{ (e: 'back'): void }>()
 const network = useNetworkStore()
 const player = usePlayerStore()
 
-type View = 'menu' | 'bracket' | 'team' | 'result' | 'id' | 'confirm' | 'challenge-bracket' | 'inbox' | 'answer'
+type View = 'menu' | 'replays' | 'bracket' | 'team' | 'result' | 'id' | 'confirm' | 'challenge-bracket' | 'inbox' | 'answer'
 const view = ref<View>('menu')
 /** What the team picker is for. */
 const purpose = ref<{ kind: 'bracket' | 'challenge' | 'answer', bracket: string, target?: PublicProfile, challengeId?: string }>({ kind: 'bracket', bracket: '' })
@@ -23,16 +25,36 @@ const idText = ref('')
 const found = ref<PublicProfile | null>(null)
 const lines = ref<string[]>([])
 const busy = ref(false)
-const searching = ref(false)
+const replay = ref<ReplayData | null>(null)
+const lastMatchId = ref<string | null>(null)
+const page = ref(0)
+const PAGE_SIZE = 10
+const pageCount = computed(() => Math.max(1, Math.ceil(network.matches.length / PAGE_SIZE)))
+const pageMatches = computed(() => network.matches.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
 
 const allPokemon = computed(() => [...player.party, ...player.box])
 const online = computed(() => network.online)
 
 onMounted(() => void network.refresh())
 
-function show(result: string[]) {
+function show(result: string[], matchId: string | null = null) {
   lines.value = result
+  lastMatchId.value = matchId
   view.value = 'result'
+}
+
+async function watch(matchId: string) {
+  busy.value = true
+  const data = await network.loadReplay(matchId)
+  busy.value = false
+  if (!data) return show(['Reprisen kunde inte hämtas.'])
+  replay.value = data
+}
+
+function openReplays() {
+  page.value = 0
+  view.value = 'replays'
+  void network.refresh()
 }
 
 function snapshots(uids: string[]): PokemonSnapshot[] {
@@ -65,11 +87,14 @@ async function confirmTeam(uids: string[]) {
   const p = purpose.value
   busy.value = true
   const team = snapshots(uids)
-  if (p.kind === 'bracket') show(submitLines(await network.submitBracket(p.bracket, team) as never))
+  if (p.kind === 'bracket') {
+    const result = await network.submitBracket(p.bracket, team)
+    show(submitLines(result as never), result.ok && 'status' in result && result.status === 'played' ? result.matchId : null)
+  }
   else if (p.kind === 'challenge') show(challengeSentLines(await network.sendChallenge(p.target!.tag, p.bracket, team) as never))
   else {
     const result = await network.respond(p.challengeId!, true, team)
-    show(respondLines(result as never))
+    show(respondLines(result as never), result.ok && 'status' in result && result.status === 'accepted' ? result.matchId : null)
     void network.refresh()
   }
   busy.value = false
@@ -107,6 +132,7 @@ const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: '
         <button type="button" class="px-btn" @click="view = 'bracket'">Bracket</button>
         <button type="button" class="px-btn" @click="idText = ''; view = 'id'">Utmana</button>
         <button type="button" class="px-btn" @click="openInbox">Inkorg<span v-if="network.unseen" class="dot">{{ network.unseen }}</span></button>
+        <button type="button" class="px-btn" @click="openReplays">Repriser</button>
       </div>
     </template>
 
@@ -157,7 +183,23 @@ const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: '
     <template v-else-if="view === 'result'">
       <p v-for="line in lines" :key="line" class="big">{{ line }}</p>
       <div class="menu">
-        <button type="button" class="px-btn primary" @click="view = 'menu'">Tillbaka</button>
+        <button v-if="lastMatchId" type="button" class="px-btn primary" :disabled="busy" @click="watch(lastMatchId)">Se repris</button>
+        <button type="button" class="px-btn" :class="{ primary: !lastMatchId }" @click="view = 'menu'">Tillbaka</button>
+      </div>
+    </template>
+
+    <template v-else-if="view === 'replays'">
+      <h3 class="px-title">Repriser</h3>
+      <p v-if="network.matches.length === 0" class="hint">Inga spelade matcher än.</p>
+      <div v-for="m in pageMatches" :key="m.id" class="card" :class="m.outcome">
+        <span>{{ describeInboxMatch(m) }}<small>{{ when(m.createdAt) }}</small></span>
+        <button type="button" class="px-btn small" :disabled="busy" @click="watch(m.id)">Se repris</button>
+      </div>
+      <div class="menu">
+        <button type="button" class="px-btn small" :disabled="page === 0" @click="page--">◀</button>
+        <span class="hint">Sida {{ page + 1 }} av {{ pageCount }}</span>
+        <button type="button" class="px-btn small" :disabled="page + 1 >= pageCount" @click="page++">▶</button>
+        <button type="button" class="px-btn" @click="view = 'menu'">Tillbaka</button>
       </div>
     </template>
 
@@ -172,9 +214,14 @@ const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: '
       <h3 class="px-title">Resultat</h3>
       <p v-if="network.matches.length === 0 && network.declined.length === 0" class="hint">Inga matcher än.</p>
       <div v-for="d in network.declined" :key="d.id" class="card"><span>{{ formatPlayer(d.to) }} avböjde din utmaning ({{ bracketLabel(d.bracket) }})<small>{{ when(d.createdAt) }}</small></span></div>
-      <div v-for="m in network.matches" :key="m.id" class="card" :class="m.outcome"><span>{{ describeInboxMatch(m) }}<small>{{ when(m.createdAt) }}</small></span></div>
+      <div v-for="m in network.matches.slice(0, 20)" :key="m.id" class="card" :class="m.outcome">
+        <span>{{ describeInboxMatch(m) }}<small>{{ when(m.createdAt) }}</small></span>
+        <button type="button" class="px-btn small" :disabled="busy" @click="watch(m.id)">Se repris</button>
+      </div>
       <button type="button" class="px-btn" @click="view = 'menu'">Tillbaka</button>
     </template>
+
+    <ReplayScene v-if="replay" :replay="replay" @close="replay = null" />
 
     <button v-if="view === 'menu' || !online" type="button" class="px-btn" @click="emit('back')">Tillbaka till datorn</button>
   </div>

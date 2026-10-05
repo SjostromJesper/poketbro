@@ -163,5 +163,5 @@ inte för känslan av balans).
 | P4-M5 - Konton och spelar-ID | done i koden (kör `0015_nudge_profiles.sql`, se rutan överst; kontoflödet är inte provat mot riktiga Supabase) |
 | P4-M6 - Servern: lag, simulering och matcher | done i koden (kör `0016_nudge_matches.sql` och deploya funktionerna, se rutan överst; inte provat mot riktiga Supabase/Deno) |
 | P4-M7 - Datorn i Pokémon Center | done (flödena provade i webbläsaren till anropet; svaret från riktiga funktioner är inte provat) |
-| P4-M8 - Repriser | todo |
+| P4-M8 - Repriser | done (uppspelning provad med en lokalt simulerad match på `/nudge/dev/replay`) |
 | P4-M9 - ELO och topplistor | todo |

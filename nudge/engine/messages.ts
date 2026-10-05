@@ -26,10 +26,13 @@ const CHARGE_TEXT: Record<string, string> = {
 export interface MessageContext {
   kind?: BattleKind
   data?: GameData
+  /** Replays of online matches: the two players' names, so the log says "Anna:s Charizard" instead of "Motståndarens". */
+  names?: { player: string, enemy: string }
 }
 
 /** "Vilda Rattata" / "Motståndarens Onix" for the enemy side, the plain name for the player's own Pokémon. */
 function who(event: { side: 'player' | 'enemy', name: string }, ctx: MessageContext): string {
+  if (ctx.names) return `${ctx.names[event.side]}s ${event.name}`
   if (event.side === 'player') return event.name
   return ctx.kind !== 'wild' ? `Motståndarens ${event.name}` : `Vilda ${event.name}`
 }
@@ -37,6 +40,7 @@ function who(event: { side: 'player' | 'enemy', name: string }, ctx: MessageCont
 export function describeEvent(event: BattleEvent, ctx: MessageContext = {}): string | null {
   switch (event.type) {
     case 'send-out':
+      if (ctx.names) return `${ctx.names[event.side]} skickade ut ${event.name}!`
       if (event.side === 'player') return `Kom igen, ${event.name}!`
       return ctx.kind !== 'wild' ? `Motståndaren skickade ut ${event.name}!` : `En vild ${event.name} dök upp!`
     case 'move-used':
