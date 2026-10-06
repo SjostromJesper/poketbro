@@ -1,0 +1,3 @@
+[build.environment]
+  # The Supabase URL and publishable (anon) key are meant to ship to the browser.
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_KEY"
